@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Improvement Map - Suggestion Test Form</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --border: #334155;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 680px;
+      background: var(--card-bg);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--primary);
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: var(--text);
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--primary);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .row {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .row .form-group {
+      flex: 1;
+    }
+
+    fieldset {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.2rem;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    legend {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--primary);
+      padding: 0 0.4rem;
+    }
+
+    .photo-preview-container {
+      margin-top: 0.75rem;
+      display: none;
+    }
+
+    .photo-preview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      object-fit: cover;
+    }
+
+    .file-info {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+
+    button {
+      width: 100%;
+      background: var(--primary);
+      color: #0f172a;
+      border: none;
+      padding: 0.85rem;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #statusMessage {
+      margin-top: 1.2rem;
+      padding: 0.8rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      display: none;
+      word-break: break-word;
+    }
+
+    #statusMessage.success {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid var(--success);
+      color: #86efac;
+      display: block;
+    }
+
+    #statusMessage.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--error);
+      color: #fca5a5;
+      display: block;
+    }
+
+    pre {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.8rem;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      margin-top: 0.5rem;
+      max-height: 250px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Civic Suggestion Tester</h1>
+    <p class="subtitle">Test creating suggestions with resized image uploads to GCS and Firestore API.</p>
+
+    <form id="suggestionForm">
+      <div class="row">
+        <div class="form-group">
+          <label for="authorName">Author Name</label>
+          <input type="text" id="authorName" value="Alex Rivera" required>
+        </div>
+        <div class="form-group">
+          <label for="authorEmail">Author Email</label>
+          <input type="email" id="authorEmail" value="alex@dallasurbanists.org" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="summary">Summary</label>
+        <input type="text" id="summary" placeholder="e.g., Add protected bike lane along Elm Street" required>
+      </div>
+
+      <div class="form-group">
+        <label for="details">Details</label>
+        <textarea id="details" placeholder="Describe the improvement and community benefits..."></textarea>
+      </div>
+
+      <fieldset>
+        <legend>Location (Optional)</legend>
+        <div class="row">
+          <div class="form-group">
+            <label for="latitude">Latitude</label>
+            <input type="text" id="latitude" placeholder="32.78014">
+          </div>
+          <div class="form-group">
+            <label for="longitude">Longitude</label>
+            <input type="text" id="longitude" placeholder="-96.79701">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="address">Address / Corridor</label>
+          <input type="text" id="address" placeholder="1500 Elm St, Dallas, TX">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Photo Attachment (Optional - Client-side Resized)</legend>
+        <div class="form-group">
+          <label for="photoFile">Select Image (Auto-resized to max 1920x1080 WebP)</label>
+          <input type="file" id="photoFile" accept="image/*">
+          <div id="fileInfo" class="file-info"></div>
+        </div>
+
+        <div id="previewContainer" class="photo-preview-container">
+          <img id="photoPreview" class="photo-preview" alt="Preview">
+        </div>
+
+        <div class="form-group" style="margin-top: 0.75rem;">
+          <label for="photoCaption">Photo Caption</label>
+          <input type="text" id="photoCaption" placeholder="e.g. Current sidewalk obstruction">
+        </div>
+      </fieldset>
+
+      <button type="submit" id="submitBtn">Submit Suggestion</button>
+    </form>
+
+    <div id="statusMessage"></div>
+    <div id="responseContainer" style="display: none; margin-top: 1rem;">
+      <label>API Response:</label>
+      <pre id="responseJson"></pre>
+    </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>
