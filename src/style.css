@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-st-navy: #0c2340;
+    --color-st-blue: #488BE3;
+    --color-st-yellow: #ffa800;
+    --color-st-sidewalk: #f5f3ee;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply transition-colors duration-200 antialiased font-sans;
+  }
+
+  /* Dark mode root styles */
+  html.dark body {
+    @apply bg-dark-bg text-slate-100;
+  }
+
+  /* Light mode root styles */
+  html.light body {
+    @apply bg-st-sidewalk text-st-navy;
+  }
+
+  h1, h2, h3, .font-serif-heading {
+    @apply font-serif tracking-tight;
+  }
+}
+
+@layer components {
+  /* Strong Towns Button styles */
+  .btn-st-primary {
+    @apply inline-flex items-center justify-center font-bold px-5 py-3 rounded-xl bg-st-yellow text-st-navy hover:bg-amber-400 active:scale-[0.98] transition shadow-md touch-manipulation focus:outline-none focus:ring-4 focus:ring-st-yellow/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  .btn-st-secondary {
+    @apply inline-flex items-center justify-center font-semibold px-4 py-2.5 rounded-xl bg-st-blue text-white hover:bg-blue-600 active:scale-[0.98] transition shadow-sm touch-manipulation focus:outline-none focus:ring-4 focus:ring-st-blue/30 disabled:opacity-50;
+  }
+
+  .btn-st-outline {
+    @apply inline-flex items-center justify-center font-semibold px-4 py-2.5 rounded-xl border-2 border-st-blue text-st-blue hover:bg-st-blue hover:text-white dark:border-st-blue dark:text-blue-300 dark:hover:bg-st-blue dark:hover:text-white active:scale-[0.98] transition touch-manipulation disabled:opacity-50;
+  }
+
+  .btn-st-ghost {
+    @apply inline-flex items-center justify-center font-semibold px-3 py-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800/80 transition active:scale-[0.98] touch-manipulation;
+  }
+
+  /* Card and Panel containers */
+  .st-card {
+    @apply bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6 shadow-lg transition duration-200 dark:bg-dark-card dark:border-dark-border;
+  }
+
+  html.light .st-card {
+    @apply bg-white border-st-sidewalk-300 shadow-md text-st-navy;
+  }
+
+  /* Form Inputs */
+  .st-input {
+    @apply w-full px-4 py-3.5 rounded-xl bg-slate-900/80 border border-slate-700 text-slate-100 placeholder-slate-400 focus:outline-none focus:border-st-yellow focus:ring-2 focus:ring-st-yellow/30 transition text-base;
+  }
+
+  html.light .st-input {
+    @apply bg-white border-slate-300 text-st-navy placeholder-slate-500 focus:border-st-blue focus:ring-st-blue/30;
+  }
+
+  /* Touch minimum target size (44px) */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700/60 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-600;
+}
+
+/* Map popup styling overrides */
+.custom-map-popup {
+  font-family: 'Inter', sans-serif;
+}

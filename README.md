@@ -1,91 +1,84 @@
-# Dallas Urbanists Improvement Map
+# Strong Towns Improvement Map
 
-A lightweight, zero-dependency client application for submitting civic improvement suggestions and uploading on-site photos directly to the Dallas Urbanists Cloud API.
+A touch-friendly, mobile-first **Progressive Web App (PWA)** built for pedestrians, cyclists, and transit users to submit on-the-ground civic improvement suggestions and explore existing community feedback.
 
 Hosted on **GitHub Pages**: [https://dallasurbanists.github.io/improvement-map/](https://dallasurbanists.github.io/improvement-map/)
 
 ---
 
-## 🌟 Features
+## 🌟 Tech Stack & Architecture
 
-- **Civic Improvement Suggestions**: Submit ideas, infrastructure issues, and public space improvement proposals with author details, summaries, markdown descriptions, and geographic coordinates.
-- **Client-Side Photo Optimization**:
-  - Automatically resizes selected images via HTML5 Canvas to a maximum resolution of $1920 \times 1080$.
-  - Converts images to optimized **WebP** format to keep upload payload sizes minimal and loading speeds fast.
-- **Secure Direct-to-GCS Upload**:
-  - Requests short-lived **V4 Signed URLs** from the API server.
-  - Uploads photo binary payloads directly from the browser to Google Cloud Storage (GCS), bypassing API server memory bottlenecks.
-- **Dynamic API Environment Detection**:
-  - Automatically connects to `http://localhost:8080` when tested locally (`localhost` / `127.0.0.1`).
-  - Seamlessly switches to the live Google Cloud Run API server in production.
-- **Zero Build Step**: Built with vanilla HTML5, CSS3, and modern JavaScript—runs natively in any modern web browser.
+- **Framework**: [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`) + [Vue Router 4](https://router.vuejs.org/)
+- **Bundler & PWA Engine**: [Vite](https://vitejs.dev/) + `vite-plugin-pwa` (Workbox Service Worker caching)
+- **Styling & Design System**: [Tailwind CSS](https://tailwindcss.com/) adhering to the [Strong Towns Brand Guidelines](https://www.strongtowns.org/resources/brand) (Dark Blue `#0c2340`, Light Blue `#488BE3`, Yellow `#ffa800`, Sidewalk `#f5f3ee`, Inter & DM Serif Display typefaces)
+- **Theme**: High-contrast Dark Mode (default) with persistent Light Mode toggle
+- **Geospatial & Distance Sorting**: [Turf.js](https://turfjs.org/) (`@turf/turf`) for high-precision spherical distance calculation between user coordinates and suggestions
+- **Maps & Geocoding**: Interactive OpenStreetMap / Google Maps integration + [Nominatim API](https://nominatim.org/) address search autocomplete with client-side caching and reverse geocoding
+- **Iconography**: [FontAwesome 6](https://fontawesome.com/)
+- **Testing**: [Playwright](https://playwright.dev/) automated end-to-end regression test suite
+- **Backend API**: [Dallas Urbanists Cloud API](http://api.dallasurbanists.org/swagger) (Cloud Run + Express + Firestore `public-improvements` database)
 
 ---
 
-## 🏗️ Architecture & Upload Flow
+## 📱 Core Pages & User Experience
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Contributor
-    participant Client as Improvement Map (GitHub Pages)
-    participant API as Cloud Run API Server
-    participant GCS as Google Cloud Storage
-    participant DB as Firestore (public-improvements)
+### 1. Home Page (`/`)
+- **Live Activity Log**: Displays the most recent civic suggestions submitted by advocates.
+- **30-Second Polling**: Automatically refreshes in near real-time as new submissions are posted.
+- **Strong Towns Hero Banner**: Quick CTAs to jump directly to submission or browse map.
 
-    User->>Client: 1. Fill suggestion details & select photo
-    Note over Client: Resize photo (<1080p WebP) via Canvas
-    Client->>API: 2. POST /suggestions/upload-url { contentType: "image/webp" }
-    API->>GCS: Generate V4 Signed PUT URL
-    API-->>Client: Return { uploadUrl, publicUrl }
-    Client->>GCS: 3. Direct HTTP PUT binary image
-    GCS-->>Client: 200 OK
-    Client->>API: 4. POST /suggestions { author, content: { summary, photos: [{ url, caption, timestamp }] } }
-    API->>DB: 5. Persist record to Firestore
-    API-->>Client: 201 Created (JSON Response)
-    Client-->>User: Display confirmation & API output
-```
+### 2. Submit Page (`/submit`)
+A wizard-style multi-step form with persistent `localStorage` draft saving:
+- **Step 1: Describe** — Required Summary and Details/Impact fields with validation.
+- **Step 2: Locate** — Full viewport map with address search autocomplete (Nominatim), GPS recenter button, tap/drag to pin, and optional "Describe location" modal.
+- **Step 3: Photo** — Client-side HTML5 Canvas resizing to WebP format, support for device photo library and camera capture for up to 10 photos with optional captions.
+- **Step 4: Review & Submit** — Detailed summary with subheadings and "Edit" links for each step, author name & email validation, and direct-to-cloud submission.
+- **Submission in Progress State** — Full-screen modal replacing navbar, beforeunload prevention, animated progress bar, dynamic status text, and green checkmark / error handling states.
+
+### 3. Browse Page (`/browse`)
+- **Map View**: Full viewport map with custom markers for all suggestions, search bar overlay with address autocomplete, and popups containing summary, photo thumbnail, and "View suggestion" link.
+- **List View**: Suggestion cards sorted by distance from user's current GPS location (closest first via Turf.js) or newest first if GPS permission is pending.
+
+### 4. View Submission Page (`/suggestion/:id`)
+- Displays full submission details, author name, timestamp, location with Google Maps deep-link, and lightbox photo gallery.
 
 ---
 
-## 🛠️ Tech Stack
+## ⚡ Performance & Caching Optimizations
 
-- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Image Processing**: HTML5 Canvas API (`toBlob` + WebP compression)
-- **Hosting**: GitHub Pages
-- **Backend Service**: [Dallas Urbanists Cloud API Server](https://github.com/dallasurbanists/urbanists-cloud-api-server) (Google Cloud Run + Express.js + Firestore)
-- **Object Storage**: Google Cloud Storage (`gs://urbanists-suggestion-photos`)
+- **PWA Service Worker**: Static asset precaching and runtime caching for OpenStreetMap tiles, Google Fonts, and Nominatim responses.
+- **API Client Caching**: In-memory caching with 25s TTL for suggestions to minimize redundant network I/O.
+- **Client-Side Image Compression**: Automatic canvas compression to max $1920 \times 1080$ WebP before direct upload to Google Cloud Storage via signed PUT URLs.
 
 ---
 
-## 🚀 Local Development
+## 🚀 Local Development & Testing
 
-No build tools, bundlers, or package installations are required.
-
-### 1. Clone the repository
+### 1. Install Dependencies
 ```bash
-git clone https://github.com/dallasurbanists/improvement-map.git
-cd improvement-map
+npm install
 ```
 
-### 2. Start a local web server
-You can use any static file server:
-
+### 2. Start Development Server
 ```bash
-# Using Python
-python -m http.server 3000
-
-# Using Node.js npx serve
-npx serve .
-
-# Or using VS Code Live Server extension
+npm run dev
 ```
+Open `http://localhost:3000` in your browser.
 
-### 3. Open in Browser
-Navigate to `http://localhost:3000` in your web browser.
+### 3. Production Build
+```bash
+npm run build
+```
+Generates production PWA files in the `dist/` directory.
 
-> 💡 **Note on Local API Testing**:
-> If you are running the backend locally on `http://localhost:8080`, ensure the server is started with `npm run dev` in the `urbanists-cloud-api-server` directory.
+### 4. Run Automated Playwright Tests
+```bash
+# Run regression tests across Desktop and Mobile viewports
+npm test
+
+# Run tests in UI mode
+npx playwright test --ui
+```
 
 ---
 
@@ -93,8 +86,10 @@ Navigate to `http://localhost:3000` in your web browser.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/public-improvements/suggestions/upload-url` | Obtains a pre-authorized V4 Signed PUT URL for direct photo upload to GCS. |
-| `POST` | `/api/public-improvements/suggestions` | Creates a new suggestion document with metadata, location, and photos array. |
+| `GET` | `/api/public-improvements/suggestions` | Retrieves public civic improvement suggestions. |
+| `GET` | `/api/public-improvements/suggestions/:id` | Retrieves a single suggestion record by ID. |
+| `POST` | `/api/public-improvements/suggestions/upload-url` | Generates a V4 Signed PUT URL for direct photo uploads. |
+| `POST` | `/api/public-improvements/suggestions` | Creates a new civic suggestion in Firestore. |
 
 ---
 
