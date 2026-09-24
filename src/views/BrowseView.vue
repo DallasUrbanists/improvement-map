@@ -6,7 +6,7 @@
       <div class="flex items-center bg-slate-900 dark:bg-slate-900 light:bg-slate-200 p-1 rounded-xl border border-slate-700/60 dark:border-slate-700/60 light:border-slate-300">
         <button
           type="button"
-          @click="activeTab = 'map'"
+          @click="setTab('map')"
           class="touch-target px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all"
           :class="activeTab === 'map' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white'"
         >
@@ -16,7 +16,7 @@
 
         <button
           type="button"
-          @click="activeTab = 'list'"
+          @click="setTab('list')"
           class="touch-target px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all"
           :class="activeTab === 'list' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white'"
         >
@@ -57,9 +57,9 @@
       </div>
     </header>
 
-    <!-- TAB 1: MAP VIEW -->
+    <!-- TAB 1: MAP VIEW (Google Maps SDK) -->
     <div v-show="activeTab === 'map'" class="relative flex-1 w-full h-full bg-slate-900 overflow-hidden">
-      <!-- Search Address Overlay with Autocomplete -->
+      <!-- Search Address Overlay with Autocomplete (Google Places / Geocoder) -->
       <div class="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-30 flex flex-col">
         <div class="relative flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 dark:border-slate-700 light:border-slate-300 shadow-xl">
           <span class="pl-3 pr-2 text-slate-400">
@@ -103,70 +103,77 @@
         </div>
       </div>
 
-      <!-- Map Canvas Container (Full Viewport) -->
-      <div
-        ref="browseMapContainer"
-        class="relative w-full h-full touch-none select-none cursor-grab active:cursor-grabbing overflow-hidden"
-        @mousedown="startPan"
-        @mousemove="doPan"
-        @mouseup="endPan"
-        @mouseleave="endPan"
-        @touchstart="startTouchPan"
-        @touchmove="doTouchPan"
-        @touchend="endTouchPan"
-      >
-        <!-- Dynamic Map Tiles -->
-        <div class="absolute inset-0 transition-transform duration-75 origin-center" :style="mapTransformStyle">
-          <div class="grid grid-cols-3 grid-rows-3 w-[300%] h-[300%] -top-[100%] -left-[100%] absolute pointer-events-none">
-            <div
-              v-for="tile in visibleTiles"
-              :key="tile.key"
-              class="w-full h-full bg-slate-900 border border-slate-800/40 relative overflow-hidden"
-            >
-              <img
-                :src="tile.url"
-                class="w-full h-full object-cover select-none pointer-events-none opacity-90 dark:invert dark:hue-rotate-180 dark:brightness-90 dark:contrast-125"
-                alt=""
-                loading="lazy"
-              />
-            </div>
+      <!-- Basemap Switcher (Streets / Satellite) -->
+      <div class="absolute top-3 right-3 z-30 flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-lg p-1">
+        <button
+          type="button"
+          @click="setMapType('roadmap')"
+          class="px-2.5 py-1 text-xs font-bold rounded-lg transition-colors"
+          :class="currentMapType === 'roadmap' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 hover:text-white'"
+        >
+          <i class="fa-solid fa-road mr-1"></i>
+          Streets
+        </button>
+        <button
+          type="button"
+          @click="setMapType('hybrid')"
+          class="px-2.5 py-1 text-xs font-bold rounded-lg transition-colors"
+          :class="currentMapType === 'hybrid' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 hover:text-white'"
+        >
+          <i class="fa-solid fa-earth-americas mr-1"></i>
+          Satellite
+        </button>
+      </div>
+
+      <!-- Google Map Target Container Wrapper -->
+      <div class="relative w-full h-full min-h-[400px] bg-slate-900 overflow-hidden">
+        <!-- Dedicated Google Map Canvas Container -->
+        <div
+          ref="browseMapContainerEl"
+          class="w-full h-full min-h-[400px] bg-slate-900"
+          style="width: 100%; height: 100%; min-height: 100%;"
+        ></div>
+
+        <!-- Missing API Key or Auth Error Notice -->
+        <div
+          v-if="!hasGoogleMapsKey || googleMapsAuthError"
+          class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/95 text-slate-300 z-20 backdrop-blur-sm"
+        >
+          <i class="fa-solid fa-triangle-exclamation text-3xl text-st-yellow mb-3"></i>
+          <h4 class="text-base font-bold text-white mb-1">Google Maps Setup Required</h4>
+          <p class="text-xs text-slate-300 max-w-sm mb-4 leading-relaxed">
+            {{ googleMapsAuthError || 'Set VITE_GOOGLE_MAPS_API_KEY in your .env file and restart Vite (npm run dev).' }}
+          </p>
+          <div class="text-[11px] text-slate-400 bg-slate-800/80 p-3 rounded-xl border border-slate-700 text-left max-w-sm mb-4">
+            <div class="font-semibold text-st-yellow mb-1">Required in Google Cloud Console:</div>
+            <ul class="list-disc list-inside space-y-0.5">
+              <li><strong>Maps JavaScript API</strong> enabled</li>
+              <li><strong>Places API</strong> enabled</li>
+              <li><strong>Geocoding API</strong> enabled</li>
+              <li>Billing account linked to GCP project</li>
+            </ul>
           </div>
+          <button
+            type="button"
+            @click="setTab('list')"
+            class="btn-st-primary text-xs px-4 py-2"
+          >
+            <i class="fa-solid fa-list-ul mr-1.5"></i>
+            Open List Mode
+          </button>
         </div>
 
-        <!-- Suggestion Markers Placed Everywhere -->
+        <!-- Loading indicator while SDK initializes -->
         <div
-          v-for="item in markerPositions"
-          :key="item.id"
-          class="absolute transform -translate-x-1/2 -translate-y-full cursor-pointer z-20 group transition-transform"
-          :style="{ left: `${item.pixelX}px`, top: `${item.pixelY}px` }"
-          @click.stop="openPopup(item.suggestion)"
+          v-else-if="!isMapReady"
+          class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 z-10"
         >
-          <div class="flex flex-col items-center hover:scale-110 active:scale-95 transition-transform duration-150">
-            <!-- Pin Badge -->
-            <div
-              class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-xl border-2"
-              :class="selectedMarker?.id === item.id ? 'bg-amber-400 text-st-navy border-white ring-4 ring-st-yellow/50 scale-110' : 'bg-st-yellow text-st-navy border-st-navy'"
-            >
-              <i class="fa-solid fa-map-pin"></i>
-            </div>
-            <div class="w-2 h-2 bg-st-navy rotate-45 -mt-1 border-r border-b border-st-yellow"></div>
-          </div>
-        </div>
-
-        <!-- User GPS Location Marker (if available) -->
-        <div
-          v-if="userMarkerPosition"
-          class="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20"
-          :style="{ left: `${userMarkerPosition.pixelX}px`, top: `${userMarkerPosition.pixelY}px` }"
-        >
-          <div class="relative flex items-center justify-center">
-            <div class="w-8 h-8 rounded-full bg-st-blue/30 animate-ping absolute"></div>
-            <div class="w-4 h-4 rounded-full bg-st-blue border-2 border-white shadow-lg"></div>
-          </div>
+          <i class="fa-solid fa-spinner animate-spin text-2xl text-st-yellow mb-2"></i>
+          <span class="text-xs font-semibold">Loading Map...</span>
         </div>
       </div>
 
-      <!-- Map Zoom and Recenter Controls Overlay -->
+      <!-- Map Recenter Controls Overlay -->
       <div class="absolute bottom-6 right-4 z-30 flex flex-col gap-2">
         <button
           type="button"
@@ -177,25 +184,6 @@
         >
           <i class="fa-solid fa-crosshairs text-lg" :class="{ 'animate-spin': isLocating }"></i>
         </button>
-
-        <div class="flex flex-col rounded-xl overflow-hidden border border-slate-700 shadow-xl bg-st-navy/90 backdrop-blur-md">
-          <button
-            type="button"
-            @click="zoomIn"
-            class="touch-target w-11 h-10 hover:bg-st-navy text-slate-100 flex items-center justify-center border-b border-slate-700 active:bg-slate-800"
-            aria-label="Zoom in"
-          >
-            <i class="fa-solid fa-plus text-sm"></i>
-          </button>
-          <button
-            type="button"
-            @click="zoomOut"
-            class="touch-target w-11 h-10 hover:bg-st-navy text-slate-100 flex items-center justify-center active:bg-slate-800"
-            aria-label="Zoom out"
-          >
-            <i class="fa-solid fa-minus text-sm"></i>
-          </button>
-        </div>
       </div>
 
       <!-- Marker Popup Modal / Card Bottom Overlay -->
@@ -245,7 +233,7 @@
               :to="`/suggestion/${selectedMarker.id}`"
               class="btn-st-primary text-xs py-1.5 px-3 rounded-lg shadow-none"
             >
-              <span>View Suggestion</span>
+              <span>View suggestion</span>
               <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
             </router-link>
           </div>
@@ -358,10 +346,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { isDark } from '../services/theme';
 import { getSuggestions } from '../services/api';
 import { sortSuggestionsByDistance } from '../services/geo';
-import { searchAddress } from '../services/nominatim';
+import {
+  loadGoogleMaps,
+  hasGoogleMapsKey,
+  googleMapsAuthError,
+  searchAddressWithGoogle,
+  resolveGooglePlace,
+  getMapStyles,
+  updateMapTheme,
+} from '../services/googleMaps';
 
 const activeTab = ref('map'); // 'map' | 'list'
 const suggestions = ref([]);
@@ -369,110 +366,147 @@ const isLoading = ref(false);
 const userLocation = ref(null); // { lat, lng }
 const isLocating = ref(false);
 const selectedMarker = ref(null);
+const currentMapType = ref('roadmap');
 
-// Map view pan/zoom state
-const centerLat = ref(32.7767);
-const centerLng = ref(-96.7970);
-const zoom = ref(13);
-const offsetX = ref(0);
-const offsetY = ref(0);
-const isDragging = ref(false);
-const startX = ref(0);
-const startY = ref(0);
-const browseMapContainer = ref(null);
+// Map DOM & State
+const browseMapContainerEl = ref(null);
+const isMapReady = ref(false);
+let map = null;
+let googleMaps = null;
+let markersArray = [];
+let userLocationMarker = null;
 
-// Address search
+// Address search state
 const mapSearchQuery = ref('');
 const mapSearchResults = ref([]);
 const isSearching = ref(false);
 let searchDebounce = null;
-
-// Tile computation
-function lon2tile(lon, z) {
-  return Math.floor(((lon + 180) / 360) * Math.pow(2, z));
-}
-function lat2tile(lat, z) {
-  return Math.floor(
-    ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) *
-      Math.pow(2, z)
-  );
-}
-
-const visibleTiles = computed(() => {
-  const z = Math.min(18, Math.max(2, Math.round(zoom.value)));
-  const x = lon2tile(centerLng.value, z);
-  const y = lat2tile(centerLat.value, z);
-
-  const tiles = [];
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const curX = x + dx;
-      const curY = y + dy;
-      tiles.push({
-        key: `${z}/${curX}/${curY}`,
-        url: `https://tile.openstreetmap.org/${z}/${curX}/${curY}.png`
-      });
-    }
-  }
-  return tiles;
-});
-
-const mapTransformStyle = computed(() => ({
-  transform: `translate(${offsetX.value}px, ${offsetY.value}px)`
-}));
-
-// Project lat/lon to container pixels relative to center
-function coordToPixel(lat, lon) {
-  const container = browseMapContainer.value;
-  const width = container ? container.clientWidth : 800;
-  const height = container ? container.clientHeight : 600;
-
-  const scale = Math.pow(2, zoom.value);
-  const worldX = ((lon + 180) / 360) * 256 * scale;
-  const sinY = Math.sin((lat * Math.PI) / 180);
-  const worldY = (0.5 - Math.log((1 + sinY) / (1 - sinY)) / (4 * Math.PI)) * 256 * scale;
-
-  const centerWorldX = ((centerLng.value + 180) / 360) * 256 * scale;
-  const centerSinY = Math.sin((centerLat.value * Math.PI) / 180);
-  const centerWorldY = (0.5 - Math.log((1 + centerSinY) / (1 - centerSinY)) / (4 * Math.PI)) * 256 * scale;
-
-  const pixelX = width / 2 + (worldX - centerWorldX) + offsetX.value;
-  const pixelY = height / 2 + (worldY - centerWorldY) + offsetY.value;
-
-  return { pixelX, pixelY };
-}
-
-const markerPositions = computed(() => {
-  return suggestions.value
-    .filter(s => s.location && s.location.latitude && s.location.longitude)
-    .map(s => {
-      const { pixelX, pixelY } = coordToPixel(s.location.latitude, s.location.longitude);
-      return {
-        id: s.id,
-        suggestion: s,
-        pixelX,
-        pixelY
-      };
-    });
-});
-
-const userMarkerPosition = computed(() => {
-  if (!userLocation.value) return null;
-  return coordToPixel(userLocation.value.lat, userLocation.value.lng);
-});
 
 // Sorted suggestions for List View
 const sortedListSuggestions = computed(() => {
   if (userLocation.value) {
     return sortSuggestionsByDistance(suggestions.value, userLocation.value.lat, userLocation.value.lng);
   }
-  // Sort by timestamp newest first
   return [...suggestions.value].sort((a, b) => {
     const timeA = new Date(a.createdAt || a.timestamp || 0).getTime();
     const timeB = new Date(b.createdAt || b.timestamp || 0).getTime();
     return timeB - timeA;
   });
 });
+
+function setTab(tab) {
+  activeTab.value = tab;
+  if (tab === 'map' && map && googleMaps) {
+    setTimeout(() => {
+      googleMaps.event?.trigger(map, 'resize');
+    }, 100);
+  }
+}
+
+function setMapType(type) {
+  currentMapType.value = type;
+  if (!map || !googleMaps) return;
+  if (type === 'hybrid') {
+    map.setMapTypeId(googleMaps.MapTypeId.HYBRID);
+    map.setOptions({ styles: [] });
+  } else {
+    map.setMapTypeId(googleMaps.MapTypeId.ROADMAP);
+    map.setOptions({ styles: getMapStyles(isDark.value, 'roadmap') });
+  }
+}
+
+// Watch theme changes to update Streets basemap styling dynamically
+watch(isDark, (darkMode) => {
+  if (!map || !googleMaps) return;
+  updateMapTheme(map, darkMode, currentMapType.value);
+});
+
+async function initGoogleMap() {
+  try {
+    googleMaps = await loadGoogleMaps();
+    if (!browseMapContainerEl.value || !googleMaps) return;
+
+    const initialCenter = userLocation.value
+      ? { lat: userLocation.value.lat, lng: userLocation.value.lng }
+      : { lat: 32.7767, lng: -96.7970 };
+
+    // Default Streets view (ROADMAP) with dark/night basemap in dark mode and light/day basemap in light mode
+    map = new googleMaps.Map(browseMapContainerEl.value, {
+      center: initialCenter,
+      zoom: 13,
+      mapTypeId: googleMaps.MapTypeId.ROADMAP,
+      styles: getMapStyles(isDark.value, currentMapType.value),
+      disableDefaultUI: true,
+      zoomControl: true,
+      gestureHandling: 'greedy',
+    });
+
+    isMapReady.value = true;
+    renderSuggestionMarkers();
+
+    nextTick(() => {
+      if (map && googleMaps) {
+        googleMaps.event?.trigger(map, 'resize');
+        map.setCenter(initialCenter);
+      }
+    });
+    setTimeout(() => {
+      if (map && googleMaps) {
+        googleMaps.event?.trigger(map, 'resize');
+        map.setCenter(initialCenter);
+      }
+    }, 250);
+  } catch (err) {
+    console.warn('Google Maps BrowseView init warning:', err);
+    isMapReady.value = true;
+  }
+}
+
+function renderSuggestionMarkers() {
+  if (!map || !googleMaps) return;
+
+  // Clear existing markers
+  markersArray.forEach((m) => m.setMap(null));
+  markersArray = [];
+
+  // Add Google Maps markers for each suggestion
+  suggestions.value.forEach((s) => {
+    const lat = s.location?.latitude ?? s.latitude;
+    const lng = s.location?.longitude ?? s.longitude;
+    if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
+      const gMarker = new googleMaps.Marker({
+        position: { lat: Number(lat), lng: Number(lng) },
+        map,
+        title: s.content?.summary || 'Suggestion',
+        animation: googleMaps.Animation?.DROP,
+      });
+
+      gMarker.addListener('click', () => {
+        openPopup(s);
+      });
+
+      markersArray.push(gMarker);
+    }
+  });
+
+  // Render user location marker if available
+  if (userLocation.value) {
+    if (userLocationMarker) userLocationMarker.setMap(null);
+    userLocationMarker = new googleMaps.Marker({
+      position: { lat: userLocation.value.lat, lng: userLocation.value.lng },
+      map,
+      title: 'Your Location',
+      icon: {
+        path: googleMaps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: '#488BE3',
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 2,
+      },
+    });
+  }
+}
 
 function getPrimaryPhoto(item) {
   const photos = item.content?.photos || item.photos || [];
@@ -492,61 +526,11 @@ function openPopup(suggestion) {
   selectedMarker.value = suggestion;
 }
 
-// Map gestures
-function startPan(e) {
-  isDragging.value = true;
-  startX.value = e.clientX - offsetX.value;
-  startY.value = e.clientY - offsetY.value;
-}
-function doPan(e) {
-  if (!isDragging.value) return;
-  offsetX.value = e.clientX - startX.value;
-  offsetY.value = e.clientY - startY.value;
-}
-function endPan() {
-  if (!isDragging.value) return;
-  isDragging.value = false;
-  commitPan();
-}
-
-function startTouchPan(e) {
-  if (e.touches.length === 1) {
-    isDragging.value = true;
-    startX.value = e.touches[0].clientX - offsetX.value;
-    startY.value = e.touches[0].clientY - offsetY.value;
-  }
-}
-function doTouchPan(e) {
-  if (!isDragging.value || e.touches.length !== 1) return;
-  offsetX.value = e.touches[0].clientX - startX.value;
-  offsetY.value = e.touches[0].clientY - startY.value;
-}
-function endTouchPan() {
-  if (!isDragging.value) return;
-  isDragging.value = false;
-  commitPan();
-}
-
-function commitPan() {
-  const scale = Math.pow(2, zoom.value);
-  centerLng.value += (-offsetX.value / (256 * scale)) * 360;
-  centerLat.value += (offsetY.value / (256 * scale)) * 170;
-  offsetX.value = 0;
-  offsetY.value = 0;
-}
-
-function zoomIn() {
-  if (zoom.value < 18) zoom.value++;
-}
-function zoomOut() {
-  if (zoom.value > 5) zoom.value--;
-}
-
-// Search handling
+// Search handling with Google Maps Autocomplete / Geocoder
 function onMapSearchInput() {
   if (searchDebounce) clearTimeout(searchDebounce);
   const q = mapSearchQuery.value.trim();
-  if (q.length < 3) {
+  if (q.length < 2) {
     mapSearchResults.value = [];
     isSearching.value = false;
     return;
@@ -554,19 +538,30 @@ function onMapSearchInput() {
 
   isSearching.value = true;
   searchDebounce = setTimeout(async () => {
-    mapSearchResults.value = await searchAddress(q, 5);
+    mapSearchResults.value = await searchAddressWithGoogle(q);
     isSearching.value = false;
   }, 350);
 }
 
-function selectMapSearchResult(item) {
-  centerLat.value = item.latitude;
-  centerLng.value = item.longitude;
-  zoom.value = 15;
-  offsetX.value = 0;
-  offsetY.value = 0;
+async function selectMapSearchResult(item) {
   mapSearchQuery.value = item.displayName;
   mapSearchResults.value = [];
+
+  let lat = item.latitude;
+  let lng = item.longitude;
+
+  if (lat === undefined || lng === undefined) {
+    const resolved = await resolveGooglePlace(item.placeId || item.displayName);
+    if (resolved) {
+      lat = resolved.latitude;
+      lng = resolved.longitude;
+    }
+  }
+
+  if (lat !== undefined && lng !== undefined && map) {
+    map.setCenter({ lat, lng });
+    map.setZoom(15);
+  }
 }
 
 // Geolocation
@@ -579,11 +574,12 @@ function requestGps() {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       userLocation.value = { lat, lng };
-      centerLat.value = lat;
-      centerLng.value = lng;
-      zoom.value = 14;
-      offsetX.value = 0;
-      offsetY.value = 0;
+
+      if (map) {
+        map.setCenter({ lat, lng });
+        map.setZoom(14);
+        renderSuggestionMarkers();
+      }
     },
     (err) => {
       isLocating.value = false;
@@ -597,15 +593,23 @@ async function refreshData() {
   isLoading.value = true;
   try {
     suggestions.value = await getSuggestions(true);
+    renderSuggestionMarkers();
   } finally {
     isLoading.value = false;
   }
 }
 
+watch(
+  () => suggestions.value,
+  () => {
+    renderSuggestionMarkers();
+  },
+  { deep: true }
+);
+
 onMounted(async () => {
-  // Request GPS on load as specified
   requestGps();
-  // Fetch suggestions
   suggestions.value = await getSuggestions(false);
+  initGoogleMap();
 });
 </script>

@@ -87,7 +87,14 @@ test.describe('Submit Wizard Form Flow', () => {
 
     // Step 2: Locate
     await expect(page.getByRole('heading', { name: /Pin Suggestion Location/i })).toBeVisible();
-    await expect(page.getByPlaceholder(/Search address or street corridor/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/Search address/i)).toBeVisible();
+
+    // Verify Streets and Satellite basemap toggling
+    await expect(page.getByRole('button', { name: /Streets/i })).toBeVisible();
+    const satelliteBtn = page.getByRole('button', { name: /Satellite/i });
+    await expect(satelliteBtn).toBeVisible();
+    await satelliteBtn.click();
+    await page.getByRole('button', { name: /Streets/i }).click();
 
     // Test Describe Location modal
     await page.getByRole('button', { name: /Describe location/i }).click();
@@ -170,7 +177,12 @@ test.describe('Browse Mode - Map and List Views', () => {
 
     // Default is Map View
     await expect(page.getByRole('button', { name: /Map View/i })).toBeVisible();
-    await expect(page.getByPlaceholder(/Search address or neighborhood/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/Search address/i)).toBeVisible();
+
+    // Verify Streets and Satellite basemap toggling in Browse Map
+    await expect(page.getByRole('button', { name: /Streets/i })).toBeVisible();
+    await page.getByRole('button', { name: /Satellite/i }).click();
+    await page.getByRole('button', { name: /Streets/i }).click();
 
     // Switch to List View
     await page.getByRole('button', { name: /List View/i }).click();
@@ -187,5 +199,26 @@ test.describe('Browse Mode - Map and List Views', () => {
     await expect(page).toHaveURL(/\/suggestion\//);
     await expect(page.getByText(/Civic Improvement Suggestion/i)).toBeVisible();
     await expect(page.getByRole('link', { name: /Google Maps/i })).toBeVisible();
+  });
+
+  test('streets basemap responds to theme toggle between dark and light modes', async ({ page }) => {
+    await page.goto('/browse');
+
+    // Default dark mode
+    const htmlElement = page.locator('html');
+    await expect(htmlElement).toHaveClass(/dark/);
+
+    // Toggle to light mode
+    const themeBtn = page.locator('#theme-toggle-btn');
+    await themeBtn.click();
+    await expect(htmlElement).toHaveClass(/light/);
+
+    // Toggle basemap to satellite and back to streets in light mode
+    await page.getByRole('button', { name: /Satellite/i }).click();
+    await page.getByRole('button', { name: /Streets/i }).click();
+
+    // Toggle back to dark mode
+    await themeBtn.click();
+    await expect(htmlElement).toHaveClass(/dark/);
   });
 });

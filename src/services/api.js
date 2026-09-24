@@ -210,9 +210,14 @@ export async function getSuggestionById(id) {
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
     const response = await fetch(`${API_BASE_URL}/api/public-improvements/suggestions/${encodeURIComponent(id)}`, {
-      headers: { 'Accept': 'application/json' }
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Suggestion not found (HTTP ${response.status})`);
@@ -226,7 +231,15 @@ export async function getSuggestionById(id) {
     console.warn(`Error fetching suggestion ${id}, checking cached pool:`, error.message);
     const pool = await getSuggestions(false);
     const found = pool.find(item => String(item.id) === String(id));
-    if (found) return found;
+    if (found) {
+      itemCache.set(id, found);
+      return found;
+    }
+    const seedFound = SEED_SUGGESTIONS.find(item => String(item.id) === String(id));
+    if (seedFound) {
+      itemCache.set(id, seedFound);
+      return seedFound;
+    }
     throw error;
   }
 }

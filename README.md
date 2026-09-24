@@ -13,7 +13,7 @@ Hosted on **GitHub Pages**: [https://dallasurbanists.github.io/improvement-map/]
 - **Styling & Design System**: [Tailwind CSS](https://tailwindcss.com/) adhering to the [Strong Towns Brand Guidelines](https://www.strongtowns.org/resources/brand) (Dark Blue `#0c2340`, Light Blue `#488BE3`, Yellow `#ffa800`, Sidewalk `#f5f3ee`, Inter & DM Serif Display typefaces)
 - **Theme**: High-contrast Dark Mode (default) with persistent Light Mode toggle
 - **Geospatial & Distance Sorting**: [Turf.js](https://turfjs.org/) (`@turf/turf`) for high-precision spherical distance calculation between user coordinates and suggestions
-- **Maps & Geocoding**: Interactive OpenStreetMap / Google Maps integration + [Nominatim API](https://nominatim.org/) address search autocomplete with client-side caching and reverse geocoding
+- **Maps & Geocoding**: Official [Google Maps JavaScript SDK](https://developers.google.com/maps/documentation/javascript) for map embedding, native Google Maps markers, theme-adaptive Streets (`ROADMAP`) basemap (dark/night in dark mode, light/day in light mode) with Satellite toggle, and Google Maps Places / Geocoding API for address search autocomplete and reverse geocoding
 - **Iconography**: [FontAwesome 6](https://fontawesome.com/)
 - **Testing**: [Playwright](https://playwright.dev/) automated end-to-end regression test suite
 - **Backend API**: [Dallas Urbanists Cloud API](http://api.dallasurbanists.org/swagger) (Cloud Run + Express + Firestore `public-improvements` database)
@@ -30,13 +30,13 @@ Hosted on **GitHub Pages**: [https://dallasurbanists.github.io/improvement-map/]
 ### 2. Submit Page (`/submit`)
 A wizard-style multi-step form with persistent `localStorage` draft saving:
 - **Step 1: Describe** — Required Summary and Details/Impact fields with validation.
-- **Step 2: Locate** — Full viewport map with address search autocomplete (Nominatim), GPS recenter button, tap/drag to pin, and optional "Describe location" modal.
+- **Step 2: Locate** — Embedded Google Maps SDK with draggable Google Maps marker, Streets (`ROADMAP`) & Satellite view toggle, Google Maps address search autocomplete, GPS recenter button, and optional "Describe location" modal.
 - **Step 3: Photo** — Client-side HTML5 Canvas resizing to WebP format, support for device photo library and camera capture for up to 10 photos with optional captions.
 - **Step 4: Review & Submit** — Detailed summary with subheadings and "Edit" links for each step, author name & email validation, and direct-to-cloud submission.
 - **Submission in Progress State** — Full-screen modal replacing navbar, beforeunload prevention, animated progress bar, dynamic status text, and green checkmark / error handling states.
 
 ### 3. Browse Page (`/browse`)
-- **Map View**: Full viewport map with custom markers for all suggestions, search bar overlay with address autocomplete, and popups containing summary, photo thumbnail, and "View suggestion" link.
+- **Map View**: Full viewport Google Map with native Google Maps markers for all suggestions, Streets & Satellite view switchers, search bar overlay with Google address autocomplete, and popups containing summary, photo thumbnail, and "View suggestion" link.
 - **List View**: Suggestion cards sorted by distance from user's current GPS location (closest first via Turf.js) or newest first if GPS permission is pending.
 
 ### 4. View Submission Page (`/suggestion/:id`)
@@ -46,7 +46,7 @@ A wizard-style multi-step form with persistent `localStorage` draft saving:
 
 ## ⚡ Performance & Caching Optimizations
 
-- **PWA Service Worker**: Static asset precaching and runtime caching for OpenStreetMap tiles, Google Fonts, and Nominatim responses.
+- **PWA Service Worker**: Static asset precaching and runtime caching for Google Maps scripts, Google Fonts, and API responses.
 - **API Client Caching**: In-memory caching with 25s TTL for suggestions to minimize redundant network I/O.
 - **Client-Side Image Compression**: Automatic canvas compression to max $1920 \times 1080$ WebP before direct upload to Google Cloud Storage via signed PUT URLs.
 

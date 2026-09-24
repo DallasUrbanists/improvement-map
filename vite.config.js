@@ -62,21 +62,11 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /^https:\/\/.*\.tile\.openstreetmap\.org\/.*/i,
-            handler: 'CacheFirst',
+            urlPattern: /^https:\/\/maps\.googleapis\.com\/.*/i,
+            handler: 'NetworkFirst',
             options: {
-              cacheName: 'osm-tiles',
-              expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/nominatim\.openstreetmap\.org\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'nominatim-cache',
+              cacheName: 'google-maps-api',
+              networkTimeoutSeconds: 4,
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 7,
@@ -107,6 +97,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  envPrefix: ['VITE_', 'GOOGLE_', 'MAPS_'],
   server: {
     port: 3000,
     host: true

@@ -1,7 +1,7 @@
 <template>
   <div class="relative w-full h-[60vh] min-h-[380px] max-h-[600px] rounded-2xl overflow-hidden border border-slate-700 dark:border-slate-700 light:border-slate-300 shadow-inner flex flex-col bg-slate-900">
-    <!-- Search Bar Overlay with Autocomplete Dropdown -->
-    <div class="absolute top-3 left-3 right-3 z-30 flex flex-col">
+    <!-- Search Bar Overlay with Autocomplete Dropdown (Powered by Google Maps Places / Geocoding) -->
+    <div class="absolute top-3 left-3 right-3 z-30 flex flex-col max-w-lg">
       <div class="relative flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 dark:border-slate-700 light:border-slate-300 shadow-lg">
         <span class="pl-3.5 pr-2 text-slate-400">
           <i class="fa-solid fa-magnifying-glass"></i>
@@ -45,67 +45,70 @@
       </div>
     </div>
 
-    <!-- Map Canvas / Tile Container -->
-    <div
-      ref="mapContainer"
-      class="relative w-full flex-1 touch-none select-none overflow-hidden cursor-crosshair"
-      @mousedown="startPan"
-      @mousemove="doPan"
-      @mouseup="endPan"
-      @mouseleave="endPan"
-      @touchstart="startTouchPan"
-      @touchmove="doTouchPan"
-      @touchend="endTouchPan"
-      @click="onMapClick"
-    >
-      <!-- Interactive Dynamic OpenStreetMap / Canvas Renderer -->
+    <!-- Google Map Target Container Wrapper -->
+    <div class="relative w-full flex-1 min-h-[320px] bg-slate-900 overflow-hidden">
+      <!-- Pure Map Canvas Element (Empty container owned by Google Maps SDK) -->
       <div
-        class="absolute inset-0 transition-transform duration-75 origin-center"
-        :style="mapTransformStyle"
+        ref="mapContainerEl"
+        class="w-full h-full min-h-[320px] bg-slate-900"
+        style="height: 100%; width: 100%; min-height: 320px;"
+      ></div>
+
+      <!-- Missing API Key or Auth Error Notice Overlay -->
+      <div
+        v-if="!hasGoogleMapsKey || googleMapsAuthError"
+        class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/95 text-slate-300 z-20 backdrop-blur-sm"
       >
-        <div class="grid grid-cols-3 grid-rows-3 w-[300%] h-[300%] -top-[100%] -left-[100%] absolute pointer-events-none">
-          <div
-            v-for="tile in visibleTiles"
-            :key="tile.key"
-            class="w-full h-full bg-slate-900 border border-slate-800/40 relative overflow-hidden"
-          >
-            <img
-              :src="tile.url"
-              class="w-full h-full object-cover select-none pointer-events-none opacity-85 dark:invert dark:hue-rotate-180 dark:brightness-90 dark:contrast-125 transition-opacity"
-              alt=""
-              loading="lazy"
-            />
-          </div>
+        <i class="fa-solid fa-triangle-exclamation text-3xl text-st-yellow mb-3"></i>
+        <h4 class="text-base font-bold text-white mb-1">Google Maps Setup Required</h4>
+        <p class="text-xs text-slate-300 max-w-sm mb-3 leading-relaxed">
+          {{ googleMapsAuthError || 'Set VITE_GOOGLE_MAPS_API_KEY in your .env file and restart Vite (npm run dev).' }}
+        </p>
+        <div class="text-[11px] text-slate-400 bg-slate-800/80 p-2.5 rounded-lg border border-slate-700 text-left max-w-sm">
+          <div class="font-semibold text-st-yellow mb-1">Required in Google Cloud Console:</div>
+          <ul class="list-disc list-inside space-y-0.5">
+            <li><strong>Maps JavaScript API</strong> enabled</li>
+            <li><strong>Places API</strong> enabled</li>
+            <li><strong>Geocoding API</strong> enabled</li>
+            <li>Billing account attached to GCP project</li>
+          </ul>
         </div>
       </div>
 
-      <!-- Center Crosshair / Location Marker Pin -->
+      <!-- Loading indicator while SDK initializes -->
       <div
-        class="absolute pointer-events-none transform -translate-x-1/2 -translate-y-full transition-transform duration-100 z-20"
-        :style="markerPositionStyle"
+        v-else-if="!isMapReady"
+        class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 z-10"
       >
-        <div class="flex flex-col items-center animate-bounce-short">
-          <div class="w-9 h-9 rounded-full bg-st-yellow text-st-navy shadow-xl flex items-center justify-center font-bold border-2 border-st-navy text-lg">
-            <i class="fa-solid fa-location-dot"></i>
-          </div>
-          <div class="w-2.5 h-2.5 bg-st-navy rotate-45 -mt-1.5 border-r border-b border-st-yellow"></div>
-          <div class="w-4 h-1.5 bg-black/40 rounded-full blur-[1px] mt-0.5"></div>
-        </div>
-      </div>
-
-      <!-- Map Instructions Overlay on First Load -->
-      <div
-        v-if="showHint"
-        class="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 bg-st-navy/90 text-white text-xs px-3.5 py-1.5 rounded-full border border-st-yellow/40 shadow-lg backdrop-blur-sm pointer-events-none flex items-center gap-1.5"
-      >
-        <i class="fa-solid fa-hand-pointer text-st-yellow"></i>
-        Tap anywhere or drag to set location
+        <i class="fa-solid fa-spinner animate-spin text-2xl text-st-yellow mb-2"></i>
+        <span class="text-xs font-semibold">Loading Google Maps...</span>
       </div>
     </div>
 
-    <!-- Map Action Floating Overlay Buttons -->
+    <!-- Floating Map Controls (Top Right: Basemap Switcher - Streets / Satellite) -->
+    <div class="absolute top-3 right-3 z-30 flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-lg p-1">
+      <button
+        type="button"
+        @click="setMapType('roadmap')"
+        class="px-2.5 py-1 text-xs font-bold rounded-lg transition-colors"
+        :class="currentMapType === 'roadmap' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 hover:text-white'"
+      >
+        <i class="fa-solid fa-road mr-1"></i>
+        Streets
+      </button>
+      <button
+        type="button"
+        @click="setMapType('hybrid')"
+        class="px-2.5 py-1 text-xs font-bold rounded-lg transition-colors"
+        :class="currentMapType === 'hybrid' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 hover:text-white'"
+      >
+        <i class="fa-solid fa-earth-americas mr-1"></i>
+        Satellite
+      </button>
+    </div>
+
+    <!-- Floating Map Controls (Bottom Right: Recenter on GPS Coordinates) -->
     <div class="absolute bottom-3 right-3 z-30 flex flex-col gap-2">
-      <!-- Recenter on GPS Coordinates -->
       <button
         type="button"
         @click="requestGpsLocation"
@@ -116,26 +119,6 @@
       >
         <i class="fa-solid fa-crosshairs text-lg" :class="{ 'animate-spin': isLocating }"></i>
       </button>
-
-      <!-- Zoom In / Out Controls -->
-      <div class="flex flex-col rounded-xl overflow-hidden border border-slate-700 shadow-xl bg-st-navy/90 backdrop-blur-md">
-        <button
-          type="button"
-          @click="zoomIn"
-          class="touch-target w-11 h-10 hover:bg-st-navy text-slate-100 flex items-center justify-center border-b border-slate-700 active:bg-slate-800"
-          aria-label="Zoom In"
-        >
-          <i class="fa-solid fa-plus text-sm"></i>
-        </button>
-        <button
-          type="button"
-          @click="zoomOut"
-          class="touch-target w-11 h-10 hover:bg-st-navy text-slate-100 flex items-center justify-center active:bg-slate-800"
-          aria-label="Zoom Out"
-        >
-          <i class="fa-solid fa-minus text-sm"></i>
-        </button>
-      </div>
     </div>
 
     <!-- Describe Location Overlay Button (Bottom Left) -->
@@ -150,11 +133,11 @@
       </button>
     </div>
 
-    <!-- Active Location Summary Badge (Top Banner) -->
-    <div class="px-3.5 py-2 bg-dark-card dark:bg-dark-card light:bg-slate-100 border-t border-slate-700 dark:border-slate-700 light:border-slate-300 text-xs flex items-center justify-between gap-2">
+    <!-- Active Location Summary Footer -->
+    <div class="px-3.5 py-2 bg-dark-card dark:bg-dark-card light:bg-slate-100 border-t border-slate-700 dark:border-slate-700 light:border-slate-300 text-xs flex items-center justify-between gap-2 z-20">
       <div class="truncate flex items-center gap-1.5 text-slate-300 dark:text-slate-300 light:text-slate-700">
         <i class="fa-solid fa-map-pin text-st-yellow"></i>
-        <span class="font-semibold">{{ displayAddress || 'Tap on map or search address' }}</span>
+        <span class="font-semibold">{{ displayAddress || 'Tap or drag pin to set location' }}</span>
       </div>
       <div v-if="modelValue.latitude" class="text-[11px] text-slate-400 font-mono flex-shrink-0">
         {{ Number(modelValue.latitude).toFixed(4) }}, {{ Number(modelValue.longitude).toFixed(4) }}
@@ -212,8 +195,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { searchAddress, reverseGeocode } from '../services/nominatim';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { isDark } from '../services/theme';
+import {
+  loadGoogleMaps,
+  hasGoogleMapsKey,
+  googleMapsAuthError,
+  searchAddressWithGoogle,
+  resolveGooglePlace,
+  reverseGeocodeWithGoogle,
+  getMapStyles,
+  updateMapTheme,
+} from '../services/googleMaps';
 
 const props = defineProps({
   modelValue: {
@@ -223,17 +216,16 @@ const props = defineProps({
       longitude: -96.7970,
       address: '',
       description: '',
-    })
-  }
+    }),
+  },
 });
 
 const emit = defineEmits(['update:modelValue']);
 
-// Map coordinates state
-const centerLat = ref(props.modelValue.latitude || 32.7767);
-const centerLng = ref(props.modelValue.longitude || -96.7970);
-const zoom = ref(15);
-const showHint = ref(true);
+const mapContainerEl = ref(null);
+const isMapReady = ref(false);
+const isLocating = ref(false);
+const currentMapType = ref('roadmap');
 
 // Search state
 const searchQuery = ref('');
@@ -244,17 +236,12 @@ let searchDebounce = null;
 // Modal state
 const isDescModalOpen = ref(false);
 const tempDescription = ref('');
-const isLocating = ref(false);
 
-// Pan state
-const isDragging = ref(false);
-const startX = ref(0);
-const startY = ref(0);
-const offsetX = ref(0);
-const offsetY = ref(0);
-const mapContainer = ref(null);
+// Google Maps objects
+let map = null;
+let marker = null;
+let googleMaps = null;
 
-// Address string
 const displayAddress = computed(() => {
   if (props.modelValue.address) return props.modelValue.address;
   if (props.modelValue.latitude) {
@@ -263,177 +250,100 @@ const displayAddress = computed(() => {
   return '';
 });
 
-// Tile computation for smooth OpenStreetMap rendering
-function lon2tile(lon, z) {
-  return Math.floor(((lon + 180) / 360) * Math.pow(2, z));
-}
-function lat2tile(lat, z) {
-  return Math.floor(
-    ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) *
-      Math.pow(2, z)
-  );
-}
+async function initMap() {
+  try {
+    googleMaps = await loadGoogleMaps();
+    if (!mapContainerEl.value || !googleMaps) return;
 
-const visibleTiles = computed(() => {
-  const z = Math.min(18, Math.max(2, Math.round(zoom.value)));
-  const x = lon2tile(centerLng.value, z);
-  const y = lat2tile(centerLat.value, z);
+    const initialLat = props.modelValue.latitude || 32.7767;
+    const initialLng = props.modelValue.longitude || -96.7970;
+    const initialPos = { lat: Number(initialLat), lng: Number(initialLng) };
 
-  const tiles = [];
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const curX = x + dx;
-      const curY = y + dy;
-      tiles.push({
-        key: `${z}/${curX}/${curY}`,
-        url: `https://tile.openstreetmap.org/${z}/${curX}/${curY}.png`
-      });
+    // Default Streets view (ROADMAP) with dark/night basemap in dark mode and light/day basemap in light mode
+    map = new googleMaps.Map(mapContainerEl.value, {
+      center: initialPos,
+      zoom: 15,
+      mapTypeId: googleMaps.MapTypeId.ROADMAP,
+      styles: getMapStyles(isDark.value, currentMapType.value),
+      disableDefaultUI: true,
+      zoomControl: true,
+      gestureHandling: 'greedy',
+    });
+
+    // Google Maps Marker for selection (draggable)
+    marker = new googleMaps.Marker({
+      position: initialPos,
+      map,
+      draggable: true,
+      animation: googleMaps.Animation?.DROP,
+      title: 'Suggestion Location',
+    });
+
+    // Marker drag end listener
+    marker.addListener('dragend', async () => {
+      const pos = marker.getPosition();
+      if (!pos) return;
+      const lat = pos.lat();
+      const lng = pos.lng();
+      await updateCoordinates(lat, lng);
+    });
+
+    // Map click listener to relocate pin
+    map.addListener('click', async (e) => {
+      if (!e.latLng) return;
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      marker.setPosition(e.latLng);
+      map.panTo(e.latLng);
+      await updateCoordinates(lat, lng);
+    });
+
+    isMapReady.value = true;
+
+    // Trigger map resize after DOM layout transition completes
+    nextTick(() => {
+      if (map && googleMaps) {
+        googleMaps.event?.trigger(map, 'resize');
+        map.setCenter(initialPos);
+      }
+    });
+    setTimeout(() => {
+      if (map && googleMaps) {
+        googleMaps.event?.trigger(map, 'resize');
+        map.setCenter(initialPos);
+      }
+    }, 250);
+
+    // Trigger initial address reverse geocode if empty
+    if (!props.modelValue.address) {
+      updateCoordinates(initialLat, initialLng);
     }
+  } catch (err) {
+    console.warn('Google Maps initialization fallback:', err);
+    isMapReady.value = true;
   }
-  return tiles;
+}
+
+function setMapType(type) {
+  currentMapType.value = type;
+  if (!map || !googleMaps) return;
+  if (type === 'hybrid') {
+    map.setMapTypeId(googleMaps.MapTypeId.HYBRID);
+    map.setOptions({ styles: [] });
+  } else {
+    map.setMapTypeId(googleMaps.MapTypeId.ROADMAP);
+    map.setOptions({ styles: getMapStyles(isDark.value, 'roadmap') });
+  }
+}
+
+// Watch theme changes to update Streets basemap styling dynamically
+watch(isDark, (darkMode) => {
+  if (!map || !googleMaps) return;
+  updateMapTheme(map, darkMode, currentMapType.value);
 });
-
-const mapTransformStyle = computed(() => {
-  return {
-    transform: `translate(${offsetX.value}px, ${offsetY.value}px)`
-  };
-});
-
-const markerPositionStyle = computed(() => {
-  return {
-    top: '50%',
-    left: '50%'
-  };
-});
-
-// Geolocation
-function requestGpsLocation() {
-  if (!navigator.geolocation) {
-    alert('Geolocation is not supported by your browser');
-    return;
-  }
-  isLocating.value = true;
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      isLocating.value = false;
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      centerLat.value = lat;
-      centerLng.value = lng;
-      zoom.value = 16;
-      offsetX.value = 0;
-      offsetY.value = 0;
-
-      const addr = await reverseGeocode(lat, lng);
-      emit('update:modelValue', {
-        ...props.modelValue,
-        latitude: lat,
-        longitude: lng,
-        address: addr,
-      });
-    },
-    (err) => {
-      isLocating.value = false;
-      console.warn('GPS location error:', err);
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
-}
-
-// Search handling with debounce
-function onSearchInput() {
-  if (searchDebounce) clearTimeout(searchDebounce);
-  const q = searchQuery.value.trim();
-  if (q.length < 3) {
-    searchResults.value = [];
-    isSearching.value = false;
-    return;
-  }
-
-  isSearching.value = true;
-  searchDebounce = setTimeout(async () => {
-    searchResults.value = await searchAddress(q, 5);
-    isSearching.value = false;
-  }, 350);
-}
-
-function selectAddress(item) {
-  centerLat.value = item.latitude;
-  centerLng.value = item.longitude;
-  zoom.value = 16;
-  offsetX.value = 0;
-  offsetY.value = 0;
-  searchQuery.value = item.displayName;
-  searchResults.value = [];
-
-  emit('update:modelValue', {
-    ...props.modelValue,
-    latitude: item.latitude,
-    longitude: item.longitude,
-    address: item.displayName,
-  });
-}
-
-// Pan & touch gestures
-function startPan(e) {
-  isDragging.value = true;
-  startX.value = e.clientX - offsetX.value;
-  startY.value = e.clientY - offsetY.value;
-  showHint.value = false;
-}
-function doPan(e) {
-  if (!isDragging.value) return;
-  offsetX.value = e.clientX - startX.value;
-  offsetY.value = e.clientY - startY.value;
-}
-function endPan() {
-  if (!isDragging.value) return;
-  isDragging.value = false;
-  commitPanCoordinates();
-}
-
-function startTouchPan(e) {
-  if (e.touches.length === 1) {
-    isDragging.value = true;
-    startX.value = e.touches[0].clientX - offsetX.value;
-    startY.value = e.touches[0].clientY - offsetY.value;
-    showHint.value = false;
-  }
-}
-function doTouchPan(e) {
-  if (!isDragging.value || e.touches.length !== 1) return;
-  offsetX.value = e.touches[0].clientX - startX.value;
-  offsetY.value = e.touches[0].clientY - startY.value;
-}
-function endTouchPan() {
-  if (!isDragging.value) return;
-  isDragging.value = false;
-  commitPanCoordinates();
-}
-
-function commitPanCoordinates() {
-  // Convert offset px to lat/lng delta
-  const scale = Math.pow(2, zoom.value);
-  const deltaLng = (-offsetX.value / (256 * scale)) * 360;
-  const deltaLat = (offsetY.value / (256 * scale)) * 170;
-
-  centerLng.value += deltaLng;
-  centerLat.value += deltaLat;
-  offsetX.value = 0;
-  offsetY.value = 0;
-
-  updateCoordinates(centerLat.value, centerLng.value);
-}
-
-function onMapClick(e) {
-  if (isDragging.value) return;
-  showHint.value = false;
-  // Update center coordinate directly
-  updateCoordinates(centerLat.value, centerLng.value);
-}
 
 async function updateCoordinates(lat, lng) {
-  const addr = await reverseGeocode(lat, lng);
+  const addr = await reverseGeocodeWithGoogle(lat, lng);
   emit('update:modelValue', {
     ...props.modelValue,
     latitude: lat,
@@ -442,11 +352,87 @@ async function updateCoordinates(lat, lng) {
   });
 }
 
-function zoomIn() {
-  if (zoom.value < 18) zoom.value++;
+function onSearchInput() {
+  if (searchDebounce) clearTimeout(searchDebounce);
+  const q = searchQuery.value.trim();
+  if (q.length < 2) {
+    searchResults.value = [];
+    isSearching.value = false;
+    return;
+  }
+
+  isSearching.value = true;
+  searchDebounce = setTimeout(async () => {
+    searchResults.value = await searchAddressWithGoogle(q);
+    isSearching.value = false;
+  }, 350);
 }
-function zoomOut() {
-  if (zoom.value > 5) zoom.value--;
+
+async function selectAddress(item) {
+  searchQuery.value = item.displayName;
+  searchResults.value = [];
+
+  let lat = item.latitude;
+  let lng = item.longitude;
+  let address = item.displayName;
+
+  if (lat === undefined || lng === undefined) {
+    const resolved = await resolveGooglePlace(item.placeId || item.displayName);
+    if (resolved) {
+      lat = resolved.latitude;
+      lng = resolved.longitude;
+      address = resolved.address;
+    }
+  }
+
+  if (lat !== undefined && lng !== undefined) {
+    const pos = { lat, lng };
+    if (map) {
+      map.setCenter(pos);
+      map.setZoom(16);
+    }
+    if (marker) {
+      marker.setPosition(pos);
+    }
+    emit('update:modelValue', {
+      ...props.modelValue,
+      latitude: lat,
+      longitude: lng,
+      address,
+    });
+  }
+}
+
+function requestGpsLocation() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser');
+    return;
+  }
+
+  isLocating.value = true;
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      isLocating.value = false;
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const pos = { lat, lng };
+
+      if (map) {
+        map.setCenter(pos);
+        map.setZoom(16);
+      }
+      if (marker) {
+        marker.setPosition(pos);
+      }
+
+      await updateCoordinates(lat, lng);
+    },
+    (err) => {
+      isLocating.value = false;
+      console.warn('GPS location error:', err);
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
 }
 
 // Modal actions
@@ -460,29 +446,26 @@ function discardDescModal() {
 function saveDescModal() {
   emit('update:modelValue', {
     ...props.modelValue,
-    description: tempDescription.value.trim()
+    description: tempDescription.value.trim(),
   });
   isDescModalOpen.value = false;
 }
 
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (newVal.latitude && newVal.longitude && marker && map) {
+      const curPos = marker.getPosition();
+      if (!curPos || curPos.lat() !== newVal.latitude || curPos.lng() !== newVal.longitude) {
+        const newPos = { lat: Number(newVal.latitude), lng: Number(newVal.longitude) };
+        marker.setPosition(newPos);
+      }
+    }
+  },
+  { deep: true }
+);
+
 onMounted(() => {
-  // If coordinates already exist in draft, center there
-  if (props.modelValue.latitude && props.modelValue.longitude) {
-    centerLat.value = props.modelValue.latitude;
-    centerLng.value = props.modelValue.longitude;
-  } else {
-    // Attempt automatic GPS location request on mount as required by spec
-    requestGpsLocation();
-  }
+  initMap();
 });
 </script>
-
-<style scoped>
-@keyframes bounce-short {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-.animate-bounce-short {
-  animation: bounce-short 1.5s ease-in-out infinite;
-}
-</style>
