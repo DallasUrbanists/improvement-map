@@ -3,11 +3,46 @@
     theme="material"
     :dark="isDark"
     :material-touch-ripple="false"
-    class="k-md-vibrant min-h-screen flex flex-col font-sans transition-colors duration-200"
-    :class="isDark ? 'dark bg-dark-bg text-slate-100' : 'light bg-st-sidewalk text-st-navy'"
+    class="min-h-screen flex flex-col font-sans"
   >
-    <!-- Global Navbar (hidden when isSubmitting is true) -->
-    <Navbar :hideNavbar="isSubmitting" />
+    <!-- Navbar using strictly Konsta UI components -->
+    <k-navbar
+      v-if="!isSubmitting"
+      title="Improvement Map"
+      :center-title="false"
+      class="sticky top-0 z-40 w-full"
+    >
+      <template #right>
+        <k-link
+          component="router-link"
+          :link-props="{ to: '/' }"
+          :navbar="true"
+        >
+          Home
+        </k-link>
+        <k-link
+          component="router-link"
+          :link-props="{ to: '/browse' }"
+          :navbar="true"
+        >
+          Browse
+        </k-link>
+        <k-link
+          component="router-link"
+          :link-props="{ to: '/submit' }"
+          :navbar="true"
+        >
+          Submit
+        </k-link>
+        <k-link
+          id="theme-toggle-btn"
+          :navbar="true"
+          @click="toggleTheme"
+        >
+          {{ isDark ? '☀️' : '🌙' }}
+        </k-link>
+      </template>
+    </k-navbar>
 
     <!-- Main View Content -->
     <main class="flex-grow pb-6">
@@ -22,9 +57,8 @@
 
 <script setup>
 import { ref, provide, onMounted } from 'vue';
-import { kApp } from 'konsta/vue';
-import Navbar from './components/Navbar.vue';
-import { isDark, initTheme } from './services/theme';
+import { kApp, kNavbar, kLink } from 'konsta/vue';
+import { isDark, initTheme, toggleTheme } from './services/theme';
 
 const isSubmitting = ref(false);
 

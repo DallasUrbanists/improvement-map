@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Improvement Map - PWA and Navigation', () => {
-  test('homepage loads with Strong Towns brand styling and live activity feed', async ({ page }) => {
+  test('homepage loads and displays live activity feed', async ({ page }) => {
     await page.goto('/');
 
-    // Check title and brand header
+    // Check title and header
     await expect(page).toHaveTitle(/Improvement Map/i);
     await expect(page.locator('h1')).toContainText(/Make Your Streets Safer/i);
 
@@ -12,11 +12,11 @@ test.describe('Improvement Map - PWA and Navigation', () => {
     await expect(page.getByText(/Live \(30s\)/i)).toBeVisible();
 
     // Check action buttons on hero
-    await expect(page.getByRole('link', { name: /Submit Suggestion/i }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: /Explore Map & List/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Submit Suggestion/i }).or(page.getByRole('link', { name: /Submit Suggestion/i })).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Explore Map/i }).or(page.getByRole('link', { name: /Explore Map/i }))).toBeVisible();
 
     // Check suggestion cards exist
-    const cards = page.locator('.st-card');
+    const cards = page.locator('.k-card');
     await expect(cards.first()).toBeVisible();
   });
 
@@ -192,7 +192,7 @@ test.describe('Browse Mode - Map and List Views', () => {
     await expect(page.getByText(/Sorted by distance/i)).toBeVisible();
 
     // Click on a suggestion in list to view detail
-    const firstViewBtn = page.getByRole('link', { name: /View suggestion/i }).first();
+    const firstViewBtn = page.getByRole('button', { name: /View suggestion/i }).or(page.getByRole('link', { name: /View suggestion/i })).first();
     await firstViewBtn.click();
 
     // Detail page loads

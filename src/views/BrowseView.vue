@@ -1,13 +1,13 @@
 <template>
   <div class="h-[calc(100vh-4rem)] flex flex-col relative overflow-hidden">
     <!-- Top Bar: View Mode Switcher (Map / List) & Quick Stats -->
-    <header class="bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 border-b border-slate-700 dark:border-slate-700 light:border-slate-300 px-4 py-2.5 z-30 flex items-center justify-between shadow-sm">
+    <header class="bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-2.5 z-30 flex items-center justify-between shadow-sm">
       <!-- Tabs Switcher with Konsta Segmented -->
       <k-segmented :raised="true" class="w-auto">
         <k-segmented-button
           :active="activeTab === 'map'"
           @click="setTab('map')"
-          class="touch-target px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
+          class="px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
         >
           <i class="fa-solid fa-map-location-dot"></i>
           <span>Map View</span>
@@ -16,7 +16,7 @@
         <k-segmented-button
           :active="activeTab === 'list'"
           @click="setTab('list')"
-          class="touch-target px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
+          class="px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
         >
           <i class="fa-solid fa-list-ul"></i>
           <span>List View ({{ suggestions.length }})</span>
@@ -55,11 +55,11 @@
     </header>
 
     <!-- TAB 1: MAP VIEW (Google Maps SDK) -->
-    <div v-show="activeTab === 'map'" class="relative flex-1 w-full h-full bg-slate-900 overflow-hidden">
+    <div v-show="activeTab === 'map'" class="relative flex-1 w-full h-full bg-zinc-900 overflow-hidden">
       <!-- Search Address Overlay with Autocomplete (Google Places / Geocoder) -->
       <div class="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-30 flex flex-col">
-        <div class="relative flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 dark:border-slate-700 light:border-slate-300 shadow-xl">
-          <span class="pl-3 pr-2 text-slate-400">
+        <div class="relative flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-xl">
+          <span class="pl-3 pr-2 text-zinc-400">
             <i class="fa-solid fa-magnifying-glass"></i>
           </span>
           <input
@@ -67,17 +67,17 @@
             v-model="mapSearchQuery"
             @input="onMapSearchInput"
             placeholder="Search address or neighborhood..."
-            class="w-full py-2.5 pr-8 bg-transparent text-xs sm:text-sm text-slate-100 dark:text-slate-100 light:text-st-navy placeholder-slate-400 focus:outline-none"
+            class="w-full py-2.5 pr-8 bg-transparent text-xs sm:text-sm text-black dark:text-white placeholder-zinc-400 focus:outline-none"
           />
           <button
             v-if="mapSearchQuery"
             @click="mapSearchQuery = ''; mapSearchResults = []"
-            class="p-2 text-slate-400 hover:text-white"
+            class="p-2 text-zinc-400 hover:text-black dark:hover:text-white"
             type="button"
           >
             <i class="fa-solid fa-xmark text-sm"></i>
           </button>
-          <span v-if="isSearching" class="pr-3 text-slate-400">
+          <span v-if="isSearching" class="pr-3 text-zinc-400">
             <i class="fa-solid fa-spinner animate-spin text-sm"></i>
           </span>
         </div>
@@ -85,23 +85,23 @@
         <!-- Autocomplete dropdown list -->
         <div
           v-if="mapSearchResults.length > 0"
-          class="mt-1 bg-dark-card dark:bg-dark-card light:bg-white rounded-xl border border-slate-700 dark:border-slate-700 light:border-slate-300 shadow-2xl max-h-56 overflow-y-auto z-40 divide-y divide-slate-800 dark:divide-slate-800 light:divide-slate-200"
+          class="mt-1 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-2xl max-h-56 overflow-y-auto z-40 divide-y divide-zinc-200 dark:divide-zinc-800"
         >
           <button
             v-for="item in mapSearchResults"
             :key="item.id"
             type="button"
             @click="selectMapSearchResult(item)"
-            class="w-full text-left px-3.5 py-2.5 hover:bg-st-blue/20 dark:hover:bg-slate-800 light:hover:bg-slate-100 transition-colors flex items-start gap-2 text-xs sm:text-sm text-slate-200 dark:text-slate-200 light:text-st-navy"
+            class="w-full text-left px-3.5 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-2 text-xs sm:text-sm text-black dark:text-white"
           >
-            <i class="fa-solid fa-location-dot text-st-yellow mt-0.5 flex-shrink-0"></i>
+            <i class="fa-solid fa-location-dot mt-0.5 flex-shrink-0 text-zinc-500"></i>
             <span class="line-clamp-2">{{ item.displayName }}</span>
           </button>
         </div>
       </div>
 
       <!-- Basemap Switcher (Streets / Satellite) with Konsta Segmented -->
-      <div class="absolute top-3 right-3 z-30 flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-lg p-0.5">
+      <div class="absolute top-3 right-3 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
         <k-segmented :raised="true" class="w-auto">
           <k-segmented-button
             :active="currentMapType === 'roadmap'"
@@ -125,26 +125,26 @@
       </div>
 
       <!-- Google Map Target Container Wrapper -->
-      <div class="relative w-full h-full min-h-[400px] bg-slate-900 overflow-hidden">
+      <div class="relative w-full h-full min-h-[400px] bg-zinc-900 overflow-hidden">
         <!-- Dedicated Google Map Canvas Container -->
         <div
           ref="browseMapContainerEl"
-          class="w-full h-full min-h-[400px] bg-slate-900"
+          class="w-full h-full min-h-[400px] bg-zinc-900"
           style="width: 100%; height: 100%; min-height: 100%;"
         ></div>
 
         <!-- Missing API Key or Auth Error Notice -->
         <div
           v-if="!hasGoogleMapsKey || googleMapsAuthError"
-          class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/95 text-slate-300 z-20 backdrop-blur-sm"
+          class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 text-zinc-300 z-20 backdrop-blur-sm"
         >
-          <i class="fa-solid fa-triangle-exclamation text-3xl text-st-yellow mb-3"></i>
+          <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-3"></i>
           <h4 class="text-base font-bold text-white mb-1">Google Maps Setup Required</h4>
-          <p class="text-xs text-slate-300 max-w-sm mb-4 leading-relaxed">
+          <p class="text-xs text-zinc-300 max-w-sm mb-4 leading-relaxed">
             {{ googleMapsAuthError || 'Set VITE_GOOGLE_MAPS_API_KEY in your .env file and restart Vite (npm run dev).' }}
           </p>
-          <div class="text-[11px] text-slate-400 bg-slate-800/80 p-3 rounded-xl border border-slate-700 text-left max-w-sm mb-4">
-            <div class="font-semibold text-st-yellow mb-1">Required in Google Cloud Console:</div>
+          <div class="text-[11px] text-zinc-400 bg-zinc-800/80 p-3 rounded-xl border border-zinc-700 text-left max-w-sm mb-4">
+            <div class="font-semibold text-zinc-200 mb-1">Required in Google Cloud Console:</div>
             <ul class="list-disc list-inside space-y-0.5">
               <li><strong>Maps JavaScript API</strong> enabled</li>
               <li><strong>Places API</strong> enabled</li>
@@ -168,7 +168,7 @@
         <!-- Loading indicator while SDK initializes -->
         <div
           v-else-if="!isMapReady"
-          class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 z-10"
+          class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 z-10"
         >
           <k-preloader class="w-8 h-8 mb-2" />
           <span class="text-xs font-semibold">Loading Map...</span>
@@ -181,7 +181,7 @@
           type="button"
           @click="requestGps"
           :rounded="true"
-          class="touch-target w-11 h-11 p-0 flex items-center justify-center shadow-xl backdrop-blur-md"
+          class="w-11 h-11 p-0 flex items-center justify-center shadow-xl backdrop-blur-md"
           title="Center on my location"
           aria-label="Center on my location"
         >
@@ -193,18 +193,18 @@
     <!-- TAB 2: LIST VIEW -->
     <div v-show="activeTab === 'list'" class="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 max-w-4xl w-full mx-auto">
       <!-- List View Header with Distance Sorting Indicator -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-700/60">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-zinc-200 dark:border-zinc-800">
         <div>
-          <h2 class="text-xl font-bold font-serif text-slate-100 dark:text-slate-100 light:text-st-navy">
+          <h2 class="text-xl font-bold">
             Civic Suggestions
           </h2>
-          <p class="text-xs text-slate-400">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">
             <span v-if="userLocation">
-              <i class="fa-solid fa-arrow-down-short-wide text-st-yellow mr-1"></i>
+              <i class="fa-solid fa-arrow-down-short-wide mr-1 text-zinc-600 dark:text-zinc-300"></i>
               Sorted by distance from your current location (closest first)
             </span>
             <span v-else>
-              <i class="fa-solid fa-clock text-st-yellow mr-1"></i>
+              <i class="fa-solid fa-clock mr-1 text-zinc-600 dark:text-zinc-300"></i>
               Sorted by newest submissions (enable GPS to sort by distance)
             </span>
           </p>
@@ -219,7 +219,7 @@
           small
           class="text-xs self-start sm:self-auto gap-1.5 py-1.5"
         >
-          <i class="fa-solid fa-location-crosshairs text-st-yellow mr-1"></i>
+          <i class="fa-solid fa-location-crosshairs mr-1"></i>
           <span>Sort by My Distance</span>
         </k-button>
       </div>
@@ -232,12 +232,13 @@
           :key="item.id"
           :outline="true"
           :content-wrap="false"
-          class="st-card p-3.5 sm:p-4 hover:border-st-yellow/70 transition-all flex flex-col sm:flex-row gap-3.5 items-start sm:items-center justify-between m-0"
+          class="p-3.5 sm:p-4 hover:shadow-md transition-all flex flex-col sm:flex-row gap-3.5 items-start sm:items-center justify-between m-0 cursor-pointer"
+          @click="$router.push(`/suggestion/${item.id}`)"
         >
           <!-- Left: Thumbnail and Summary -->
           <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
             <!-- Photo thumbnail -->
-            <div class="w-20 h-20 sm:w-24 sm:h-20 rounded-xl bg-slate-800 overflow-hidden flex-shrink-0 border border-slate-700 relative">
+            <div class="w-20 h-20 sm:w-24 sm:h-20 rounded-xl bg-zinc-100 dark:bg-zinc-800 overflow-hidden flex-shrink-0 border border-zinc-200 dark:border-zinc-700 relative">
               <img
                 v-if="getPrimaryPhoto(item)"
                 :src="getPrimaryPhoto(item)"
@@ -245,7 +246,7 @@
                 class="w-full h-full object-cover"
                 loading="lazy"
               />
-              <div v-else class="w-full h-full flex items-center justify-center text-slate-500 bg-slate-900">
+              <div v-else class="w-full h-full flex items-center justify-center text-zinc-400 bg-zinc-50 dark:bg-zinc-900">
                 <i class="fa-solid fa-camera text-base"></i>
               </div>
 
@@ -260,14 +261,14 @@
 
             <!-- Summary Text and Meta -->
             <div class="min-w-0 flex-1">
-              <h3 class="font-bold text-sm sm:text-base text-slate-100 dark:text-slate-100 light:text-st-navy line-clamp-2 leading-snug">
+              <h3 class="font-bold text-sm sm:text-base line-clamp-2 leading-snug">
                 {{ item.content?.summary || 'Public Improvement' }}
               </h3>
-              <p v-if="item.location?.address" class="text-xs text-slate-400 truncate mt-1">
-                <i class="fa-solid fa-location-dot text-st-yellow mr-1"></i>
+              <p v-if="item.location?.address" class="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-1">
+                <i class="fa-solid fa-location-dot mr-1 text-zinc-400"></i>
                 {{ item.location.address }}
               </p>
-              <div class="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
+              <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
                 <span>By {{ item.author?.name || 'Anonymous' }}</span>
                 <span>•</span>
                 <span>{{ formatTime(item.createdAt) }}</span>
@@ -276,13 +277,17 @@
           </div>
 
           <!-- Right: View Suggestion Button Link -->
-          <router-link
+          <k-button
+            component="router-link"
             :to="`/suggestion/${item.id}`"
-            class="k-button k-button-material k-button-fill text-xs font-bold py-2 px-4 rounded-full flex-shrink-0 w-full sm:w-auto text-center inline-flex items-center justify-center gap-1.5 touch-target"
+            :rounded="true"
+            small
+            class="font-bold flex-shrink-0 w-full sm:w-auto text-center"
+            @click.stop
           >
             <span>View suggestion</span>
-            <i class="fa-solid fa-arrow-right"></i>
-          </router-link>
+            <i class="fa-solid fa-arrow-right ml-1"></i>
+          </k-button>
         </k-card>
       </div>
 
@@ -291,16 +296,15 @@
         v-else
         :outline="true"
         :content-wrap="false"
-        class="st-card text-center py-12 m-0"
+        class="text-center py-12 m-0"
       >
-        <i class="fa-solid fa-inbox text-3xl text-slate-500 mb-2"></i>
+        <i class="fa-solid fa-inbox text-3xl text-zinc-400 mb-2"></i>
         <h3 class="text-base font-bold">No suggestions found</h3>
-        <p class="text-xs text-slate-400 mb-4">Be the first to add an idea to the map!</p>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Be the first to add an idea to the map!</p>
         <k-button
           component="router-link"
           to="/submit"
           :rounded="true"
-          inline
           class="text-xs font-bold"
         >
           Submit Suggestion
