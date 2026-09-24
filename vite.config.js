@@ -2,10 +2,35 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
+import fs from 'fs';
+
+// Generate 404.html for GitHub Pages SPA routing fallback
+function spa404Plugin() {
+  return {
+    name: 'spa-404-plugin',
+    closeBundle() {
+      const outDir = path.resolve(__dirname, 'dist');
+      const indexPath = path.join(outDir, 'index.html');
+      const notFoundPath = path.join(outDir, '404.html');
+      if (fs.existsSync(indexPath)) {
+        fs.copyFileSync(indexPath, notFoundPath);
+      }
+    },
+  };
+}
+
+const getBasePath = () => {
+  if (process.env.BASE_PATH) {
+    return process.env.BASE_PATH.endsWith('/') ? process.env.BASE_PATH : `${process.env.BASE_PATH}/`;
+  }
+  return process.env.NODE_ENV === 'production' ? '/improvement-map/' : '/';
+};
 
 export default defineConfig({
+  base: getBasePath(),
   plugins: [
     vue(),
+    spa404Plugin(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png', 'icons/*.png'],
@@ -17,20 +42,20 @@ export default defineConfig({
         background_color: '#071527',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        start_url: './',
         icons: [
           {
-            src: '/icons/icon-192x192.png',
+            src: 'icons/icon-192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/icons/icon-512x512.png',
+            src: 'icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: '/icons/icon-512x512.png',
+            src: 'icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
