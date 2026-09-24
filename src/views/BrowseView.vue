@@ -389,7 +389,7 @@ function setMapType(type) {
   if (!map || !googleMaps) return;
   if (type === 'hybrid') {
     map.setMapTypeId(googleMaps.MapTypeId.HYBRID);
-    map.setOptions({ styles: [] });
+    map.setOptions({ styles: getMapStyles(isDark.value, 'hybrid') });
   } else {
     map.setMapTypeId(googleMaps.MapTypeId.ROADMAP);
     map.setOptions({ styles: getMapStyles(isDark.value, 'roadmap') });
@@ -420,6 +420,7 @@ async function initGoogleMap() {
       disableDefaultUI: true,
       zoomControl: true,
       gestureHandling: 'greedy',
+      clickableIcons: false,
     });
 
     infoWindow = new googleMaps.InfoWindow();
