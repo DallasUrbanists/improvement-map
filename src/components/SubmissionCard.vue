@@ -1,6 +1,8 @@
 <template>
-  <div
-    class="st-card group flex flex-col sm:flex-row gap-4 p-4 hover:border-st-yellow/70 transition-all duration-200 cursor-pointer relative overflow-hidden"
+  <k-card
+    :outline="true"
+    :content-wrap="false"
+    class="st-card group flex flex-col sm:flex-row gap-4 p-4 hover:border-st-yellow/70 transition-all duration-200 cursor-pointer relative overflow-hidden m-0"
     @click="goToDetail"
   >
     <!-- Photo Thumbnail or Icon Placeholder -->
@@ -19,13 +21,13 @@
       </div>
 
       <!-- Distance Badge if computed -->
-      <div
+      <k-badge
         v-if="suggestion._formattedDistance"
-        class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-bold bg-st-navy/90 text-st-yellow border border-st-yellow/40 backdrop-blur-sm"
+        class="absolute top-2 left-2 text-xs font-bold"
       >
         <i class="fa-solid fa-location-arrow text-[10px] mr-1"></i>
         {{ suggestion._formattedDistance }}
-      </div>
+      </k-badge>
     </div>
 
     <!-- Content Details -->
@@ -59,22 +61,24 @@
           <span>{{ formattedDate }}</span>
         </div>
 
-        <router-link
-          :to="`/suggestion/${suggestion.id}`"
+        <k-link
+          component="router-link"
+          :link-props="{ to: `/suggestion/${suggestion.id}` }"
           class="inline-flex items-center gap-1 font-bold text-st-yellow group-hover:underline flex-shrink-0 ml-2 touch-target"
           @click.stop
         >
           View
           <i class="fa-solid fa-arrow-right text-[11px] group-hover:translate-x-1 transition-transform"></i>
-        </router-link>
+        </k-link>
       </div>
     </div>
-  </div>
+  </k-card>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { kCard, kBadge, kLink } from 'konsta/vue';
 
 const props = defineProps({
   suggestion: {

@@ -2,13 +2,16 @@
   <div
     class="fixed inset-0 z-50 bg-st-navy/95 backdrop-blur-lg flex flex-col items-center justify-center p-4 text-center animate-in fade-in select-none"
   >
-    <div class="max-w-md w-full st-card p-6 sm:p-8 bg-dark-card border border-slate-700 shadow-2xl flex flex-col items-center">
+    <k-card
+      :raised="true"
+      :content-wrap="false"
+      class="max-w-md w-full p-6 sm:p-8 bg-dark-card border border-slate-700 shadow-2xl flex flex-col items-center"
+    >
       <!-- Status Icon -->
       <div class="mb-6">
-        <!-- Submitting Spinner -->
+        <!-- Submitting Spinner with Konsta Preloader -->
         <div v-if="status === 'submitting'" class="relative flex items-center justify-center w-20 h-20">
-          <div class="w-20 h-20 rounded-full border-4 border-st-yellow/20 border-t-st-yellow animate-spin"></div>
-          <i class="fa-solid fa-cloud-arrow-up text-2xl text-st-yellow absolute"></i>
+          <k-preloader class="w-16 h-16 k-color-brand-primary" />
         </div>
 
         <!-- Success Big Green Checkmark -->
@@ -38,55 +41,62 @@
         {{ dynamicMessage }}
       </p>
 
-      <!-- Progress Bar (while submitting or completed) -->
-      <div v-if="status === 'submitting' || status === 'success'" class="w-full bg-slate-800 rounded-full h-3 mb-6 overflow-hidden border border-slate-700">
-        <div
-          class="h-full bg-gradient-to-r from-st-yellow to-amber-400 transition-all duration-300 rounded-full"
-          :style="{ width: `${progressPercent}%` }"
-        ></div>
+      <!-- Progress Bar (while submitting or completed) with Konsta Progressbar -->
+      <div v-if="status === 'submitting' || status === 'success'" class="w-full mb-6">
+        <k-progressbar
+          :progress="progressPercent / 100"
+          class="w-full h-3 rounded-full overflow-hidden"
+        />
       </div>
 
-      <!-- Action Buttons -->
+      <!-- Action Buttons with Konsta Button -->
       <div class="w-full flex flex-col gap-3">
         <!-- View Suggestion Button (Success) -->
-        <button
+        <k-button
           v-if="status === 'success'"
           type="button"
+          large
+          :rounded="true"
           @click="onViewSuggestion"
-          class="btn-st-primary w-full text-base py-3.5 shadow-lg"
+          class="w-full font-bold shadow-lg"
         >
           <i class="fa-solid fa-eye mr-2"></i>
           View suggestion
-        </button>
+        </k-button>
 
         <!-- Go to Home Button (Failure) -->
-        <button
+        <k-button
           v-if="status === 'failed'"
           type="button"
+          large
+          :rounded="true"
           @click="onGoHome"
-          class="btn-st-primary w-full text-base py-3.5 shadow-lg"
+          class="w-full font-bold shadow-lg"
         >
           <i class="fa-solid fa-house mr-2"></i>
           Go to home
-        </button>
+        </k-button>
 
         <!-- Retry Button (Optional fallback for failure) -->
-        <button
+        <k-button
           v-if="status === 'failed'"
           type="button"
+          :outline="true"
+          :rounded="true"
           @click="$emit('retry')"
-          class="btn-st-outline w-full text-sm py-2.5"
+          class="w-full text-sm"
         >
           <i class="fa-solid fa-rotate-right mr-2"></i>
           Try Again
-        </button>
+        </k-button>
       </div>
-    </div>
+    </k-card>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue';
+import { kCard, kProgressbar, kPreloader, kButton } from 'konsta/vue';
 
 const props = defineProps({
   status: {

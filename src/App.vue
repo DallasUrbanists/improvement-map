@@ -1,21 +1,28 @@
 <template>
-  <div class="min-h-screen flex flex-col transition-colors duration-200" :class="isDark ? 'dark bg-dark-bg text-slate-100' : 'light bg-st-sidewalk text-st-navy'">
+  <k-app
+    theme="material"
+    :dark="isDark"
+    :material-touch-ripple="false"
+    class="k-md-vibrant min-h-screen flex flex-col font-sans transition-colors duration-200"
+    :class="isDark ? 'dark bg-dark-bg text-slate-100' : 'light bg-st-sidewalk text-st-navy'"
+  >
     <!-- Global Navbar (hidden when isSubmitting is true) -->
     <Navbar :hideNavbar="isSubmitting" />
 
     <!-- Main View Content -->
-    <main class="flex-grow pb-20 md:pb-6">
+    <main class="flex-grow pb-6">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
         </transition>
       </router-view>
     </main>
-  </div>
+  </k-app>
 </template>
 
 <script setup>
 import { ref, provide, onMounted } from 'vue';
+import { kApp } from 'konsta/vue';
 import Navbar from './components/Navbar.vue';
 import { isDark, initTheme } from './services/theme';
 

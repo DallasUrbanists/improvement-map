@@ -2,58 +2,62 @@
   <div class="h-[calc(100vh-4rem)] flex flex-col relative overflow-hidden">
     <!-- Top Bar: View Mode Switcher (Map / List) & Quick Stats -->
     <header class="bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 border-b border-slate-700 dark:border-slate-700 light:border-slate-300 px-4 py-2.5 z-30 flex items-center justify-between shadow-sm">
-      <!-- Tabs Switcher -->
-      <div class="flex items-center bg-slate-900 dark:bg-slate-900 light:bg-slate-200 p-1 rounded-xl border border-slate-700/60 dark:border-slate-700/60 light:border-slate-300">
-        <button
-          type="button"
+      <!-- Tabs Switcher with Konsta Segmented -->
+      <k-segmented :raised="true" class="w-auto">
+        <k-segmented-button
+          :active="activeTab === 'map'"
           @click="setTab('map')"
-          class="touch-target px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all"
-          :class="activeTab === 'map' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white'"
+          class="touch-target px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
         >
           <i class="fa-solid fa-map-location-dot"></i>
           <span>Map View</span>
-        </button>
+        </k-segmented-button>
 
-        <button
-          type="button"
+        <k-segmented-button
+          :active="activeTab === 'list'"
           @click="setTab('list')"
-          class="touch-target px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all"
-          :class="activeTab === 'list' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white'"
+          class="touch-target px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
         >
           <i class="fa-solid fa-list-ul"></i>
           <span>List View ({{ suggestions.length }})</span>
-        </button>
-      </div>
+        </k-segmented-button>
+      </k-segmented>
 
       <!-- GPS Status / Recenter Badge -->
       <div class="flex items-center gap-2">
-        <button
+        <k-button
           v-if="!userLocation"
           type="button"
           @click="requestGps"
-          class="btn-st-ghost text-xs border border-st-yellow/40 text-st-yellow px-2.5 py-1.5 gap-1"
+          :outline="true"
+          :rounded="true"
+          small
+          class="text-xs font-semibold gap-1"
           title="Enable GPS to sort by distance"
         >
-          <i class="fa-solid fa-location-crosshairs"></i>
+          <i class="fa-solid fa-location-crosshairs mr-1"></i>
           <span class="hidden sm:inline">Enable GPS</span>
-        </button>
-        <span
+        </k-button>
+        <k-badge
           v-else
-          class="text-xs text-emerald-400 font-semibold hidden sm:flex items-center gap-1 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20"
+          class="text-xs font-semibold hidden sm:flex items-center gap-1 px-2.5 py-1"
         >
           <i class="fa-solid fa-location-dot"></i>
           <span>GPS Active</span>
-        </span>
+        </k-badge>
 
-        <button
+        <k-button
           type="button"
           @click="refreshData"
           :disabled="isLoading"
-          class="btn-st-ghost text-xs p-2"
+          :clear="true"
+          :rounded="true"
+          small
+          class="p-2"
           title="Refresh suggestions"
         >
           <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': isLoading }"></i>
-        </button>
+        </k-button>
       </div>
     </header>
 
@@ -103,26 +107,28 @@
         </div>
       </div>
 
-      <!-- Basemap Switcher (Streets / Satellite) -->
-      <div class="absolute top-3 right-3 z-30 flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-lg p-1">
-        <button
-          type="button"
-          @click="setMapType('roadmap')"
-          class="px-2.5 py-1 text-xs font-bold rounded-lg transition-colors"
-          :class="currentMapType === 'roadmap' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 hover:text-white'"
-        >
-          <i class="fa-solid fa-road mr-1"></i>
-          Streets
-        </button>
-        <button
-          type="button"
-          @click="setMapType('hybrid')"
-          class="px-2.5 py-1 text-xs font-bold rounded-lg transition-colors"
-          :class="currentMapType === 'hybrid' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 hover:text-white'"
-        >
-          <i class="fa-solid fa-earth-americas mr-1"></i>
-          Satellite
-        </button>
+      <!-- Basemap Switcher (Streets / Satellite) with Konsta Segmented -->
+      <div class="absolute top-3 right-3 z-30 flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-lg p-0.5">
+        <k-segmented :raised="true" class="w-auto">
+          <k-segmented-button
+            :active="currentMapType === 'roadmap'"
+            @click="setMapType('roadmap')"
+            small
+            class="text-xs font-bold px-2.5 py-1"
+          >
+            <i class="fa-solid fa-road mr-1"></i>
+            Streets
+          </k-segmented-button>
+          <k-segmented-button
+            :active="currentMapType === 'hybrid'"
+            @click="setMapType('hybrid')"
+            small
+            class="text-xs font-bold px-2.5 py-1"
+          >
+            <i class="fa-solid fa-earth-americas mr-1"></i>
+            Satellite
+          </k-segmented-button>
+        </k-segmented>
       </div>
 
       <!-- Google Map Target Container Wrapper -->
@@ -153,14 +159,17 @@
               <li>Billing account linked to GCP project</li>
             </ul>
           </div>
-          <button
+          <k-button
             type="button"
             @click="setTab('list')"
-            class="btn-st-primary text-xs px-4 py-2"
+            :rounded="true"
+            small
+            inline
+            class="text-xs font-semibold px-4"
           >
             <i class="fa-solid fa-list-ul mr-1.5"></i>
             Open List Mode
-          </button>
+          </k-button>
         </div>
 
         <!-- Loading indicator while SDK initializes -->
@@ -168,22 +177,23 @@
           v-else-if="!isMapReady"
           class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 z-10"
         >
-          <i class="fa-solid fa-spinner animate-spin text-2xl text-st-yellow mb-2"></i>
+          <k-preloader class="w-8 h-8 mb-2" />
           <span class="text-xs font-semibold">Loading Map...</span>
         </div>
       </div>
 
       <!-- Map Recenter Controls Overlay -->
-      <div class="absolute bottom-6 right-4 z-30 flex flex-col gap-2">
-        <button
+      <div class="absolute bottom-20 sm:bottom-6 right-4 z-20 flex flex-col gap-2">
+        <k-button
           type="button"
           @click="requestGps"
-          class="touch-target w-11 h-11 rounded-xl bg-st-navy/90 hover:bg-st-navy text-st-yellow border border-slate-700 shadow-xl flex items-center justify-center backdrop-blur-md active:scale-95 transition"
+          :rounded="true"
+          class="touch-target w-11 h-11 p-0 flex items-center justify-center shadow-xl backdrop-blur-md"
           title="Center on my location"
           aria-label="Center on my location"
         >
           <i class="fa-solid fa-crosshairs text-lg" :class="{ 'animate-spin': isLocating }"></i>
-        </button>
+        </k-button>
       </div>
     </div>
 
@@ -207,24 +217,29 @@
           </p>
         </div>
 
-        <button
+        <k-button
           v-if="!userLocation"
           type="button"
           @click="requestGps"
-          class="btn-st-outline text-xs self-start sm:self-auto gap-1.5 py-1.5"
+          :outline="true"
+          :rounded="true"
+          small
+          class="text-xs self-start sm:self-auto gap-1.5 py-1.5"
         >
-          <i class="fa-solid fa-location-crosshairs text-st-yellow"></i>
+          <i class="fa-solid fa-location-crosshairs text-st-yellow mr-1"></i>
           <span>Sort by My Distance</span>
-        </button>
+        </k-button>
       </div>
 
       <!-- Suggestions List -->
       <div v-if="sortedListSuggestions.length > 0" class="space-y-3.5">
-        <!-- List Card item -->
-        <div
+        <!-- List Card item using Konsta Card -->
+        <k-card
           v-for="item in sortedListSuggestions"
           :key="item.id"
-          class="st-card p-3.5 sm:p-4 hover:border-st-yellow/70 transition-all flex flex-col sm:flex-row gap-3.5 items-start sm:items-center justify-between"
+          :outline="true"
+          :content-wrap="false"
+          class="st-card p-3.5 sm:p-4 hover:border-st-yellow/70 transition-all flex flex-col sm:flex-row gap-3.5 items-start sm:items-center justify-between m-0"
         >
           <!-- Left: Thumbnail and Summary -->
           <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
@@ -241,13 +256,13 @@
                 <i class="fa-solid fa-camera text-base"></i>
               </div>
 
-              <!-- Distance Badge -->
-              <span
+              <!-- Distance Badge with Konsta Badge -->
+              <k-badge
                 v-if="item._formattedDistance"
-                class="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-st-navy/90 text-st-yellow border border-st-yellow/30"
+                class="absolute bottom-1 left-1 text-[10px] font-bold"
               >
                 {{ item._formattedDistance }}
-              </span>
+              </k-badge>
             </div>
 
             <!-- Summary Text and Meta -->
@@ -270,23 +285,34 @@
           <!-- Right: View Suggestion Button Link -->
           <router-link
             :to="`/suggestion/${item.id}`"
-            class="btn-st-primary text-xs py-2 px-4 flex-shrink-0 w-full sm:w-auto text-center touch-target"
+            class="k-button k-button-material k-button-fill text-xs font-bold py-2 px-4 rounded-full flex-shrink-0 w-full sm:w-auto text-center inline-flex items-center justify-center gap-1.5 touch-target"
           >
             <span>View suggestion</span>
-            <i class="fa-solid fa-arrow-right ml-1.5"></i>
+            <i class="fa-solid fa-arrow-right"></i>
           </router-link>
-        </div>
+        </k-card>
       </div>
 
       <!-- Empty State -->
-      <div v-else class="st-card text-center py-12">
+      <k-card
+        v-else
+        :outline="true"
+        :content-wrap="false"
+        class="st-card text-center py-12 m-0"
+      >
         <i class="fa-solid fa-inbox text-3xl text-slate-500 mb-2"></i>
         <h3 class="text-base font-bold">No suggestions found</h3>
         <p class="text-xs text-slate-400 mb-4">Be the first to add an idea to the map!</p>
-        <router-link to="/submit" class="btn-st-primary text-xs">
+        <k-button
+          component="router-link"
+          to="/submit"
+          :rounded="true"
+          inline
+          class="text-xs font-bold"
+        >
           Submit Suggestion
-        </router-link>
-      </div>
+        </k-button>
+      </k-card>
     </div>
   </div>
 </template>
@@ -294,6 +320,14 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import {
+  kSegmented,
+  kSegmentedButton,
+  kButton,
+  kCard,
+  kBadge,
+  kPreloader,
+} from 'konsta/vue';
 import { isDark } from '../services/theme';
 import { getSuggestions } from '../services/api';
 import { sortSuggestionsByDistance } from '../services/geo';

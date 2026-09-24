@@ -85,52 +85,57 @@
       </div>
     </div>
 
-    <!-- Floating Map Controls (Top Right: Basemap Switcher - Streets / Satellite) -->
-    <div class="absolute top-3 right-3 z-30 flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-lg p-1">
-      <button
-        type="button"
-        @click="setMapType('roadmap')"
-        class="px-2.5 py-1 text-xs font-bold rounded-lg transition-colors"
-        :class="currentMapType === 'roadmap' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 hover:text-white'"
-      >
-        <i class="fa-solid fa-road mr-1"></i>
-        Streets
-      </button>
-      <button
-        type="button"
-        @click="setMapType('hybrid')"
-        class="px-2.5 py-1 text-xs font-bold rounded-lg transition-colors"
-        :class="currentMapType === 'hybrid' ? 'bg-st-yellow text-st-navy shadow-sm' : 'text-slate-300 hover:text-white'"
-      >
-        <i class="fa-solid fa-earth-americas mr-1"></i>
-        Satellite
-      </button>
+    <!-- Floating Map Controls (Top Right: Basemap Switcher - Streets / Satellite) with Konsta Segmented -->
+    <div class="absolute top-3 right-3 z-30 flex items-center bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-lg p-0.5">
+      <k-segmented :raised="true" class="w-auto">
+        <k-segmented-button
+          :active="currentMapType === 'roadmap'"
+          @click="setMapType('roadmap')"
+          small
+          class="text-xs font-bold px-2.5 py-1"
+        >
+          <i class="fa-solid fa-road mr-1"></i>
+          Streets
+        </k-segmented-button>
+        <k-segmented-button
+          :active="currentMapType === 'hybrid'"
+          @click="setMapType('hybrid')"
+          small
+          class="text-xs font-bold px-2.5 py-1"
+        >
+          <i class="fa-solid fa-earth-americas mr-1"></i>
+          Satellite
+        </k-segmented-button>
+      </k-segmented>
     </div>
 
     <!-- Floating Map Controls (Bottom Right: Recenter on GPS Coordinates) -->
     <div class="absolute bottom-3 right-3 z-30 flex flex-col gap-2">
-      <button
+      <k-button
         type="button"
         @click="requestGpsLocation"
         :disabled="isLocating"
-        class="touch-target w-11 h-11 rounded-xl bg-st-navy/90 hover:bg-st-navy text-st-yellow border border-slate-700 shadow-xl flex items-center justify-center backdrop-blur-md active:scale-95 transition"
+        :rounded="true"
+        class="touch-target w-11 h-11 p-0 flex items-center justify-center shadow-xl backdrop-blur-md"
         title="Recenter to my current GPS location"
         aria-label="Recenter to current GPS location"
       >
         <i class="fa-solid fa-crosshairs text-lg" :class="{ 'animate-spin': isLocating }"></i>
-      </button>
+      </k-button>
     </div>
 
     <!-- Describe Location Overlay Button (Bottom Left) -->
     <div class="absolute bottom-3 left-3 z-30">
-      <button
+      <k-button
         type="button"
         @click="openLocationDescModal"
-        class="touch-target inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-st-navy/90 hover:bg-st-navy text-white text-xs sm:text-sm font-semibold border border-slate-700 shadow-xl backdrop-blur-md active:scale-95 transition"
+        :rounded="true"
+        small
+        class="touch-target inline-flex items-center gap-2 shadow-xl backdrop-blur-md text-xs sm:text-sm font-semibold"
       >
-        <i class="fa-solid fa-comment-dots text-st-yellow"></i>
+        <i class="fa-solid fa-comment-dots text-st-yellow mr-1"></i>
         <span>{{ modelValue.description ? 'Edit Description' : 'Describe location' }}</span>
-      </button>
+      </k-button>
     </div>
 
     <!-- Active Location Summary Footer -->
@@ -144,24 +149,33 @@
       </div>
     </div>
 
-    <!-- Describe Location Modal Dialog -->
+    <!-- Describe Location Modal Dialog using Konsta Card & Buttons -->
     <div
       v-if="isDescModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in"
       @click.self="discardDescModal"
     >
-      <div class="st-card max-w-lg w-full p-5 sm:p-6 bg-dark-card text-white shadow-2xl border border-slate-700 animate-in fade-in zoom-in-95">
+      <k-card
+        :raised="true"
+        :content-wrap="false"
+        class="max-w-lg w-full p-5 sm:p-6 bg-dark-card dark:bg-dark-card light:bg-white text-white dark:text-white light:text-st-navy shadow-2xl border border-slate-700 rounded-2xl m-0"
+      >
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-lg font-bold font-serif flex items-center gap-2">
+          <h3 class="text-lg font-bold font-serif flex items-center gap-2 text-slate-100 dark:text-slate-100 light:text-st-navy">
             <i class="fa-solid fa-comment-dots text-st-yellow"></i>
             Describe Location
           </h3>
-          <button @click="discardDescModal" class="text-slate-400 hover:text-white p-1">
+          <button
+            type="button"
+            @click="discardDescModal"
+            class="text-slate-400 hover:text-white p-1 touch-target flex items-center justify-center"
+            aria-label="Close"
+          >
             <i class="fa-solid fa-xmark text-base"></i>
           </button>
         </div>
 
-        <p class="text-xs sm:text-sm text-slate-300 mb-4">
+        <p class="text-xs sm:text-sm text-slate-300 dark:text-slate-300 light:text-slate-600 mb-4">
           Add landmarks, intersection details, or specific physical cues (e.g., "Northwest corner in front of the bakery").
         </p>
 
@@ -174,28 +188,43 @@
         ></textarea>
 
         <div class="flex items-center justify-end gap-3">
-          <button
+          <k-button
             type="button"
             @click="discardDescModal"
-            class="btn-st-ghost text-sm px-4 py-2 border border-slate-700"
+            :outline="true"
+            :rounded="true"
+            small
+            inline
+            class="text-sm px-4 py-2"
           >
             Discard
-          </button>
-          <button
+          </k-button>
+          <k-button
             type="button"
             @click="saveDescModal"
-            class="btn-st-primary text-sm px-5 py-2"
+            :rounded="true"
+            small
+            inline
+            class="text-sm font-bold px-5 py-2"
           >
             Okay
-          </button>
+          </k-button>
         </div>
-      </div>
+      </k-card>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import {
+  kSegmented,
+  kSegmentedButton,
+  kButton,
+  kDialog,
+  kDialogButton,
+  kPreloader,
+} from 'konsta/vue';
 import { isDark } from '../services/theme';
 import {
   loadGoogleMaps,

@@ -1,44 +1,70 @@
 <template>
   <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    <!-- Back to browse / home -->
+    <!-- Back to browse / home with Konsta Button -->
     <div class="mb-4">
-      <button
+      <k-button
         type="button"
         @click="goBack"
-        class="inline-flex items-center gap-2 text-sm font-semibold text-st-blue hover:text-white dark:hover:text-white transition-colors touch-target"
+        :clear="true"
+        :rounded="true"
+        small
+        inline
+        class="inline-flex items-center gap-2 text-sm font-semibold"
       >
-        <i class="fa-solid fa-arrow-left"></i>
+        <i class="fa-solid fa-arrow-left mr-1"></i>
         <span>Back</span>
-      </button>
+      </k-button>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="isLoading" class="st-card animate-pulse p-8 space-y-4">
-      <div class="h-8 bg-slate-800 rounded w-3/4"></div>
+    <!-- Loading state with Konsta Card & Preloader -->
+    <k-card
+      v-if="isLoading"
+      :outline="true"
+      :content-wrap="false"
+      class="st-card animate-pulse p-8 space-y-4 m-0"
+    >
+      <div class="h-8 bg-slate-800 rounded w-3/4 flex items-center px-4">
+        <k-preloader class="w-5 h-5 mr-3" />
+      </div>
       <div class="h-4 bg-slate-800 rounded w-1/3"></div>
       <div class="h-64 bg-slate-800 rounded-xl"></div>
       <div class="h-20 bg-slate-800 rounded"></div>
-    </div>
+    </k-card>
 
-    <!-- Error state -->
-    <div v-else-if="errorMessage" class="st-card text-center py-12">
+    <!-- Error state with Konsta Card & Button -->
+    <k-card
+      v-else-if="errorMessage"
+      :outline="true"
+      :content-wrap="false"
+      class="st-card text-center py-12 m-0"
+    >
       <i class="fa-solid fa-triangle-exclamation text-3xl text-rose-400 mb-3"></i>
       <h2 class="text-xl font-bold mb-2">Suggestion Not Found</h2>
       <p class="text-sm text-slate-400 mb-6">{{ errorMessage }}</p>
-      <router-link to="/browse" class="btn-st-primary text-sm">
+      <k-button
+        component="router-link"
+        to="/browse"
+        :rounded="true"
+        inline
+        class="text-sm font-semibold"
+      >
         Browse Other Suggestions
-      </router-link>
-    </div>
+      </k-button>
+    </k-card>
 
-    <!-- Suggestion Details View -->
+    <!-- Suggestion Details View with Konsta Card -->
     <div v-else-if="suggestion" class="space-y-6">
-      <div class="st-card p-6 sm:p-8 space-y-6">
+      <k-card
+        :raised="true"
+        :content-wrap="false"
+        class="st-card p-6 sm:p-8 space-y-6 m-0"
+      >
         <!-- Title and Category Badge -->
         <div>
-          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-st-yellow/20 text-st-yellow text-xs font-bold uppercase tracking-wider mb-3">
-            <i class="fa-solid fa-lightbulb"></i>
+          <k-badge class="mb-3 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+            <i class="fa-solid fa-lightbulb mr-1.5"></i>
             Civic Improvement Suggestion
-          </div>
+          </k-badge>
 
           <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif leading-tight text-slate-100 dark:text-slate-100 light:text-st-navy">
             {{ suggestion.content?.summary || 'Civic Suggestion' }}
@@ -69,8 +95,12 @@
           </p>
         </div>
 
-        <!-- Location Information -->
-        <div class="space-y-3 p-4 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300">
+        <!-- Location Information with Konsta Card -->
+        <k-card
+          :outline="true"
+          :content-wrap="false"
+          class="space-y-3 p-4 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300 m-0"
+        >
           <h3 class="text-xs font-bold uppercase tracking-wider text-st-yellow flex items-center gap-1.5">
             <i class="fa-solid fa-location-dot"></i>
             Location
@@ -87,19 +117,19 @@
 
           <div v-if="suggestion.location?.latitude" class="flex items-center gap-4 text-xs text-slate-400 font-mono">
             <span>Coordinates: {{ Number(suggestion.location.latitude).toFixed(5) }}, {{ Number(suggestion.location.longitude).toFixed(5) }}</span>
-            <a
+            <k-link
               :href="`https://www.google.com/maps/search/?api=1&query=${suggestion.location.latitude},${suggestion.location.longitude}`"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-st-blue hover:text-st-yellow inline-flex items-center gap-1"
+              class="inline-flex items-center gap-1 font-semibold"
             >
               <span>Google Maps</span>
               <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-            </a>
+            </k-link>
           </div>
-        </div>
+        </k-card>
 
-        <!-- Photos Section (up to 10 photos) -->
+        <!-- Photos Section (up to 10 photos) with Konsta Card -->
         <div v-if="photosList.length > 0" class="space-y-3">
           <h3 class="text-xs font-bold uppercase tracking-wider text-st-yellow flex items-center gap-1.5">
             <i class="fa-solid fa-images"></i>
@@ -107,10 +137,12 @@
           </h3>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div
+            <k-card
               v-for="(photo, index) in photosList"
               :key="index"
-              class="rounded-2xl overflow-hidden border border-slate-700 bg-slate-900 shadow-md group"
+              :outline="true"
+              :content-wrap="false"
+              class="rounded-2xl overflow-hidden border border-slate-700 bg-slate-900 shadow-md group m-0"
             >
               <div class="h-60 sm:h-72 w-full bg-slate-950 overflow-hidden relative">
                 <img
@@ -124,10 +156,10 @@
                 <i class="fa-solid fa-quote-left text-st-yellow text-[10px] mr-1.5"></i>
                 {{ photo.caption }}
               </div>
-            </div>
+            </k-card>
           </div>
         </div>
-      </div>
+      </k-card>
     </div>
 
     <!-- Image Lightbox Modal -->
@@ -152,6 +184,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { kButton, kBadge, kCard, kLink, kPreloader } from 'konsta/vue';
 import { getSuggestionById } from '../services/api';
 
 const route = useRoute();

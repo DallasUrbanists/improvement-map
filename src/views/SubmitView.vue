@@ -15,12 +15,12 @@
         </button>
       </div>
 
-      <!-- Step Indicator Dots / Progress Bar -->
-      <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
-        <div
-          class="h-full bg-st-yellow transition-all duration-300 ease-out rounded-full"
-          :style="{ width: `${(draft.step / 4) * 100}%` }"
-        ></div>
+      <!-- Step Indicator Dots / Progress Bar with Konsta Progressbar -->
+      <div class="w-full mb-2">
+        <k-progressbar
+          :progress="draft.step / 4"
+          class="w-full h-2.5 rounded-full overflow-hidden"
+        />
       </div>
 
       <div class="grid grid-cols-4 gap-1 text-[11px] sm:text-xs font-semibold text-center mt-2 text-slate-400">
@@ -31,8 +31,12 @@
       </div>
     </div>
 
-    <!-- WIZARD STEP CONTAINER -->
-    <div class="st-card p-5 sm:p-7 shadow-xl">
+    <!-- WIZARD STEP CONTAINER with Konsta Card -->
+    <k-card
+      :raised="true"
+      :content-wrap="false"
+      class="st-card p-5 sm:p-7 shadow-xl m-0"
+    >
       <!-- ================= STEP 1: DESCRIBE ================= -->
       <div v-if="draft.step === 1" class="space-y-5 animate-in fade-in">
         <div>
@@ -83,14 +87,16 @@
         </div>
 
         <div class="pt-4 flex justify-end">
-          <button
+          <k-button
             type="button"
             @click="validateAndNextStep1"
-            class="btn-st-primary text-base w-full sm:w-auto px-8"
+            :rounded="true"
+            large
+            class="font-bold text-base w-full sm:w-auto px-8"
           >
             <span>Next: Choose Location</span>
             <i class="fa-solid fa-arrow-right ml-2"></i>
-          </button>
+          </k-button>
         </div>
       </div>
 
@@ -112,23 +118,27 @@
         />
 
         <div class="pt-4 flex items-center justify-between gap-3">
-          <button
+          <k-button
             type="button"
             @click="prevStep"
-            class="btn-st-outline text-sm"
+            :outline="true"
+            :rounded="true"
+            class="text-sm"
           >
             <i class="fa-solid fa-arrow-left mr-2"></i>
             Back
-          </button>
+          </k-button>
 
-          <button
+          <k-button
             type="button"
             @click="nextStep"
-            class="btn-st-primary text-base px-8"
+            :rounded="true"
+            large
+            class="font-bold text-base px-8"
           >
             <span>Next: Add Photos</span>
             <i class="fa-solid fa-arrow-right ml-2"></i>
-          </button>
+          </k-button>
         </div>
       </div>
 
@@ -149,23 +159,27 @@
         />
 
         <div class="pt-4 flex items-center justify-between gap-3">
-          <button
+          <k-button
             type="button"
             @click="prevStep"
-            class="btn-st-outline text-sm"
+            :outline="true"
+            :rounded="true"
+            class="text-sm"
           >
             <i class="fa-solid fa-arrow-left mr-2"></i>
             Back
-          </button>
+          </k-button>
 
-          <button
+          <k-button
             type="button"
             @click="nextStep"
-            class="btn-st-primary text-base px-8"
+            :rounded="true"
+            large
+            class="font-bold text-base px-8"
           >
             <span>Next: Review & Submit</span>
             <i class="fa-solid fa-arrow-right ml-2"></i>
-          </button>
+          </k-button>
         </div>
       </div>
 
@@ -178,41 +192,55 @@
           </p>
         </div>
 
-        <!-- Review Section: Step 1 Describe -->
-        <div class="p-4 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300">
+        <!-- Review Section: Step 1 Describe with Konsta Card -->
+        <k-card
+          :outline="true"
+          :content-wrap="false"
+          class="p-4 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300 m-0"
+        >
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-bold uppercase tracking-wider text-st-yellow flex items-center gap-1.5">
               <i class="fa-solid fa-pen"></i>
               1. Description
             </h3>
-            <button
+            <k-button
               type="button"
               @click="goToStep(1)"
-              class="text-xs font-bold text-st-blue hover:text-white dark:hover:text-white flex items-center gap-1 touch-target"
+              :clear="true"
+              small
+              inline
+              class="text-xs font-bold text-st-blue"
             >
-              <i class="fa-solid fa-pen-to-square"></i>
+              <i class="fa-solid fa-pen-to-square mr-1"></i>
               Edit
-            </button>
+            </k-button>
           </div>
           <p class="font-bold text-base mb-1 text-slate-100 dark:text-slate-100 light:text-st-navy">{{ draft.summary || '(No summary provided)' }}</p>
           <p class="text-xs text-slate-300 dark:text-slate-300 light:text-slate-700 whitespace-pre-wrap leading-relaxed">{{ draft.details || '(No details provided)' }}</p>
-        </div>
+        </k-card>
 
-        <!-- Review Section: Step 2 Locate -->
-        <div class="p-4 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300">
+        <!-- Review Section: Step 2 Locate with Konsta Card -->
+        <k-card
+          :outline="true"
+          :content-wrap="false"
+          class="p-4 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300 m-0"
+        >
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-bold uppercase tracking-wider text-st-yellow flex items-center gap-1.5">
               <i class="fa-solid fa-location-dot"></i>
               2. Location
             </h3>
-            <button
+            <k-button
               type="button"
               @click="goToStep(2)"
-              class="text-xs font-bold text-st-blue hover:text-white flex items-center gap-1 touch-target"
+              :clear="true"
+              small
+              inline
+              class="text-xs font-bold text-st-blue"
             >
-              <i class="fa-solid fa-pen-to-square"></i>
+              <i class="fa-solid fa-pen-to-square mr-1"></i>
               Edit
-            </button>
+            </k-button>
           </div>
           <p class="text-sm font-semibold text-slate-200 dark:text-slate-200 light:text-st-navy">
             {{ draft.location?.address || 'Dallas, TX' }}
@@ -223,23 +251,30 @@
           <p v-if="draft.location?.latitude" class="text-[11px] text-slate-500 font-mono mt-1">
             {{ Number(draft.location.latitude).toFixed(5) }}, {{ Number(draft.location.longitude).toFixed(5) }}
           </p>
-        </div>
+        </k-card>
 
-        <!-- Review Section: Step 3 Photo -->
-        <div class="p-4 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300">
+        <!-- Review Section: Step 3 Photo with Konsta Card -->
+        <k-card
+          :outline="true"
+          :content-wrap="false"
+          class="p-4 rounded-xl bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-300 m-0"
+        >
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-bold uppercase tracking-wider text-st-yellow flex items-center gap-1.5">
               <i class="fa-solid fa-camera"></i>
               3. Photos ({{ (draft.photos || []).length }})
             </h3>
-            <button
+            <k-button
               type="button"
               @click="goToStep(3)"
-              class="text-xs font-bold text-st-blue hover:text-white flex items-center gap-1 touch-target"
+              :clear="true"
+              small
+              inline
+              class="text-xs font-bold text-st-blue"
             >
-              <i class="fa-solid fa-pen-to-square"></i>
+              <i class="fa-solid fa-pen-to-square mr-1"></i>
               Edit
-            </button>
+            </k-button>
           </div>
 
           <div v-if="draft.photos && draft.photos.length > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
@@ -255,7 +290,7 @@
             </div>
           </div>
           <p v-else class="text-xs text-slate-500">No photos attached.</p>
-        </div>
+        </k-card>
 
         <!-- Author Name & Email (Required) -->
         <div class="pt-2 border-t border-slate-700/60 space-y-4">
@@ -306,26 +341,30 @@
 
         <!-- Submit Final Action -->
         <div class="pt-4 flex items-center justify-between gap-3">
-          <button
+          <k-button
             type="button"
             @click="prevStep"
-            class="btn-st-outline text-sm"
+            :outline="true"
+            :rounded="true"
+            class="text-sm"
           >
             <i class="fa-solid fa-arrow-left mr-2"></i>
             Back
-          </button>
+          </k-button>
 
-          <button
+          <k-button
             type="button"
             @click="submitFinalSuggestion"
-            class="btn-st-primary text-base px-8 py-3.5 shadow-xl font-black text-st-navy bg-st-yellow hover:bg-amber-400"
+            :rounded="true"
+            large
+            class="font-black text-base px-8 py-3.5 shadow-xl"
           >
             <i class="fa-solid fa-paper-plane mr-2"></i>
             Submit Suggestion
-          </button>
+          </k-button>
         </div>
       </div>
-    </div>
+    </k-card>
 
     <!-- SUBMISSION IN PROGRESS / STATUS MODAL -->
     <SubmissionProgressModal
@@ -345,6 +384,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
+import { kCard, kButton, kProgressbar } from 'konsta/vue';
 import LocationPicker from '../components/LocationPicker.vue';
 import PhotoUploader from '../components/PhotoUploader.vue';
 import SubmissionProgressModal from '../components/SubmissionProgressModal.vue';

@@ -3,11 +3,53 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root, .k-md-vibrant {
     --color-st-navy: #0c2340;
     --color-st-blue: #488BE3;
     --color-st-yellow: #ffa800;
     --color-st-sidewalk: #f5f3ee;
+
+    /* Konsta Material Vibrant Scheme Tokens */
+    --k-color-primary: rgb(255 168 0);
+    --k-color-md-light-primary: rgb(153 103 0);
+    --k-color-md-light-on-primary: rgb(255 255 255);
+    --k-color-md-light-primary-container: rgb(255 223 158);
+    --k-color-md-light-on-primary-container: rgb(43 23 0);
+    --k-color-md-light-secondary: rgb(72 139 227);
+    --k-color-md-light-on-secondary: rgb(255 255 255);
+    --k-color-md-light-secondary-container: rgb(219 234 254);
+    --k-color-md-light-on-secondary-container: rgb(30 58 138);
+    --k-color-md-light-surface: rgb(251 248 242);
+    --k-color-md-light-on-surface: rgb(29 27 22);
+    --k-color-md-light-surface-variant: rgb(235 225 212);
+    --k-color-md-light-on-surface-variant: rgb(77 70 57);
+    --k-color-md-light-outline: rgb(127 118 103);
+    --k-color-md-light-outline-variant: rgb(209 197 180);
+    --k-color-md-light-surface-1: rgb(246 243 237);
+    --k-color-md-light-surface-2: rgb(240 237 231);
+    --k-color-md-light-surface-3: rgb(234 231 225);
+    --k-color-md-light-surface-4: rgb(229 225 219);
+    --k-color-md-light-surface-5: rgb(223 219 212);
+
+    --k-color-md-dark-primary: rgb(255 185 81);
+    --k-color-md-dark-on-primary: rgb(69 43 0);
+    --k-color-md-dark-primary-container: rgb(99 63 0);
+    --k-color-md-dark-on-primary-container: rgb(255 221 179);
+    --k-color-md-dark-secondary: rgb(147 197 253);
+    --k-color-md-dark-on-secondary: rgb(12 35 64);
+    --k-color-md-dark-secondary-container: rgb(30 62 94);
+    --k-color-md-dark-on-secondary-container: rgb(191 219 254);
+    --k-color-md-dark-surface: rgb(14 35 61);
+    --k-color-md-dark-on-surface: rgb(230 225 217);
+    --k-color-md-dark-surface-variant: rgb(29 59 97);
+    --k-color-md-dark-on-surface-variant: rgb(144 164 188);
+    --k-color-md-dark-outline: rgb(140 157 176);
+    --k-color-md-dark-outline-variant: rgb(29 59 97);
+    --k-color-md-dark-surface-1: rgb(19 43 73);
+    --k-color-md-dark-surface-2: rgb(26 53 86);
+    --k-color-md-dark-surface-3: rgb(33 63 100);
+    --k-color-md-dark-surface-4: rgb(36 67 106);
+    --k-color-md-dark-surface-5: rgb(43 75 117);
   }
 
   html {
@@ -92,6 +134,13 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-600;
+}
+
+/* Konsta touch ripple fix */
+.k-touch-ripple-wave {
+  display: none !important;
+  position: absolute !important;
+  pointer-events: none !important;
 }
 
 /* Map popup styling overrides */

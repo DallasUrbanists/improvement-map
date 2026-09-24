@@ -4,11 +4,18 @@
     <div class="flex flex-wrap items-center gap-3">
       <!-- File Upload Input Trigger -->
       <label
-        class="touch-target btn-st-primary text-sm gap-2 cursor-pointer shadow"
+        class="inline-block cursor-pointer"
         :class="{ 'opacity-50 pointer-events-none': photos.length >= maxPhotos || isProcessing }"
       >
-        <i class="fa-solid fa-cloud-arrow-up"></i>
-        <span>Upload Photos</span>
+        <k-button
+          component="div"
+          :rounded="true"
+          :disabled="photos.length >= maxPhotos || isProcessing"
+          class="font-bold text-sm shadow cursor-pointer pointer-events-none"
+        >
+          <i class="fa-solid fa-cloud-arrow-up mr-2"></i>
+          <span>Upload Photos</span>
+        </k-button>
         <input
           ref="fileInput"
           type="file"
@@ -22,11 +29,19 @@
 
       <!-- Camera Capture Trigger -->
       <label
-        class="touch-target btn-st-outline text-sm gap-2 cursor-pointer shadow"
+        class="inline-block cursor-pointer"
         :class="{ 'opacity-50 pointer-events-none': photos.length >= maxPhotos || isProcessing }"
       >
-        <i class="fa-solid fa-camera text-st-yellow"></i>
-        <span>Take Photo</span>
+        <k-button
+          component="div"
+          :outline="true"
+          :rounded="true"
+          :disabled="photos.length >= maxPhotos || isProcessing"
+          class="font-semibold text-sm shadow cursor-pointer pointer-events-none"
+        >
+          <i class="fa-solid fa-camera mr-2 text-st-yellow"></i>
+          <span>Take Photo</span>
+        </k-button>
         <input
           ref="cameraInput"
           type="file"
@@ -38,15 +53,15 @@
         />
       </label>
 
-      <!-- Photos Counter Badge -->
-      <span class="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+      <!-- Photos Counter Badge with Konsta Badge -->
+      <k-badge class="text-xs font-semibold px-3 py-1.5 rounded-full">
         {{ photos.length }} / {{ maxPhotos }} Photos
-      </span>
+      </k-badge>
     </div>
 
-    <!-- Processing Indicator -->
+    <!-- Processing Indicator with Konsta Preloader -->
     <div v-if="isProcessing" class="p-3 rounded-xl bg-st-blue/20 border border-st-blue/40 text-st-blue text-xs flex items-center gap-2">
-      <i class="fa-solid fa-spinner animate-spin"></i>
+      <k-preloader class="w-4 h-4" />
       <span>Compressing & optimizing image(s) to WebP format...</span>
     </div>
 
@@ -75,12 +90,14 @@
       </p>
     </div>
 
-    <!-- Photos Grid (Up to 10 photos) -->
+    <!-- Photos Grid (Up to 10 photos) with Konsta Card -->
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div
+      <k-card
         v-for="(photo, index) in photos"
         :key="photo.id || index"
-        class="st-card p-3 bg-slate-900/80 border border-slate-700/80 rounded-2xl flex flex-col gap-2 relative group"
+        :outline="true"
+        :content-wrap="false"
+        class="st-card p-3 bg-slate-900/80 border border-slate-700/80 rounded-2xl flex flex-col gap-2 relative group m-0"
       >
         <!-- Photo Preview and Delete Action -->
         <div class="relative w-full h-44 rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
@@ -90,10 +107,10 @@
             class="w-full h-full object-cover"
           />
 
-          <!-- Photo Index Number -->
-          <div class="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[11px] font-bold bg-black/70 text-white backdrop-blur-sm">
+          <!-- Photo Index Number with Konsta Badge -->
+          <k-badge class="absolute top-2 left-2 text-[11px] font-bold">
             #{{ index + 1 }}
-          </div>
+          </k-badge>
 
           <!-- Delete Photo Button -->
           <button
@@ -121,13 +138,14 @@
             maxlength="140"
           />
         </div>
-      </div>
+      </k-card>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
+import { kButton, kBadge, kCard, kPreloader } from 'konsta/vue';
 import { resizeImage } from '../services/image';
 
 const props = defineProps({
