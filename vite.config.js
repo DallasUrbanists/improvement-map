@@ -21,10 +21,11 @@ function spa404Plugin() {
 }
 
 const getBasePath = () => {
-  if (process.env.BASE_PATH) {
+  if (process.env.BASE_PATH !== undefined) {
+    if (process.env.BASE_PATH === '' || process.env.BASE_PATH === '/') return '/';
     return process.env.BASE_PATH.endsWith('/') ? process.env.BASE_PATH : `${process.env.BASE_PATH}/`;
   }
-  return process.env.NODE_ENV === 'production' ? '/improvement-map/' : '/';
+  return '/';
 };
 
 export default defineConfig({
