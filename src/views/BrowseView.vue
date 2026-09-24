@@ -1,8 +1,8 @@
 <template>
-  <div class="flex-grow flex flex-col relative overflow-hidden">
+  <div class="flex-grow flex flex-col relative overflow-hidden h-full min-h-0">
 
     <!-- TAB 1: MAP VIEW (Google Maps SDK) -->
-    <div v-show="activeTab === 'map'" class="flex-grow relative">
+    <div v-show="activeTab === 'map'" class="flex-grow relative min-h-0 h-full">
       <!-- Search Address Overlay with Autocomplete (Google Places / Geocoder) -->
       <div class="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-30 flex flex-col">
         <div
@@ -35,7 +35,7 @@
 
       <!-- Basemap Switcher (Streets / Satellite) with Konsta Segmented -->
       <div
-        class="absolute top-3 right-3 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
+        class="absolute bottom-3 left-3 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
         <k-segmented :raised="true" class="w-auto">
           <k-segmented-button :active="currentMapType === 'roadmap'" @click="setMapType('roadmap')" small
             class="text-xs font-bold px-2.5 py-1">
@@ -46,6 +46,12 @@
             class="text-xs font-bold px-2.5 py-1">
             <i class="fa-solid fa-earth-americas mr-1"></i>
             Satellite
+          </k-segmented-button>
+          <k-segmented-button @click="requestGps" small
+            class="text-xs font-bold px-2.5 py-1"
+            title="Center on my location" aria-label="Center on my location">
+            <i class="fa-solid fa-crosshairs mr-1" :class="{ 'animate-spin': isLocating }"></i>
+            Recenter
           </k-segmented-button>
         </k-segmented>
       </div>
@@ -90,19 +96,11 @@
         </div>
       </div>
 
-      <!-- Map Recenter Controls Overlay -->
-      <div class="absolute bottom-20 sm:bottom-6 left-4 z-20 flex flex-col gap-2">
-        <k-button type="button" @click="requestGps" :rounded="true"
-          class="w-11 h-11 p-0 flex items-center justify-center shadow-xl backdrop-blur-md"
-          title="Center on my location" aria-label="Center on my location">
-          <i class="fa-solid fa-crosshairs text-lg" :class="{ 'animate-spin': isLocating }"></i>
-        </k-button>
-      </div>
     </div>
 
     <!-- TAB 2: LIST VIEW -->
     <div v-show="activeTab === 'list'"
-      class="flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 max-w-4xl w-full mx-auto">
+      class="flex-grow overflow-y-auto min-h-0 px-4 sm:px-6 lg:px-8 py-6 max-w-4xl w-full mx-auto">
       <div class="mb-4">
         <h2 class="text-xl sm:text-2xl font-bold">Civic Suggestions</h2>
       </div>
@@ -113,11 +111,11 @@
         <p class="text-xs text-zinc-500 dark:text-zinc-400">
           <span v-if="userLocation">
             <i class="fa-solid fa-arrow-down-short-wide mr-1 text-zinc-600 dark:text-zinc-300"></i>
-            Sorted by distance from your current location (closest first)
+            Sorted by distance from your current location
           </span>
           <span v-else>
             <i class="fa-solid fa-clock mr-1 text-zinc-600 dark:text-zinc-300"></i>
-            Sorted by newest submissions (enable GPS to sort by distance)
+            Sorted by newest submissions
           </span>
         </p>
 
@@ -132,7 +130,7 @@
       <div v-if="sortedListSuggestions.length > 0" class="space-y-3.5">
         <!-- List Card item using Konsta Card -->
         <k-card v-for="item in sortedListSuggestions" :key="item.id" :outline="true" :content-wrap="false"
-          class="p-3.5 sm:p-4 hover:shadow-md transition-all flex flex-col sm:flex-row gap-3.5 items-start sm:items-center justify-between m-0 cursor-pointer"
+          class="!mx-0 mb-4 p-3.5 gap-3.5 sm:p-4 hover:shadow-md transition-all flex flex-col sm:flex-row cursor-pointer"
           @click="$router.push(`/suggestion/${item.id}`)">
           <!-- Left: Thumbnail and Summary -->
           <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
@@ -179,7 +177,7 @@
       </div>
 
       <!-- Empty State -->
-      <k-card v-else :outline="true" :content-wrap="false" class="text-center py-12 m-0">
+      <k-card v-else :outline="true" :content-wrap="false" class="!m-0 text-center py-12">
         <i class="fa-solid fa-inbox text-3xl text-zinc-400 mb-2"></i>
         <h3 class="text-base font-bold">No suggestions found</h3>
         <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Be the first to add an idea to the map!</p>
@@ -188,26 +186,25 @@
         </k-button>
       </k-card>
     </div>
-    
-    <!-- Top Bar: View Mode Switcher (Map / List) & Quick Stats -->
-    <footer class="">
-      <!-- Tabs Switcher with Konsta Segmented -->
-      <k-segmented>
-        <k-segmented-button
-          :active="activeTab === 'map'"
-          @click="setTab('map')"
-        >
-          <span>Map View</span>
-        </k-segmented-button>
 
-        <k-segmented-button
-          :active="activeTab === 'list'"
-          @click="setTab('list')"
-        >
-          <span>List View</span>
-        </k-segmented-button>
-      </k-segmented>
-    </footer>
+    <!-- Bottom Tabbar -->
+    <k-tabbar
+      :labels="true"
+      class="w-full bg-zinc-900 flex-shrink-0 sticky bottom-0 z-30"
+    >
+      <k-tabbar-link
+        label="Map"
+        :active="activeTab === 'map'"
+        @click="setTab('map')"
+      ></k-tabbar-link>
+
+      <k-tabbar-link
+        label="List"
+        :active="activeTab === 'list'"
+        @click="setTab('list')"
+      ></k-tabbar-link>
+    </k-tabbar>
+    
   </div>
 </template>
 
@@ -215,6 +212,8 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
+  kTabbar,
+  kTabbarLink,
   kSegmented,
   kSegmentedButton,
   kButton,
@@ -313,10 +312,11 @@ async function initGoogleMap() {
     map = new googleMaps.Map(browseMapContainerEl.value, {
       center: initialCenter,
       zoom: 13,
-      mapTypeId: googleMaps.MapTypeId.ROADMAP,
+      //mapTypeId: googleMaps.MapTypeId.ROADMAP,
       styles: getMapStyles(isDark.value, currentMapType.value),
       disableDefaultUI: true,
       zoomControl: true,
+      mapTypeControl: false,
       gestureHandling: 'greedy',
       clickableIcons: false,
     });

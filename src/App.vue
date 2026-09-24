@@ -3,14 +3,14 @@
     theme="material"
     :dark="isDark"
     :material-touch-ripple="false"
-    class="min-h-screen flex flex-col flex-grow font-sans"
+    class="min-h-screen h-screen flex flex-col font-sans overflow-hidden"
   >
     <!-- Bottom Tabbar with no title and no subtitle -->
     <k-tabbar
       v-if="!isSubmitting"
       :labels="true"
       :top="true"
-      class="w-full bg-zinc-900 sticky"
+      class="w-full bg-zinc-900 sticky top-0 z-30 flex-shrink-0"
     >
       <k-tabbar-link
         component="router-link"
@@ -38,7 +38,7 @@
       </k-tabbar-link>
     </k-tabbar>
     <!-- Main View Content -->
-    <main class="flex-grow flex flex-col justify-stretch item-stretch">
+    <main class="flex-grow flex flex-col min-h-0 overflow-y-auto">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />

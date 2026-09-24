@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "konsta/vue/theme.css";
 
 html {
   -webkit-tap-highlight-color: transparent;
