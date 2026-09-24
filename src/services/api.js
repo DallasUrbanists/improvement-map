@@ -5,7 +5,7 @@ import { getCachedSuggestions, setCachedSuggestions } from './storage';
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  'https://urbanists-cloud-api-server-143738155808.us-central1.run.app';
+  'https://api.dallasurbanists.org';
 
 // In-memory cache
 let suggestionsCache = null;
