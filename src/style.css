@@ -35,7 +35,7 @@
 }
 
 @layer components {
-  /* Strong Towns Button styles */
+  /* Dallas Urbanists Button styles */
   .btn-st-primary {
     @apply inline-flex items-center justify-center font-bold px-5 py-3 rounded-xl bg-st-yellow text-st-navy hover:bg-amber-400 active:scale-[0.98] transition shadow-md touch-manipulation focus:outline-none focus:ring-4 focus:ring-st-yellow/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
   }

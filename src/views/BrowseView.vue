@@ -185,60 +185,6 @@
           <i class="fa-solid fa-crosshairs text-lg" :class="{ 'animate-spin': isLocating }"></i>
         </button>
       </div>
-
-      <!-- Marker Popup Modal / Card Bottom Overlay -->
-      <div
-        v-if="selectedMarker"
-        class="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-20 sm:w-80 z-40 animate-in slide-in-from-bottom-5 duration-200"
-      >
-        <div class="st-card p-3.5 bg-dark-card/95 dark:bg-dark-card/95 light:bg-white/95 backdrop-blur-md border border-st-yellow/60 shadow-2xl rounded-2xl">
-          <div class="flex items-start justify-between gap-2 mb-2">
-            <h4 class="font-bold text-sm leading-snug line-clamp-2 text-slate-100 dark:text-slate-100 light:text-st-navy">
-              {{ selectedMarker.content?.summary || 'Civic Suggestion' }}
-            </h4>
-            <button
-              @click="selectedMarker = null"
-              class="text-slate-400 hover:text-white p-1"
-              type="button"
-              aria-label="Close popup"
-            >
-              <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
-          </div>
-
-          <!-- Popup Photo if attached -->
-          <div
-            v-if="getPrimaryPhoto(selectedMarker)"
-            class="w-full h-32 rounded-xl overflow-hidden mb-2.5 bg-slate-800 border border-slate-700"
-          >
-            <img
-              :src="getPrimaryPhoto(selectedMarker)"
-              :alt="selectedMarker.content?.summary"
-              class="w-full h-full object-cover"
-            />
-          </div>
-
-          <!-- Location Info & View Link -->
-          <div class="flex items-center justify-between text-xs pt-1">
-            <span v-if="selectedMarker.location?.address" class="text-slate-400 truncate max-w-[160px]">
-              <i class="fa-solid fa-location-dot text-st-yellow mr-1"></i>
-              {{ selectedMarker.location.address }}
-            </span>
-            <span v-else class="text-slate-400">
-              <i class="fa-solid fa-calendar mr-1"></i>
-              {{ formatTime(selectedMarker.createdAt) }}
-            </span>
-
-            <router-link
-              :to="`/suggestion/${selectedMarker.id}`"
-              class="btn-st-primary text-xs py-1.5 px-3 rounded-lg shadow-none"
-            >
-              <span>View suggestion</span>
-              <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
-            </router-link>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- TAB 2: LIST VIEW -->
@@ -347,6 +293,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { isDark } from '../services/theme';
 import { getSuggestions } from '../services/api';
 import { sortSuggestionsByDistance } from '../services/geo';
@@ -360,12 +307,13 @@ import {
   updateMapTheme,
 } from '../services/googleMaps';
 
+const router = useRouter();
+
 const activeTab = ref('map'); // 'map' | 'list'
 const suggestions = ref([]);
 const isLoading = ref(false);
 const userLocation = ref(null); // { lat, lng }
 const isLocating = ref(false);
-const selectedMarker = ref(null);
 const currentMapType = ref('roadmap');
 
 // Map DOM & State
@@ -373,6 +321,7 @@ const browseMapContainerEl = ref(null);
 const isMapReady = ref(false);
 let map = null;
 let googleMaps = null;
+let infoWindow = null;
 let markersArray = [];
 let userLocationMarker = null;
 
@@ -400,6 +349,8 @@ function setTab(tab) {
     setTimeout(() => {
       googleMaps.event?.trigger(map, 'resize');
     }, 100);
+  } else if (tab === 'list' && infoWindow) {
+    infoWindow.close();
   }
 }
 
@@ -441,6 +392,8 @@ async function initGoogleMap() {
       gestureHandling: 'greedy',
     });
 
+    infoWindow = new googleMaps.InfoWindow();
+
     isMapReady.value = true;
     renderSuggestionMarkers();
 
@@ -462,10 +415,81 @@ async function initGoogleMap() {
   }
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function createInfoWindowContent(suggestion) {
+  const container = document.createElement('div');
+  container.className = 'gm-suggestion-infowindow';
+  container.style.cssText = 'padding: 4px; max-width: 260px; font-family: Inter, system-ui, -apple-system, sans-serif; color: #1e293b;';
+
+  const summary = suggestion.content?.summary || 'Civic Suggestion';
+  const photoUrl = getPrimaryPhoto(suggestion);
+  const address = suggestion.location?.address;
+  const timeStr = formatTime(suggestion.createdAt);
+
+  let html = `<h4 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.35;">${escapeHtml(summary)}</h4>`;
+
+  if (photoUrl) {
+    html += `
+      <div style="width: 100%; height: 110px; margin-bottom: 8px; border-radius: 8px; overflow: hidden; background-color: #f1f5f9;">
+        <img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(summary)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+      </div>
+    `;
+  }
+
+  html += `
+    <div style="font-size: 12px; color: #64748b; margin-bottom: 10px; line-height: 1.3;">
+      ${address ? `<span>📍 ${escapeHtml(address)}</span>` : `<span>🕒 ${escapeHtml(timeStr)}</span>`}
+    </div>
+    <div>
+      <a href="/suggestion/${suggestion.id}" class="info-window-view-btn" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #0f172a; background-color: #f59e0b; border-radius: 8px; text-decoration: none;">
+        <span>View suggestion</span>
+        <span>&rarr;</span>
+      </a>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  const btn = container.querySelector('.info-window-view-btn');
+  if (btn) {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      router.push(`/suggestion/${suggestion.id}`);
+    });
+  }
+
+  return container;
+}
+
+function openInfoWindow(suggestion, marker) {
+  if (!map || !googleMaps) return;
+  if (!infoWindow) {
+    infoWindow = new googleMaps.InfoWindow();
+  }
+  const contentEl = createInfoWindowContent(suggestion);
+  infoWindow.setContent(contentEl);
+  infoWindow.open({
+    anchor: marker,
+    map,
+  });
+}
+
 function renderSuggestionMarkers() {
   if (!map || !googleMaps) return;
 
-  // Clear existing markers
+  // Clear existing markers & close infoWindow
+  if (infoWindow) {
+    infoWindow.close();
+  }
   markersArray.forEach((m) => m.setMap(null));
   markersArray = [];
 
@@ -482,7 +506,7 @@ function renderSuggestionMarkers() {
       });
 
       gMarker.addListener('click', () => {
-        openPopup(s);
+        openInfoWindow(s, gMarker);
       });
 
       markersArray.push(gMarker);
@@ -520,10 +544,6 @@ function formatTime(timestamp) {
   } catch {
     return 'Recently';
   }
-}
-
-function openPopup(suggestion) {
-  selectedMarker.value = suggestion;
 }
 
 // Search handling with Google Maps Autocomplete / Geocoder

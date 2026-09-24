@@ -1,4 +1,4 @@
-# Strong Towns Improvement Map
+# Dallas Urbanists Improvement Map
 
 A touch-friendly, mobile-first **Progressive Web App (PWA)** built for pedestrians, cyclists, and transit users to submit on-the-ground civic improvement suggestions and explore existing community feedback.
 
@@ -25,7 +25,6 @@ Hosted on **GitHub Pages**: [https://dallasurbanists.github.io/improvement-map/]
 ### 1. Home Page (`/`)
 - **Live Activity Log**: Displays the most recent civic suggestions submitted by advocates.
 - **30-Second Polling**: Automatically refreshes in near real-time as new submissions are posted.
-- **Strong Towns Hero Banner**: Quick CTAs to jump directly to submission or browse map.
 
 ### 2. Submit Page (`/submit`)
 A wizard-style multi-step form with persistent `localStorage` draft saving:

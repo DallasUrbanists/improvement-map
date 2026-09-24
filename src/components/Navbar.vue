@@ -16,7 +16,7 @@
               <i class="fa-solid fa-map-location-dot"></i>
             </div>
             <div>
-              <span class="text-xs uppercase tracking-widest text-st-yellow font-bold block leading-tight">Strong Towns</span>
+              <span class="text-xs uppercase tracking-widest text-st-yellow font-bold block leading-tight">Dallas Urbanists</span>
               <span class="font-serif text-lg font-bold tracking-tight text-white group-hover:text-st-yellow transition-colors leading-none">
                 Improvement Map
               </span>

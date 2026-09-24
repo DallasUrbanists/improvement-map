@@ -35,7 +35,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png', 'icons/*.png'],
       manifest: {
-        name: 'Strong Towns Improvement Map',
+        name: 'Dallas Urbanists Improvement Map',
         short_name: 'Improvement Map',
         description: 'Touch-friendly, mobile-first civic improvement suggestion tool for pedestrians, cyclists, and transit users.',
         theme_color: '#0c2340',

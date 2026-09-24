@@ -1,33 +1,5 @@
 <template>
   <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    <!-- Hero Section -->
-    <header class="mb-8 st-card bg-gradient-to-br from-st-navy-900 to-st-navy text-white relative overflow-hidden border-st-navy-700">
-      <div class="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-st-blue/10 pointer-events-none blur-2xl"></div>
-      <div class="relative z-10 max-w-2xl">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-st-yellow/20 text-st-yellow border border-st-yellow/30 text-xs font-bold uppercase tracking-wider mb-3">
-          <i class="fa-solid fa-bullhorn"></i>
-          Strong Towns Civic Action
-        </div>
-        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif leading-tight text-white mb-3">
-          Make Your Streets Safer & More Livable
-        </h1>
-        <p class="text-slate-200 text-sm sm:text-base leading-relaxed mb-6 font-sans">
-          Spot a missing crosswalk, dangerous bike squeeze, or broken sidewalk? Submit on-the-ground civic improvement suggestions in seconds.
-        </p>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <router-link to="/submit" class="btn-st-primary text-base gap-2">
-            <i class="fa-solid fa-plus-circle"></i>
-            Submit Suggestion
-          </router-link>
-          <router-link to="/browse" class="btn-st-outline border-white/40 text-white hover:bg-white/10 dark:text-white dark:border-white/40 gap-2">
-            <i class="fa-solid fa-map"></i>
-            Explore Map & List
-          </router-link>
-        </div>
-      </div>
-    </header>
-
     <!-- Activity Log Header & Live Polling Status -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
       <div>
