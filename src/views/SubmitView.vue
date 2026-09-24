@@ -1182,7 +1182,7 @@ async function submitFinalSuggestion() {
 
   try {
     const uploadedPhotos = [];
-    const photosToUpload = (draft.photos || []).filter((p) => p.blob || p.url);
+    const photosToUpload = (draft.photos || []).filter((p) => p.blob || p.url || p.dataUrl);
 
     if (photosToUpload.length > 0) {
       const stepPercent = 60 / photosToUpload.length;
@@ -1192,12 +1192,25 @@ async function submitFinalSuggestion() {
         submissionProgress.value = Math.round(10 + i * stepPercent);
         dynamicProgressMessage.value = `Uploading photo ${i + 1} of ${photosToUpload.length}...`;
 
+        // If blob is missing (e.g. restored from localStorage draft), reconstitute from dataUrl
+        let photoBlob = p.blob;
+        if (!photoBlob && p.dataUrl && p.dataUrl.startsWith('data:')) {
+          try {
+            const res = await fetch(p.dataUrl);
+            photoBlob = await res.blob();
+          } catch (e) {
+            console.warn('Failed to convert dataUrl to blob:', e);
+          }
+        }
+
         const { uploadUrl, publicUrl } = await requestPhotoUploadUrl({
           contentType: 'image/webp',
           filename: p.name || `photo-${i + 1}.webp`,
         });
 
-        await uploadPhotoBinary(uploadUrl, p.blob, 'image/webp');
+        if (photoBlob) {
+          await uploadPhotoBinary(uploadUrl, photoBlob, 'image/webp');
+        }
 
         uploadedPhotos.push({
           url: publicUrl,

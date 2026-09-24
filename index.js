@@ -4,9 +4,7 @@
 
 // Automatically detect local dev vs production API server
 const API_BASE_URL =
-  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8080'
-    : 'https://urbanists-cloud-api-server-143738155808.us-central1.run.app';
+  'https://urbanists-cloud-api-server-143738155808.us-central1.run.app';
 
 let resizedBlob = null;
 

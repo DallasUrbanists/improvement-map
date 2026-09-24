@@ -1,8 +1,8 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
-import './style.css';
 import 'konsta/vue/theme.css';
+import './style.css';
 import { initTheme } from './services/theme';
 
 // Initialize theme immediately before mount

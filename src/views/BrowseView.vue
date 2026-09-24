@@ -1,26 +1,27 @@
 <template>
-  <!-- Top Bar: View Mode Switcher (Map / List) & Quick Stats -->
-  <header class="bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-2.5 z-30 flex items-center justify-between shadow-sm">
-    <!-- Tabs Switcher with Konsta Segmented -->
-    <k-segmented :raised="true" class="w-auto">
-      <k-segmented-button
-        :active="activeTab === 'map'"
-        @click="setTab('map')"
-        class="px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
-      >
-        <i class="fa-solid fa-map-location-dot"></i>
-        <span>Map</span>
-      </k-segmented-button>
+  <div class="flex-grow flex flex-col relative overflow-hidden">
+    <!-- Top Bar: View Mode Switcher (Map / List) & Quick Stats -->
+    <header class="bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-2.5 z-30 flex items-center justify-between shadow-sm">
+      <!-- Tabs Switcher with Konsta Segmented -->
+      <k-segmented :raised="true" class="w-auto">
+        <k-segmented-button
+          :active="activeTab === 'map'"
+          @click="setTab('map')"
+          class="px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
+        >
+          <i class="fa-solid fa-map-location-dot"></i>
+          <span>Map View</span>
+        </k-segmented-button>
 
-      <k-segmented-button
-        :active="activeTab === 'list'"
-        @click="setTab('list')"
-        class="px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
-      >
-        <i class="fa-solid fa-list-ul"></i>
-        <span>List</span>
-      </k-segmented-button>
-    </k-segmented>
+        <k-segmented-button
+          :active="activeTab === 'list'"
+          @click="setTab('list')"
+          class="px-4 py-1.5 text-xs sm:text-sm font-bold flex items-center gap-1.5"
+        >
+          <i class="fa-solid fa-list-ul"></i>
+          <span>List View</span>
+        </k-segmented-button>
+      </k-segmented>
 
     <!-- GPS Status / Recenter Badge -->
     <div class="flex items-center gap-2">
@@ -191,6 +192,10 @@
 
   <!-- TAB 2: LIST VIEW -->
   <div v-show="activeTab === 'list'" class="flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 max-w-4xl w-full mx-auto">
+    <div class="mb-4">
+      <h2 class="text-xl sm:text-2xl font-bold">Civic Suggestions</h2>
+    </div>
+
     <!-- List View Header with Distance Sorting Indicator -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-zinc-200 dark:border-zinc-800">
       <p class="text-xs text-zinc-500 dark:text-zinc-400">
@@ -303,6 +308,7 @@
         Submit Suggestion
       </k-button>
     </k-card>
+  </div>
   </div>
 </template>
 

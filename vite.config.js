@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import fs from 'fs';
@@ -30,6 +31,7 @@ export default defineConfig({
   base: getBasePath(),
   plugins: [
     vue(),
+    tailwindcss(),
     spa404Plugin(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -124,7 +126,7 @@ export default defineConfig({
   },
   envPrefix: ['VITE_', 'GOOGLE_', 'MAPS_'],
   server: {
-    port: 3000,
+    port: 5173,
     host: true
   }
 });
