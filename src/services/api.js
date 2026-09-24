@@ -106,6 +106,11 @@ const SEED_SUGGESTIONS = [
   }
 ];
 
+// Pre-seed itemCache with demo suggestions
+SEED_SUGGESTIONS.forEach(item => {
+  itemCache.set(item.id, item);
+});
+
 /**
  * Normalize suggestion object
  */
@@ -152,7 +157,7 @@ export async function getSuggestions(forceRefresh = false) {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
     const response = await fetch(`${API_BASE_URL}/api/public-improvements/suggestions`, {
       method: 'GET',

@@ -1,23 +1,22 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Improvement Map - PWA and Navigation', () => {
-  test('homepage loads and displays live activity feed', async ({ page }) => {
+  test('default landing page loads Browse page and displays map/list controls', async ({ page }) => {
     await page.goto('/');
 
-    // Check title and header
-    await expect(page).toHaveTitle(/Improvement Map/i);
-    await expect(page.locator('h1')).toContainText(/Make Your Streets Safer/i);
+    // Check title
+    await expect(page).toHaveTitle(/Browse Suggestions | Improvement Map/i);
 
-    // Check live polling badge
-    await expect(page.getByText(/Live \(30s\)/i)).toBeVisible();
+    // Verify Browse page is loaded as default landing page
+    await expect(page.getByRole('button', { name: /Map View/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /List View/i })).toBeVisible();
 
-    // Check action buttons on hero
-    await expect(page.getByRole('button', { name: /Submit Suggestion/i }).or(page.getByRole('link', { name: /Submit Suggestion/i })).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /Explore Map/i }).or(page.getByRole('link', { name: /Explore Map/i }))).toBeVisible();
-
-    // Check suggestion cards exist
-    const cards = page.locator('.k-card');
-    await expect(cards.first()).toBeVisible();
+    // Verify bottom tabbar is present without navbar title/subtitle
+    const tabbar = page.locator('.k-toolbar');
+    await expect(tabbar).toBeVisible();
+    await expect(page.locator('.k-navbar')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /Browse/i }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /Submit/i }).first()).toBeVisible();
   });
 
   test('toggle dark and light theme persists correctly', async ({ page }) => {
@@ -27,7 +26,7 @@ test.describe('Improvement Map - PWA and Navigation', () => {
     const htmlElement = page.locator('html');
     await expect(htmlElement).toHaveClass(/dark/);
 
-    // Click theme toggle button in the top navbar
+    // Click theme toggle button in the bottom tabbar
     const themeBtn = page.locator('#theme-toggle-btn');
     await themeBtn.click();
 
@@ -44,23 +43,19 @@ test.describe('Improvement Map - PWA and Navigation', () => {
     await expect(htmlElement).toHaveClass(/dark/);
   });
 
-  test('desktop and mobile navbar navigation works across all pages', async ({ page }) => {
+  test('bottom tabbar navigation works across all pages', async ({ page }) => {
     await page.goto('/');
 
-    // Navigate to Browse
-    await page.getByRole('link', { name: /Browse/i }).first().click();
-    await expect(page).toHaveURL(/\/browse/);
-    await expect(page.getByRole('button', { name: /Map View/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /List View/i })).toBeVisible();
-
-    // Navigate to Submit
+    // Navigate to Submit via bottom tabbar
     await page.getByRole('link', { name: /Submit/i }).first().click();
     await expect(page).toHaveURL(/\/submit/);
     await expect(page.getByText(/Step 1 of 4: Describe/i)).toBeVisible();
 
-    // Navigate back to Home
-    await page.getByRole('link', { name: /Home/i }).first().click();
+    // Navigate back to Browse via bottom tabbar
+    await page.getByRole('link', { name: /Browse/i }).first().click();
     await expect(page).toHaveURL(/\//);
+    await expect(page.getByRole('button', { name: /Map View/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /List View/i })).toBeVisible();
   });
 });
 

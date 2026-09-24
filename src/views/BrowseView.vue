@@ -278,12 +278,11 @@
 
           <!-- Right: View Suggestion Button Link -->
           <k-button
-            component="router-link"
-            :to="`/suggestion/${item.id}`"
+            type="button"
             :rounded="true"
             small
             class="font-bold flex-shrink-0 w-full sm:w-auto text-center"
-            @click.stop
+            @click="router.push(`/suggestion/${item.id}`)"
           >
             <span>View suggestion</span>
             <i class="fa-solid fa-arrow-right ml-1"></i>

@@ -753,8 +753,8 @@
             @click="handleGoHome"
             class="w-full font-bold shadow-lg"
           >
-            <i class="fa-solid fa-house mr-2"></i>
-            Go to home
+            <i class="fa-solid fa-map-location-dot mr-2"></i>
+            Go to Browse
           </k-button>
 
           <k-button

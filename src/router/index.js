@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import HomeView from '../views/HomeView.vue';
 import SubmitView from '../views/SubmitView.vue';
 import BrowseView from '../views/BrowseView.vue';
 import SubmissionDetailView from '../views/SubmissionDetailView.vue';
@@ -7,21 +6,16 @@ import SubmissionDetailView from '../views/SubmissionDetailView.vue';
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: HomeView,
-    meta: { title: 'Home | Improvement Map' }
+    alias: ['/browse'],
+    name: 'Browse',
+    component: BrowseView,
+    meta: { title: 'Browse Suggestions | Improvement Map' }
   },
   {
     path: '/submit',
     name: 'Submit',
     component: SubmitView,
     meta: { title: 'Submit Suggestion | Improvement Map' }
-  },
-  {
-    path: '/browse',
-    name: 'Browse',
-    component: BrowseView,
-    meta: { title: 'Browse Suggestions | Improvement Map' }
   },
   {
     path: '/suggestion/:id',
