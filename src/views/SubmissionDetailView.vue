@@ -61,12 +61,7 @@
       >
         <!-- Title and Category Badge -->
         <div>
-          <k-badge class="mb-3 px-3 py-1 text-xs font-bold uppercase tracking-wider">
-            <i class="fa-solid fa-lightbulb mr-1.5"></i>
-            Civic Improvement Suggestion
-          </k-badge>
-
-          <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif leading-tight text-slate-100 dark:text-slate-100 light:text-st-navy">
+          <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-slate-100 dark:text-slate-100 light:text-st-navy">
             {{ suggestion.content?.summary || 'Civic Suggestion' }}
           </h1>
 

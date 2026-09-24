@@ -7,8 +7,8 @@
     :transparent="false"
     bg-class="bg-white dark:bg-st-navy border-b border-slate-200 dark:border-st-navy-800 shadow-md"
     inner-class="px-4 h-16 flex items-center justify-between"
-    title-class="!text-st-navy dark:!text-white font-serif font-bold text-lg sm:text-xl tracking-tight"
-    subtitle-class="!text-amber-600 dark:!text-st-yellow font-bold text-xs uppercase tracking-wider block"
+    title-class="!text-st-navy dark:!text-white font-serif text-lg sm:text-xl"
+    subtitle-class="!text-amber-600 dark:!text-st-yellow text-xs block"
     right-class="flex items-center space-x-1 sm:space-x-2 text-sm font-medium"
     class="sticky top-0 z-40 w-full"
   >

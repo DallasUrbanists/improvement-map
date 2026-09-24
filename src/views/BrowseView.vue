@@ -38,13 +38,6 @@
           <i class="fa-solid fa-location-crosshairs mr-1"></i>
           <span class="hidden sm:inline">Enable GPS</span>
         </k-button>
-        <k-badge
-          v-else
-          class="text-xs font-semibold hidden sm:flex items-center gap-1 px-2.5 py-1"
-        >
-          <i class="fa-solid fa-location-dot"></i>
-          <span>GPS Active</span>
-        </k-badge>
 
         <k-button
           type="button"
