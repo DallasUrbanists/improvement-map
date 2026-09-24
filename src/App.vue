@@ -3,23 +3,14 @@
     theme="material"
     :dark="isDark"
     :material-touch-ripple="false"
-    class="min-h-screen flex flex-col font-sans"
+    class="min-h-screen flex flex-col flex-grow font-sans"
   >
-    <!-- Main View Content -->
-    <main class="flex-grow pb-16">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
-    </main>
-
     <!-- Bottom Tabbar with no title and no subtitle -->
     <k-tabbar
       v-if="!isSubmitting"
       :labels="true"
-      :icons="true"
-      class="fixed bottom-0 left-0 right-0 z-40 w-full"
+      :top="true"
+      class="w-full bg-zinc-900 sticky"
     >
       <k-tabbar-link
         component="router-link"
@@ -27,9 +18,6 @@
         :active="route.path === '/' || route.path === '/browse'"
         label="Browse"
       >
-        <template #icon>
-          <i class="fa-solid fa-map-location-dot text-lg"></i>
-        </template>
       </k-tabbar-link>
 
       <k-tabbar-link
@@ -38,14 +26,10 @@
         :active="route.path === '/submit'"
         label="Submit"
       >
-        <template #icon>
-          <i class="fa-solid fa-circle-plus text-lg"></i>
-        </template>
       </k-tabbar-link>
 
       <k-tabbar-link
         id="theme-toggle-btn"
-        :label="isDark ? 'Light' : 'Dark'"
         @click="toggleTheme"
       >
         <template #icon>
@@ -53,6 +37,14 @@
         </template>
       </k-tabbar-link>
     </k-tabbar>
+    <!-- Main View Content -->
+    <main class="flex-grow flex flex-col justify-stretch item-stretch">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </main>
   </k-app>
 </template>
 
