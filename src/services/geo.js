@@ -36,7 +36,7 @@ export function formatDistance(miles) {
     const feet = Math.round(miles * 5280);
     return `${feet} ft`;
   }
-  return `${miles.toFixed(1)} mi`;
+  return `${Math.round(miles)} mi`;
 }
 
 /**

@@ -96,25 +96,24 @@
       </div>
 
       <!-- List View Header with Distance Sorting Indicator -->
-      <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-zinc-200 dark:border-zinc-800">
-        <p class="text-xs text-zinc-500 dark:text-zinc-400">
-          <span v-if="userLocation">
-            <i class="fa-solid fa-arrow-down-short-wide mr-1 text-zinc-600 dark:text-zinc-300"></i>
-            Sorted by distance
-          </span>
-          <span v-else>
-            <i class="fa-solid fa-clock mr-1 text-zinc-600 dark:text-zinc-300"></i>
-            Sorted by newest
-          </span>
-        </p>
 
-        <k-button v-if="!userLocation" type="button" @click="requestGps" :outline="true" :rounded="true" small
-          class="text-xs self-start sm:self-auto gap-1.5 py-1.5">
-          <i class="fa-solid fa-location-crosshairs mr-1"></i>
-          <span>Sort by My Distance</span>
-        </k-button>
-      </div>
+      <k-block strong inset class="space-y-4">
+      <k-segmented outline>
+        <k-segmented-button
+          :active="activeSort === 1"
+          @click="() => { activeSort = 1; }"
+        >
+          Sort by new
+        </k-segmented-button>
+        <k-segmented-button
+          :active="activeSort === 2"
+          @click="() => { activeSort = 2; requestGps() }"
+        >
+          <i class="fa-solid fa-crosshairs mr-1" :class="{ 'animate-spin': isLocating }"></i>
+          Sort by distance
+        </k-segmented-button>
+      </k-segmented>
+    </k-block>
 
       <!-- Suggestions List -->
       <div v-if="sortedListSuggestions.length > 0" class="">
@@ -134,9 +133,12 @@
                 <i class="fa-solid fa-camera text-base"></i>
               </div>
 
-              <!-- Distance Badge with Konsta Badge -->
-              <k-badge v-if="item._formattedDistance" class="absolute bottom-1 left-1 text-[10px] font-bold">
+              <!-- Badge (Distance or Relative Time) with Konsta Badge -->
+              <k-badge v-if="activeSort === 2 && item._formattedDistance" class="absolute bottom-1 left-1 text-[10px] font-bold">
                 {{ item._formattedDistance }}
+              </k-badge>
+              <k-badge v-else-if="activeSort === 1 && formatRelativeTime(item.createdAt)" class="absolute bottom-1 left-1 text-[10px] font-bold">
+                {{ formatRelativeTime(item.createdAt) }}
               </k-badge>
             </div>
 
@@ -207,6 +209,11 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
+
 import {
   kTabbar,
   kTabbarLink,
@@ -238,6 +245,7 @@ const isLoading = ref(false);
 const userLocation = ref(null); // { lat, lng }
 const isLocating = ref(false);
 const currentMapType = ref('roadmap');
+const activeSort = ref(1);
 
 // Map DOM & State
 const browseMapContainerEl = ref(null);
@@ -256,7 +264,7 @@ let searchDebounce = null;
 
 // Sorted suggestions for List View
 const sortedListSuggestions = computed(() => {
-  if (userLocation.value) {
+  if (activeSort.value === 2 && userLocation.value) {
     return sortSuggestionsByDistance(suggestions.value, userLocation.value.lat, userLocation.value.lng);
   }
   return [...suggestions.value].sort((a, b) => {
@@ -460,6 +468,15 @@ function renderSuggestionMarkers() {
 function getPrimaryPhoto(item) {
   const photos = item.content?.photos || item.photos || [];
   return photos.length > 0 ? photos[0].url : '';
+}
+
+function formatRelativeTime(timestamp) {
+  if (!timestamp) return '';
+  try {
+    return dayjs(timestamp).fromNow();
+  } catch {
+    return '';
+  }
 }
 
 function formatTime(timestamp) {
