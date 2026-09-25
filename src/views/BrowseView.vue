@@ -87,11 +87,12 @@
     </div>
 
     <!-- TAB 2: LIST VIEW -->
-    <div v-show="activeTab === 'list'"
-      class="flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 w-full mx-auto scrollable"
+    <div
+      v-show="activeTab === 'list'"
+      class="bg-slate-300 dark:bg-slate-700 flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 w-full mx-auto scrollable"
     >
       <div class="mb-4">
-        <h2 class="text-xl sm:text-2xl font-bold">Civic Suggestions</h2>
+        <h2 class="text-xl sm:text-2xl font-bold">Submissions</h2>
       </div>
 
       <!-- List View Header with Distance Sorting Indicator -->

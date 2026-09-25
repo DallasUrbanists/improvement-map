@@ -1,6 +1,27 @@
 @import "tailwindcss";
 @import "konsta/vue/theme.css";
 
+:root {
+  --color-st-darkblue: #0c2340;
+  --color-st-lightblue: #488be3;
+  --color-st-yellow: #ffa800;
+  --color-st-sidewalk: #f5f3ee;
+}
+
+@theme {
+  --color-st-darkblue: #0c2340;
+  --color-st-lightblue: #488be3;
+  --color-st-yellow: #ffa800;
+  --color-st-sidewalk: #f5f3ee;
+
+  --color-brand: #0c2340;
+  --color-brand-light: #488be3;
+  --color-brand-dark: #0c2340;
+  --color-primary: #ffa800;
+  --color-bg-light: #f5f3ee;
+  --color-bg-dark: #0c2340;
+}
+
 html {
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
@@ -49,7 +70,7 @@ body {
 }
 
 .k-toolbar.sticky {
-    --shadow-color: black;
+    --shadow-color: #333;
     box-shadow: 0 0 20px var(--shadow-color);
 }
 
