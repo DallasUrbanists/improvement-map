@@ -728,6 +728,11 @@ onActivated(() => {
     nextTick(() => {
       googleMaps.event?.trigger(map, 'resize');
     });
+    setTimeout(() => {
+      if (map && googleMaps) {
+        googleMaps.event?.trigger(map, 'resize');
+      }
+    }, 320);
   } else if (activeTab.value === 'list') {
     restoreListScroll();
   }

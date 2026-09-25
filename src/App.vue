@@ -38,11 +38,11 @@
       </k-tabbar-link>
     </k-tabbar>
     <!-- Main View Content -->
-    <main class="flex-grow flex flex-col min-h-0 overflow-y-auto scrollable">
+    <main class="flex-grow flex flex-col min-h-0 relative overflow-hidden">
       <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
+        <transition :name="transitionName">
           <keep-alive include="BrowseView,SubmitView">
-            <component :is="Component" />
+            <component :is="Component" class="view-panel" />
           </keep-alive>
         </transition>
       </router-view>
@@ -51,13 +51,39 @@
 </template>
 
 <script setup>
-import { ref, provide, onMounted } from 'vue';
+import { ref, provide, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { kApp, kTabbar, kTabbarLink } from 'konsta/vue';
 import { isDark, initTheme, toggleTheme } from './services/theme';
 
 const route = useRoute();
 const isSubmitting = ref(false);
+const transitionName = ref('slide-left');
+
+const ROUTE_ORDER = {
+  '/': 0,
+  '/browse': 0,
+  '/submit': 1,
+};
+
+function getRouteDepth(path) {
+  if (path in ROUTE_ORDER) return ROUTE_ORDER[path];
+  if (path.startsWith('/suggestion')) return 2;
+  return 1;
+}
+
+watch(
+  () => route.path,
+  (toPath, fromPath) => {
+    const toDepth = getRouteDepth(toPath);
+    const fromDepth = getRouteDepth(fromPath);
+    if (toDepth > fromDepth) {
+      transitionName.value = 'slide-left';
+    } else if (toDepth < fromDepth) {
+      transitionName.value = 'slide-right';
+    }
+  }
+);
 
 provide('isSubmitting', isSubmitting);
 provide('setSubmitting', (val) => {
@@ -70,13 +96,36 @@ onMounted(() => {
 </script>
 
 <style>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
+.view-panel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+/* Slide Left (moving forward/right in index, e.g. Browse -> Submit) */
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+  will-change: transform;
+}
+
+.slide-left-enter-from {
+  transform: translateX(100%);
+}
+
+.slide-left-leave-to {
+  transform: translateX(-100%);
+}
+
+/* Slide Right (moving backward/left in index, e.g. Submit -> Browse) */
+.slide-right-enter-from {
+  transform: translateX(-100%);
+}
+
+.slide-right-leave-to {
+  transform: translateX(100%);
 }
 </style>
