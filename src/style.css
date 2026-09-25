@@ -13,3 +13,37 @@ body {
 .scrollable {
   scrollbar-color: #bcc6ec transparent;
 }
+
+.k-toolbar [tabbar] {
+    --bg-gradient-direction: to bottom;
+    --bg-gradient-opacity: 0.25;
+    border-right: solid 1px rgba(150, 150, 150, 0.24);
+    border-left: solid 1px rgba(0, 0, 0, 0.2);
+}
+
+.k-toolbar.top-0 [tabbar] {
+    margin-bottom: -4px;
+}
+.k-toolbar.bottom-0 [tabbar] {
+    --bg-gradient-direction: to top;    
+    margin-top: -4px;
+}
+.light .k-toolbar [tabbar] {
+    --bg-gradient-opacity: 1;
+}
+
+.k-toolbar [tabbar].k-tabbar-link-active {
+    background: linear-gradient(
+        var(--bg-gradient-direction),
+        transparent 0%,
+        alpha(from var(--k-color-md-dark-primary) / var(--bg-gradient-opacity)) 90%
+    );
+}
+
+.k-toolbar [tabbar]:first-child {
+    border-left: none;
+}
+
+.k-toolbar [tabbar]:right-child {
+    border-right: none;
+}
