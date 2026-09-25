@@ -41,7 +41,9 @@
     <main class="flex-grow flex flex-col min-h-0 overflow-y-auto scrollable">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
-          <component :is="Component" />
+          <keep-alive include="BrowseView,SubmitView">
+            <component :is="Component" />
+          </keep-alive>
         </transition>
       </router-view>
     </main>

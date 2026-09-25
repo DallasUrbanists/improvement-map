@@ -696,8 +696,14 @@
   </div>
 </template>
 
+<script>
+export default {
+  name: 'SubmitView',
+};
+</script>
+
 <script setup>
-import { ref, reactive, computed, onMounted, watch, inject, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, onActivated, watch, inject, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   kCard,
@@ -713,6 +719,7 @@ import {
   saveWizardDraft,
   clearWizardDraft,
   getInitialDraft,
+  setStoredAuthorProfile,
 } from '../services/storage';
 import {
   requestPhotoUploadUrl,
@@ -800,6 +807,9 @@ const displayAddress = computed(() => {
 });
 
 function persistDraft() {
+  if (draft.author) {
+    setStoredAuthorProfile(draft.author);
+  }
   saveWizardDraft(draft);
 }
 

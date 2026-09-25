@@ -33,11 +33,11 @@
         </div>
       </div>
 
-      <!-- Basemap Switcher (Streets / Satellite) with Konsta Segmented -->
+      <!-- "Center on my location" button -->
       <div
         class="absolute bottom-8 left-2 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
         <k-segmented :raised="true" class="w-auto">
-          <k-segmented-button @click="requestGps"
+          <k-segmented-button @click="onCenterOnLocationClick"
             class="text-xs font-bold px-3 py-1"
             title="Center on my location" aria-label="Center on my location">
             <i class="fa-solid fa-crosshairs" :class="{ 'animate-spin': isLocating }"></i>
@@ -89,6 +89,8 @@
     <!-- TAB 2: LIST VIEW -->
     <div
       v-show="activeTab === 'list'"
+      ref="listContainerEl"
+      @scroll="onListScroll"
       class="bg-slate-300 dark:bg-slate-700 flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 w-full mx-auto scrollable"
     >
       <div class="mb-4">
@@ -101,13 +103,13 @@
       <k-segmented outline>
         <k-segmented-button
           :active="activeSort === 1"
-          @click="() => { activeSort = 1; }"
+          @click="() => { setSortMode(1); }"
         >
           Sort by new
         </k-segmented-button>
         <k-segmented-button
           :active="activeSort === 2"
-          @click="() => { activeSort = 2; requestGps() }"
+          @click="() => { setSortMode(2); requestGps(); }"
         >
           <i class="fa-solid fa-crosshairs mr-1" :class="{ 'animate-spin': isLocating }"></i>
           Sort by distance
@@ -187,27 +189,33 @@
       <k-tabbar-link
         label="Streets"
         :active="activeTab === 'map' && currentMapType === 'roadmap'"
-        @click="setTab('map'); setMapType('roadmap')"
+        @click="selectTab('streets')"
       ></k-tabbar-link>
 
       <k-tabbar-link
         label="Satellite"
         :active="activeTab === 'map' && currentMapType === 'hybrid'"
-        @click="setTab('map'); setMapType('hybrid')"
+        @click="selectTab('satellite')"
       ></k-tabbar-link>
 
       <k-tabbar-link
         label="List"
         :active="activeTab === 'list'"
-        @click="setTab('list')"
+        @click="selectTab('list')"
       ></k-tabbar-link>
     </k-tabbar>
     
   </div>
 </template>
 
+<script>
+export default {
+  name: 'BrowseView',
+};
+</script>
+
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onActivated, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -228,6 +236,20 @@ import { isDark } from '../services/theme';
 import { getSuggestions } from '../services/api';
 import { sortSuggestionsByDistance } from '../services/geo';
 import {
+  getStoredBrowseTab,
+  setStoredBrowseTab,
+  getStoredMapView,
+  setStoredMapView,
+  removeStoredMapView,
+  getStoredBrowseSort,
+  setStoredBrowseSort,
+  getStoredBrowseListScroll,
+  setStoredBrowseListScroll,
+  getStoredActiveInfoWindowSuggestionId,
+  setStoredActiveInfoWindowSuggestionId,
+  removeStoredActiveInfoWindowSuggestionId,
+} from '../services/storage';
+import {
   loadGoogleMaps,
   hasGoogleMapsKey,
   googleMapsAuthError,
@@ -239,22 +261,25 @@ import {
 
 const router = useRouter();
 
-const activeTab = ref('map'); // 'map' | 'list'
+const savedTab = getStoredBrowseTab(); // 'streets' | 'satellite' | 'list'
+const activeTab = ref(savedTab === 'list' ? 'list' : 'map'); // 'map' | 'list'
 const suggestions = ref([]);
 const isLoading = ref(false);
 const userLocation = ref(null); // { lat, lng }
 const isLocating = ref(false);
-const currentMapType = ref('roadmap');
-const activeSort = ref(1);
+const currentMapType = ref(savedTab === 'satellite' ? 'hybrid' : 'roadmap');
+const activeSort = ref(getStoredBrowseSort());
 
-// Map DOM & State
+// Map & List DOM & State
 const browseMapContainerEl = ref(null);
+const listContainerEl = ref(null);
 const isMapReady = ref(false);
 let map = null;
 let googleMaps = null;
 let infoWindow = null;
 let markersArray = [];
 let userLocationMarker = null;
+let isProgrammaticChange = false;
 
 // Address search state
 const mapSearchQuery = ref('');
@@ -274,19 +299,63 @@ const sortedListSuggestions = computed(() => {
   });
 });
 
+function selectTab(tab) {
+  if (tab === 'streets') {
+    setTab('map');
+    setMapType('roadmap');
+  } else if (tab === 'satellite') {
+    setTab('map');
+    setMapType('hybrid');
+  } else if (tab === 'list') {
+    setTab('list');
+  }
+}
+
+function setSortMode(sort) {
+  activeSort.value = sort;
+  setStoredBrowseSort(sort);
+}
+
+function onListScroll() {
+  if (listContainerEl.value) {
+    setStoredBrowseListScroll(listContainerEl.value.scrollTop);
+  }
+}
+
+function restoreListScroll() {
+  nextTick(() => {
+    if (listContainerEl.value) {
+      const savedScroll = getStoredBrowseListScroll();
+      if (savedScroll > 0) {
+        listContainerEl.value.scrollTop = savedScroll;
+      }
+    }
+  });
+}
+
 function setTab(tab) {
   activeTab.value = tab;
-  if (tab === 'map' && map && googleMaps) {
-    setTimeout(() => {
-      googleMaps.event?.trigger(map, 'resize');
-    }, 100);
-  } else if (tab === 'list' && infoWindow) {
-    infoWindow.close();
+  if (tab === 'list') {
+    setStoredBrowseTab('list');
+    if (infoWindow) {
+      infoWindow.close();
+    }
+    restoreListScroll();
+  } else if (tab === 'map') {
+    setStoredBrowseTab(currentMapType.value === 'hybrid' ? 'satellite' : 'streets');
+    if (map && googleMaps) {
+      setTimeout(() => {
+        googleMaps.event?.trigger(map, 'resize');
+      }, 100);
+    }
   }
 }
 
 function setMapType(type) {
   currentMapType.value = type;
+  if (activeTab.value === 'map') {
+    setStoredBrowseTab(type === 'hybrid' ? 'satellite' : 'streets');
+  }
   if (!map || !googleMaps) return;
   if (type === 'hybrid') {
     map.setMapTypeId(googleMaps.MapTypeId.HYBRID);
@@ -294,6 +363,19 @@ function setMapType(type) {
   } else {
     map.setMapTypeId(googleMaps.MapTypeId.ROADMAP);
     map.setOptions({ styles: getMapStyles(isDark.value, 'roadmap') });
+  }
+}
+
+function saveCurrentMapView() {
+  if (!map || !isMapReady.value || isProgrammaticChange) return;
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+  if (center && typeof zoom === 'number') {
+    setStoredMapView({
+      lat: center.lat(),
+      lng: center.lng(),
+      zoom: zoom,
+    });
   }
 }
 
@@ -308,15 +390,20 @@ async function initGoogleMap() {
     googleMaps = await loadGoogleMaps();
     if (!browseMapContainerEl.value || !googleMaps) return;
 
-    const initialCenter = userLocation.value
+    isProgrammaticChange = true;
+    const savedView = getStoredMapView();
+    const initialCenter = savedView
+      ? { lat: savedView.lat, lng: savedView.lng }
+      : userLocation.value
       ? { lat: userLocation.value.lat, lng: userLocation.value.lng }
       : { lat: 32.7767, lng: -96.7970 };
+    const initialZoom = savedView ? savedView.zoom : 13;
 
-    // Default Streets view (ROADMAP) with dark/night basemap in dark mode and light/day basemap in light mode
+    // Default Streets view (ROADMAP) or Satellite (HYBRID)
     map = new googleMaps.Map(browseMapContainerEl.value, {
       center: initialCenter,
-      zoom: 13,
-      //mapTypeId: googleMaps.MapTypeId.ROADMAP,
+      zoom: initialZoom,
+      mapTypeId: currentMapType.value === 'hybrid' ? googleMaps.MapTypeId.HYBRID : googleMaps.MapTypeId.ROADMAP,
       styles: getMapStyles(isDark.value, currentMapType.value),
       disableDefaultUI: true,
       zoomControl: true,
@@ -326,6 +413,14 @@ async function initGoogleMap() {
     });
 
     infoWindow = new googleMaps.InfoWindow();
+
+    map.addListener('dragend', () => {
+      saveCurrentMapView();
+    });
+
+    map.addListener('zoom_changed', () => {
+      saveCurrentMapView();
+    });
 
     isMapReady.value = true;
     renderSuggestionMarkers();
@@ -341,10 +436,12 @@ async function initGoogleMap() {
         googleMaps.event?.trigger(map, 'resize');
         map.setCenter(initialCenter);
       }
-    }, 250);
+      isProgrammaticChange = false;
+    }, 300);
   } catch (err) {
     console.warn('Google Maps BrowseView init warning:', err);
     isMapReady.value = true;
+    isProgrammaticChange = false;
   }
 }
 
@@ -403,17 +500,31 @@ function createInfoWindowContent(suggestion) {
   return container;
 }
 
-function openInfoWindow(suggestion, marker) {
+function openInfoWindow(suggestion, marker, autoRestore = false) {
   if (!map || !googleMaps) return;
   if (!infoWindow) {
     infoWindow = new googleMaps.InfoWindow();
+    infoWindow.addListener('closeclick', () => {
+      removeStoredActiveInfoWindowSuggestionId();
+      saveCurrentMapView();
+    });
   }
+
+  setStoredActiveInfoWindowSuggestionId(suggestion.id);
   const contentEl = createInfoWindowContent(suggestion);
   infoWindow.setContent(contentEl);
   infoWindow.open({
     anchor: marker,
     map,
   });
+
+  // 1. Persist map view immediately when clicking marker
+  saveCurrentMapView();
+
+  // 2. Persist map view after infoWindow pan/transition animation
+  setTimeout(() => {
+    saveCurrentMapView();
+  }, 400);
 }
 
 function renderSuggestionMarkers() {
@@ -425,6 +536,10 @@ function renderSuggestionMarkers() {
   }
   markersArray.forEach((m) => m.setMap(null));
   markersArray = [];
+
+  const storedActiveId = getStoredActiveInfoWindowSuggestionId();
+  let markerToRestore = null;
+  let suggestionToRestore = null;
 
   // Add Google Maps markers for each suggestion
   suggestions.value.forEach((s) => {
@@ -443,8 +558,17 @@ function renderSuggestionMarkers() {
       });
 
       markersArray.push(gMarker);
+
+      if (storedActiveId && String(s.id) === String(storedActiveId)) {
+        markerToRestore = gMarker;
+        suggestionToRestore = s;
+      }
     }
   });
+
+  if (markerToRestore && suggestionToRestore) {
+    openInfoWindow(suggestionToRestore, markerToRestore, true);
+  }
 
   // Render user location marker if available
   if (userLocation.value) {
@@ -523,11 +647,25 @@ async function selectMapSearchResult(item) {
   if (lat !== undefined && lng !== undefined && map) {
     map.setCenter({ lat, lng });
     map.setZoom(15);
+    saveCurrentMapView();
   }
 }
 
+function onCenterOnLocationClick() {
+  removeStoredMapView();
+  if (userLocation.value && map) {
+    isProgrammaticChange = true;
+    map.setCenter({ lat: userLocation.value.lat, lng: userLocation.value.lng });
+    map.setZoom(14);
+    setTimeout(() => {
+      isProgrammaticChange = false;
+    }, 300);
+  }
+  requestGps(true);
+}
+
 // Geolocation
-function requestGps() {
+function requestGps(forceCenter = false) {
   if (!navigator.geolocation) return;
   isLocating.value = true;
   navigator.geolocation.getCurrentPosition(
@@ -538,9 +676,16 @@ function requestGps() {
       userLocation.value = { lat, lng };
 
       if (map) {
-        map.setCenter({ lat, lng });
-        map.setZoom(14);
         renderSuggestionMarkers();
+        const hasSavedView = !!getStoredMapView();
+        if (forceCenter || !hasSavedView) {
+          isProgrammaticChange = true;
+          map.setCenter({ lat, lng });
+          map.setZoom(14);
+          setTimeout(() => {
+            isProgrammaticChange = false;
+          }, 300);
+        }
       }
     },
     (err) => {
@@ -572,6 +717,19 @@ watch(
 onMounted(async () => {
   requestGps();
   suggestions.value = await getSuggestions(false);
+  if (activeTab.value === 'list') {
+    restoreListScroll();
+  }
   initGoogleMap();
+});
+
+onActivated(() => {
+  if (activeTab.value === 'map' && map && googleMaps) {
+    nextTick(() => {
+      googleMaps.event?.trigger(map, 'resize');
+    });
+  } else if (activeTab.value === 'list') {
+    restoreListScroll();
+  }
 });
 </script>

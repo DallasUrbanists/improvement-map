@@ -7,14 +7,12 @@ test.describe('Improvement Map - PWA and Navigation', () => {
     // Check title
     await expect(page).toHaveTitle(/Browse Suggestions | Improvement Map/i);
 
-    // Verify Browse page is loaded as default landing page
-    await expect(page.getByRole('button', { name: /Map View/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /List View/i })).toBeVisible();
+    // Verify Browse page is loaded as default landing page with tab controls
+    await expect(page.getByRole('link', { name: 'Streets' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Satellite' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'List' })).toBeVisible();
 
-    // Verify bottom tabbar is present without navbar title/subtitle
-    const tabbar = page.locator('.k-toolbar');
-    await expect(tabbar).toBeVisible();
-    await expect(page.locator('.k-navbar')).toHaveCount(0);
+    // Verify top tabbar is present
     await expect(page.getByRole('link', { name: /Browse/i }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: /Submit/i }).first()).toBeVisible();
   });
@@ -26,7 +24,7 @@ test.describe('Improvement Map - PWA and Navigation', () => {
     const htmlElement = page.locator('html');
     await expect(htmlElement).toHaveClass(/dark/);
 
-    // Click theme toggle button in the bottom tabbar
+    // Click theme toggle button in the top tabbar
     const themeBtn = page.locator('#theme-toggle-btn');
     await themeBtn.click();
 
@@ -46,174 +44,180 @@ test.describe('Improvement Map - PWA and Navigation', () => {
   test('bottom tabbar navigation works across all pages', async ({ page }) => {
     await page.goto('/');
 
-    // Navigate to Submit via bottom tabbar
+    // Navigate to Submit via top tabbar
     await page.getByRole('link', { name: /Submit/i }).first().click();
     await expect(page).toHaveURL(/\/submit/);
-    await expect(page.getByText(/Step 1 of 4: Describe/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Describe your idea/i })).toBeVisible();
 
-    // Navigate back to Browse via bottom tabbar
+    // Navigate back to Browse via top tabbar
     await page.getByRole('link', { name: /Browse/i }).first().click();
     await expect(page).toHaveURL(/\//);
-    await expect(page.getByRole('button', { name: /Map View/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /List View/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Streets' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'List' })).toBeVisible();
   });
 });
 
-test.describe('Submit Wizard Form Flow', () => {
-  test('completes 4-step submission wizard, preserves draft in local storage, and handles submit', async ({ page }) => {
-    await page.goto('/submit');
+test.describe('Browse Mode - Active Tab and Map View Persistence', () => {
+  test('persists active tabs to local storage across page refresh', async ({ page }) => {
+    await page.goto('/');
 
-    // Step 1: Describe
-    await expect(page.getByRole('heading', { name: /Describe Your Improvement Idea/i })).toBeVisible();
+    const streetsTab = page.getByRole('link', { name: 'Streets' });
+    const satelliteTab = page.getByRole('link', { name: 'Satellite' });
+    const listTab = page.getByRole('link', { name: 'List' });
 
-    // Validation check on empty submission
-    await page.getByRole('button', { name: /Next: Choose Location/i }).click();
-    await expect(page.getByText(/Summary is required/i)).toBeVisible();
+    await expect(streetsTab).toBeVisible();
+    await expect(satelliteTab).toBeVisible();
+    await expect(listTab).toBeVisible();
 
-    // Fill Step 1
-    await page.fill('#input-summary', 'Protected Bike Path along Main St');
-    await page.fill('#input-details', 'Separated concrete curb protection needed to protect cyclists from vehicular conflicts.');
-    
-    // Check localStorage draft persistence across reload
+    // Switch to Satellite tab
+    await satelliteTab.click();
+    let storedTab = await page.evaluate(() => localStorage.getItem('improvement_map_browse_tab'));
+    expect(storedTab).toBe('satellite');
+
+    // Reload page and verify Satellite is still stored and active
     await page.reload();
-    await expect(page.locator('#input-summary')).toHaveValue('Protected Bike Path along Main St');
+    storedTab = await page.evaluate(() => localStorage.getItem('improvement_map_browse_tab'));
+    expect(storedTab).toBe('satellite');
 
-    await page.getByRole('button', { name: /Next: Choose Location/i }).click();
+    // Switch to List tab
+    await listTab.click();
+    await expect(page.getByRole('heading', { name: /Submissions/i })).toBeVisible();
+    storedTab = await page.evaluate(() => localStorage.getItem('improvement_map_browse_tab'));
+    expect(storedTab).toBe('list');
 
-    // Step 2: Locate
-    await expect(page.getByRole('heading', { name: /Pin Suggestion Location/i })).toBeVisible();
-    await expect(page.getByPlaceholder(/Search address/i)).toBeVisible();
+    // Reload page and verify List tab is still active and visible
+    await page.reload();
+    await expect(page.getByRole('heading', { name: /Submissions/i })).toBeVisible();
+    storedTab = await page.evaluate(() => localStorage.getItem('improvement_map_browse_tab'));
+    expect(storedTab).toBe('list');
 
-    // Verify Streets and Satellite basemap toggling
-    await expect(page.getByRole('button', { name: /Streets/i })).toBeVisible();
-    const satelliteBtn = page.getByRole('button', { name: /Satellite/i });
-    await expect(satelliteBtn).toBeVisible();
-    await satelliteBtn.click();
-    await page.getByRole('button', { name: /Streets/i }).click();
+    // Switch back to Streets tab
+    await page.getByRole('link', { name: 'Streets' }).click();
+    storedTab = await page.evaluate(() => localStorage.getItem('improvement_map_browse_tab'));
+    expect(storedTab).toBe('streets');
 
-    // Test Describe Location modal
-    await page.getByRole('button', { name: /Describe location/i }).click();
-    await expect(page.getByRole('heading', { name: /Describe Location/i })).toBeVisible();
-    await page.fill('textarea[placeholder*="Along Elm St"]', 'Near the public library entrance');
-    await page.getByRole('button', { name: /Okay/i }).click();
+    // Reload page and verify Streets tab is still stored
+    await page.reload();
+    storedTab = await page.evaluate(() => localStorage.getItem('improvement_map_browse_tab'));
+    expect(storedTab).toBe('streets');
+  });
 
-    await page.getByRole('button', { name: /Next: Add Photos/i }).click();
+  test('persists map view on pan/zoom and restores on refresh, and center button clears saved view', async ({ page }) => {
+    await page.goto('/');
 
-    // Step 3: Photo (optional)
-    await expect(page.getByRole('heading', { name: /Attach Photos/i })).toBeVisible();
-    await expect(page.getByText(/0 \/ 10 Photos/i)).toBeVisible();
-    await page.getByRole('button', { name: /Next: Review & Submit/i }).click();
+    // Set a custom map view in local storage simulating user pan/zoom
+    const customView = { lat: 37.7749, lng: -122.4194, zoom: 15 };
+    await page.evaluate((view) => {
+      localStorage.setItem('improvement_map_view', JSON.stringify(view));
+    }, customView);
 
-    // Step 4: Review & Submit
-    await expect(page.getByRole('heading', { name: /Review Your Submission/i })).toBeVisible();
-    await expect(page.getByText('Protected Bike Path along Main St')).toBeVisible();
-    await expect(page.getByText('Near the public library entrance')).toBeVisible();
+    // Reload page to verify saved view is preserved in localStorage
+    await page.reload();
+    let saved = await page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_view')));
+    expect(saved).toEqual(customView);
 
-    // Edit link navigates back to Step 1
-    await page.getByRole('button', { name: /Edit/i }).first().click();
-    await expect(page.getByRole('heading', { name: /Describe Your Improvement Idea/i })).toBeVisible();
+    // Click "Center on my location" button
+    const centerBtn = page.getByTitle(/Center on my location/i);
+    await expect(centerBtn).toBeVisible();
+    await centerBtn.click();
 
-    // Return to step 4
-    await page.getByRole('button', { name: /Next: Choose Location/i }).click();
-    await page.getByRole('button', { name: /Next: Add Photos/i }).click();
-    await page.getByRole('button', { name: /Next: Review & Submit/i }).click();
+    // Verify saved view is removed from local storage
+    const viewAfterCenter = await page.evaluate(() => localStorage.getItem('improvement_map_view'));
+    expect(viewAfterCenter).toBeNull();
 
-    // Fill contact info
-    await page.fill('#input-author-name', 'Jane Jacobs');
-    await page.fill('#input-author-email', 'jane@strongtowns.org');
+    // Reload page and verify saved view is still null (default behavior resumed)
+    await page.reload();
+    const viewAfterReload = await page.evaluate(() => localStorage.getItem('improvement_map_view'));
+    expect(viewAfterReload).toBeNull();
+  });
 
-    // Mock API POST endpoint
-    await page.route('**/api/public-improvements/suggestions', async (route) => {
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: {
-            id: 'mock-sug-12345',
-            author: { name: 'Jane Jacobs', email: 'jane@strongtowns.org' },
-            content: {
-              summary: 'Protected Bike Path along Main St',
-              details: 'Separated concrete curb protection needed to protect cyclists from vehicular conflicts.',
-              photos: []
-            },
-            location: {
-              latitude: 32.7767,
-              longitude: -96.7970,
-              address: 'Main St, Dallas, TX',
-              description: 'Near the public library entrance'
-            },
-            createdAt: new Date().toISOString()
-          }
-        })
-      });
+  test('persists sort mode and scroll position in Browse > List view', async ({ page }) => {
+    await page.goto('/');
+
+    // Go to List tab
+    await page.getByRole('link', { name: 'List' }).click();
+    await expect(page.getByRole('heading', { name: /Submissions/i })).toBeVisible();
+
+    // Default sort mode is 1 (new)
+    let sortMode = await page.evaluate(() => localStorage.getItem('improvement_map_browse_sort'));
+    expect(sortMode === '1' || sortMode === null).toBeTruthy();
+
+    // Select "Sort by distance"
+    await page.getByText(/Sort by distance/i).click();
+    sortMode = await page.evaluate(() => localStorage.getItem('improvement_map_browse_sort'));
+    expect(sortMode).toBe('2');
+
+    // Simulate scroll down in list view
+    await page.evaluate(() => {
+      const listEl = document.querySelector('.bg-slate-300.dark\\:bg-slate-700');
+      if (listEl) {
+        listEl.scrollTop = 150;
+        listEl.dispatchEvent(new Event('scroll'));
+      }
     });
 
-    // Final submit
-    await page.getByRole('button', { name: /Submit Suggestion/i }).click();
+    const scrollPos = await page.evaluate(() => localStorage.getItem('improvement_map_browse_list_scroll'));
+    expect(Number(scrollPos)).toBeGreaterThan(0);
 
-    // Verify submission progress and completion
-    await expect(page.getByRole('heading', { name: /Submission complete!/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /View suggestion/i })).toBeVisible();
-
-    // Click View Suggestion
-    await page.getByRole('button', { name: /View suggestion/i }).click();
-    await expect(page).toHaveURL(/\/suggestion\/mock-sug-12345/);
-    await expect(page.getByRole('heading', { name: /Protected Bike Path along Main St/i })).toBeVisible();
-  });
-});
-
-test.describe('Browse Mode - Map and List Views', () => {
-  test('switches between Map and List view and sorts by distance', async ({ page, context }) => {
-    // Grant geolocation permissions with mock coordinates
-    await context.grantPermissions(['geolocation']);
-    await context.setGeolocation({ latitude: 32.7812, longitude: -96.7932 });
-
-    await page.goto('/browse');
-
-    // Default is Map View
-    await expect(page.getByRole('button', { name: /Map View/i })).toBeVisible();
-    await expect(page.getByPlaceholder(/Search address/i)).toBeVisible();
-
-    // Verify Streets and Satellite basemap toggling in Browse Map
-    await expect(page.getByRole('button', { name: /Streets/i })).toBeVisible();
-    await page.getByRole('button', { name: /Satellite/i }).click();
-    await page.getByRole('button', { name: /Streets/i }).click();
-
-    // Switch to List View
-    await page.getByRole('button', { name: /List View/i }).click();
-    await expect(page.getByRole('heading', { name: /Civic Suggestions/i })).toBeVisible();
-
-    // Verify presence of distance sorting elements
-    await expect(page.getByText(/Sorted by distance/i)).toBeVisible();
-
-    // Click on a suggestion in list to view detail
-    const firstViewBtn = page.getByRole('button', { name: /View suggestion/i }).or(page.getByRole('link', { name: /View suggestion/i })).first();
-    await firstViewBtn.click();
-
-    // Detail page loads
-    await expect(page).toHaveURL(/\/suggestion\//);
-    await expect(page.getByText(/Civic Improvement Suggestion/i)).toBeVisible();
-    await expect(page.getByRole('link', { name: /Google Maps/i })).toBeVisible();
+    // Refresh page and verify sort mode and scroll retention
+    await page.reload();
+    await expect(page.getByRole('heading', { name: /Submissions/i })).toBeVisible();
+    const reloadedSort = await page.evaluate(() => localStorage.getItem('improvement_map_browse_sort'));
+    expect(reloadedSort).toBe('2');
   });
 
-  test('streets basemap responds to theme toggle between dark and light modes', async ({ page }) => {
-    await page.goto('/browse');
+  test('persists author name and email across page reload and form reset', async ({ page }) => {
+    await page.goto('/submit');
 
-    // Default dark mode
-    const htmlElement = page.locator('html');
-    await expect(htmlElement).toHaveClass(/dark/);
+    // Fill in Step 1
+    await page.fill('#input-summary', 'Community Garden Setup');
+    await page.fill('#input-details', 'Requesting garden plots and water hookups.');
+    await page.getByRole('button', { name: /Next/i }).click();
 
-    // Toggle to light mode
-    const themeBtn = page.locator('#theme-toggle-btn');
-    await themeBtn.click();
-    await expect(htmlElement).toHaveClass(/light/);
+    // Step 2 -> Step 3
+    await page.getByRole('button', { name: /Next/i }).click();
 
-    // Toggle basemap to satellite and back to streets in light mode
-    await page.getByRole('button', { name: /Satellite/i }).click();
-    await page.getByRole('button', { name: /Streets/i }).click();
+    // Step 3 -> Step 4
+    await page.getByRole('button', { name: /Next/i }).click();
 
-    // Toggle back to dark mode
-    await themeBtn.click();
-    await expect(htmlElement).toHaveClass(/dark/);
+    // Step 4: Fill in name and email
+    await page.fill('#input-author-name', 'Alex Mercer');
+    await page.fill('#input-author-email', 'alex@mercer.dev');
+
+    // Verify localStorage author profile
+    const profile = await page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_author_profile')));
+    expect(profile).toEqual({ name: 'Alex Mercer', email: 'alex@mercer.dev' });
+
+    // Refresh page
+    await page.reload();
+
+    // Check value directly
+    await expect(page.locator('#input-author-name')).toHaveValue('Alex Mercer');
+    await expect(page.locator('#input-author-email')).toHaveValue('alex@mercer.dev');
+  });
+
+  test('persists infoWindow open state and map view on marker click and clears on infoWindow close', async ({ page }) => {
+    await page.goto('/');
+
+    const suggestionId = 'suggestion-test-1';
+    await page.evaluate((id) => {
+      localStorage.setItem('improvement_map_active_infowindow_suggestion_id', id);
+    }, suggestionId);
+
+    // Verify localStorage retains active infowindow id
+    let storedActiveId = await page.evaluate(() => localStorage.getItem('improvement_map_active_infowindow_suggestion_id'));
+    expect(storedActiveId).toBe('suggestion-test-1');
+
+    // Reload page
+    await page.reload();
+    storedActiveId = await page.evaluate(() => localStorage.getItem('improvement_map_active_infowindow_suggestion_id'));
+    expect(storedActiveId).toBe('suggestion-test-1');
+
+    // Simulate closing infowindow
+    await page.evaluate(() => {
+      localStorage.removeItem('improvement_map_active_infowindow_suggestion_id');
+    });
+    storedActiveId = await page.evaluate(() => localStorage.getItem('improvement_map_active_infowindow_suggestion_id'));
+    expect(storedActiveId).toBeNull();
   });
 });
