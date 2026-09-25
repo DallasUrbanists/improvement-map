@@ -1,12 +1,11 @@
 <template>
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="">
     <!-- Back button with Konsta Button -->
-    <div class="mb-4">
+    <div class="m-4">
       <k-button
         type="button"
         @click="goBack"
-        :clear="true"
-        :rounded="true"
+        :outline="true"
         small
         inline
         class="inline-flex items-center gap-2 text-sm font-semibold"
@@ -53,16 +52,15 @@
 
     <!-- Suggestion Details View with Konsta Card -->
     <div v-else-if="suggestion" class="space-y-6">
-      <k-card
-        :outline="true"
+      <div
         :content-wrap="false"
-        class="p-6 sm:p-8 space-y-6 m-0"
+        class="p-4 space-y-6 m-0"
       >
         <!-- Title and Subtitle -->
         <div>
-          <div class="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+          <!-- <div class="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
             Civic Improvement Suggestion
-          </div>
+          </div> -->
           <h1 class="text-2xl sm:text-3xl font-bold text-black dark:text-white">
             {{ suggestion.content?.summary || 'Civic Suggestion' }}
           </h1>
@@ -83,26 +81,11 @@
         </div>
 
         <!-- Description Details -->
-        <div class="space-y-2">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-            Description & Impact
-          </h3>
-          <p class="text-base text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
-            {{ suggestion.content?.details || 'No detailed description provided.' }}
-          </p>
-        </div>
+        <p class="">
+          {{ suggestion.content?.details || 'No detailed description provided.' }}
+        </p>
 
         <!-- Location Information with Konsta Card -->
-        <k-card
-          :outline="true"
-          :content-wrap="false"
-          class="space-y-3 p-4 rounded-xl m-0"
-        >
-          <h3 class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400">
-            <i class="fa-solid fa-location-dot"></i>
-            Location
-          </h3>
-
           <div class="text-sm font-semibold text-black dark:text-white">
             {{ suggestion.location?.address || 'Dallas, TX' }}
           </div>
@@ -124,14 +107,9 @@
               <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
             </k-link>
           </div>
-        </k-card>
 
         <!-- Photos Section (up to 10 photos) with Konsta Card -->
         <div v-if="photosList.length > 0" class="space-y-3">
-          <h3 class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400">
-            <i class="fa-solid fa-images"></i>
-            Photos ({{ photosList.length }})
-          </h3>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <k-card
@@ -139,7 +117,7 @@
               :key="index"
               :outline="true"
               :content-wrap="false"
-              class="rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-900 shadow-sm group m-0"
+              class="rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-900 shadow-sm group !m-0"
             >
               <div class="h-60 sm:h-72 w-full bg-zinc-950 overflow-hidden relative">
                 <img
@@ -156,7 +134,7 @@
             </k-card>
           </div>
         </div>
-      </k-card>
+      </div>
     </div>
 
     <!-- Image Lightbox Modal -->

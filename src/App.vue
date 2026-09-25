@@ -38,7 +38,7 @@
       </k-tabbar-link>
     </k-tabbar>
     <!-- Main View Content -->
-    <main class="flex-grow flex flex-col min-h-0 overflow-y-auto">
+    <main class="flex-grow flex flex-col min-h-0 overflow-y-auto scrollable">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />

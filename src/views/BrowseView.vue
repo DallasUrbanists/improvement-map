@@ -1,8 +1,8 @@
 <template>
-  <div class="flex-grow flex flex-col relative overflow-hidden h-full min-h-0">
+  <div class="flex-grow flex flex-col overflow-hidden">
 
     <!-- TAB 1: MAP VIEW (Google Maps SDK) -->
-    <div v-show="activeTab === 'map'" class="flex-grow relative min-h-0 h-full">
+    <div v-show="activeTab === 'map'" class="flex-grow relative">
       <!-- Search Address Overlay with Autocomplete (Google Places / Geocoder) -->
       <div class="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-30 flex flex-col">
         <div
@@ -59,8 +59,7 @@
       <!-- Google Map Target Container Wrapper -->
       <div class="absolute top-0 right-0 left-0 bottom-0">
         <!-- Dedicated Google Map Canvas Container -->
-        <div ref="browseMapContainerEl" class="w-full h-full min-h-[400px] bg-zinc-900"
-          style="width: 100%; height: 100%; min-height: 100%;"></div>
+        <div ref="browseMapContainerEl" class="w-full h-full"></div>
 
         <!-- Missing API Key or Auth Error Notice -->
         <div v-if="!hasGoogleMapsKey || googleMapsAuthError"
@@ -100,7 +99,8 @@
 
     <!-- TAB 2: LIST VIEW -->
     <div v-show="activeTab === 'list'"
-      class="flex-grow overflow-y-auto min-h-0 px-4 sm:px-6 lg:px-8 py-6 max-w-4xl w-full mx-auto">
+      class="flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 w-full mx-auto scrollable"
+    >
       <div class="mb-4">
         <h2 class="text-xl sm:text-2xl font-bold">Civic Suggestions</h2>
       </div>
@@ -111,11 +111,11 @@
         <p class="text-xs text-zinc-500 dark:text-zinc-400">
           <span v-if="userLocation">
             <i class="fa-solid fa-arrow-down-short-wide mr-1 text-zinc-600 dark:text-zinc-300"></i>
-            Sorted by distance from your current location
+            Sorted by distance
           </span>
           <span v-else>
             <i class="fa-solid fa-clock mr-1 text-zinc-600 dark:text-zinc-300"></i>
-            Sorted by newest submissions
+            Sorted by newest
           </span>
         </p>
 
@@ -127,9 +127,9 @@
       </div>
 
       <!-- Suggestions List -->
-      <div v-if="sortedListSuggestions.length > 0" class="space-y-3.5">
+      <div v-if="sortedListSuggestions.length > 0" class="">
         <!-- List Card item using Konsta Card -->
-        <k-card v-for="item in sortedListSuggestions" :key="item.id" :outline="true" :content-wrap="false"
+        <k-card v-for="item in sortedListSuggestions" :key="item.id" :content-wrap="false"
           class="!mx-0 mb-4 p-3.5 gap-3.5 sm:p-4 hover:shadow-md transition-all flex flex-col sm:flex-row cursor-pointer"
           @click="$router.push(`/suggestion/${item.id}`)">
           <!-- Left: Thumbnail and Summary -->
@@ -190,7 +190,7 @@
     <!-- Bottom Tabbar -->
     <k-tabbar
       :labels="true"
-      class="w-full bg-zinc-900 flex-shrink-0 sticky bottom-0 z-30"
+      class="w-full sticky bottom-0 z-30"
     >
       <k-tabbar-link
         label="Map"

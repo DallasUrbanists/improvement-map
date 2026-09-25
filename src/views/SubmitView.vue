@@ -1,686 +1,608 @@
 <template>
-  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-    <!-- Wizard Progress Header -->
-    <div>
-      <div class="flex items-center justify-between text-xs sm:text-sm font-bold text-zinc-500 dark:text-zinc-400 mb-2">
-        <span>Step {{ draft.step }} of 4: {{ currentStepTitle }}</span>
-        <k-button
-          v-if="draft.step > 1"
-          type="button"
-          @click="prevStep"
-          :clear="true"
-          small
-          class="text-xs"
-        >
-          <i class="fa-solid fa-arrow-left mr-1"></i>
-          Back
-        </k-button>
+  <div class="flex flex-col h-full">
+
+    <!-- ================= STEP 1: DESCRIBE ================= -->
+    <div v-if="draft.step === 1" class="space-y-5 p-6 flex-grow">
+      <div>
+        <h2 class="text-2xl font-bold mb-1">Describe your idea</h2>
+        <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+          Tell us your pedestrian, bike, or transit issue and how it can be improved.
+        </p>
       </div>
 
-      <!-- Progress Bar with Konsta Progressbar -->
-      <div class="w-full mb-2">
-        <k-progressbar
-          :progress="draft.step / 4"
-          class="w-full h-2 rounded-full overflow-hidden"
+      <div>
+        <label for="input-summary" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
+          <span>Summary <span class="text-red-500">*</span></span>
+          <span class="text-xs font-normal text-zinc-400">{{ (draft.summary || '').length }}/120</span>
+        </label>
+        <input
+          id="input-summary"
+          type="text"
+          v-model="draft.summary"
+          @input="persistDraft"
+          maxlength="120"
+          placeholder="e.g., Install protected bike lane on Elm Street"
+          class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
+          required
         />
+        <p v-if="errors.summary" class="text-xs text-red-500 mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          {{ errors.summary }}
+        </p>
       </div>
 
-      <div class="grid grid-cols-4 gap-1 text-[11px] sm:text-xs font-semibold text-center mt-2 text-zinc-400">
-        <span :class="{ 'text-black dark:text-white font-bold': draft.step >= 1 }">1. Describe</span>
-        <span :class="{ 'text-black dark:text-white font-bold': draft.step >= 2 }">2. Locate</span>
-        <span :class="{ 'text-black dark:text-white font-bold': draft.step >= 3 }">3. Photo</span>
-        <span :class="{ 'text-black dark:text-white font-bold': draft.step >= 4 }">4. Review</span>
+      <div>
+        <label for="input-details" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
+          <span>Details <span class="text-red-500">*</span></span>
+        </label>
+        <textarea
+          id="input-details"
+          v-model="draft.details"
+          @input="persistDraft"
+          rows="5"
+          placeholder="Explain why this improvement is needed, the current danger/inconvenience, and how it makes the city stronger..."
+          class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
+          required
+        ></textarea>
+        <p v-if="errors.details" class="text-xs text-red-500 mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          {{ errors.details }}
+        </p>
+      </div>
+
+      <div class="pt-4 flex justify-end">
+        <k-button
+          type="button"
+          @click="validateAndNextStep1"
+          large
+          class="font-bold px-8"
+        >
+          <span>Next</span>
+          <i class="fa-solid fa-arrow-right ml-2"></i>
+        </k-button>
       </div>
     </div>
 
-    <!-- WIZARD STEP CONTAINER -->
-    <k-card
-      :outline="true"
-      :content-wrap="false"
-      class="p-5 sm:p-7 shadow-sm m-0"
-    >
-      <!-- ================= STEP 1: DESCRIBE ================= -->
-      <div v-if="draft.step === 1" class="space-y-5">
-        <div>
-          <h2 class="text-2xl font-bold mb-1">Describe Your Improvement Idea</h2>
-          <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-            Tell us about the civic, pedestrian, bike, or transit issue and how it can be improved.
-          </p>
-        </div>
+    <!-- ================= STEP 2: LOCATE ================= -->
+    <div v-else-if="draft.step === 2" class="flex-grow flex flex-col">
+      <!-- Header -->
+      <div class="p-6">
+        <h2 class="text-2xl font-bold mb-1">Pin Suggestion Location</h2>
+        <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+          Drag the map or search an address to set the exact coordinates.
+        </p>
+      </div>
 
-        <div>
-          <label for="input-summary" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
-            <span>Summary <span class="text-red-500">*</span></span>
-            <span class="text-xs font-normal text-zinc-400">{{ (draft.summary || '').length }}/120</span>
-          </label>
-          <input
-            id="input-summary"
-            type="text"
-            v-model="draft.summary"
-            @input="persistDraft"
-            maxlength="120"
-            placeholder="e.g., Install protected bike lane on Elm Street"
-            class="w-full px-4 py-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
-            required
-          />
-          <p v-if="errors.summary" class="text-xs text-red-500 mt-1 flex items-center gap-1">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            {{ errors.summary }}
-          </p>
+      <!-- Location description bar -->
+      <div class="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-300 dark:border-zinc-700 text-xs flex items-center justify-between gap-2 z-20">
+        <div class="truncate flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
+          <i class="fa-solid fa-map-pin text-zinc-500"></i>
+          <span class="font-semibold">{{ displayAddress || 'Tap or drag pin to set location' }}</span>
         </div>
-
-        <div>
-          <label for="input-details" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
-            <span>Details & Community Impact <span class="text-red-500">*</span></span>
-          </label>
-          <textarea
-            id="input-details"
-            v-model="draft.details"
-            @input="persistDraft"
-            rows="5"
-            placeholder="Explain why this improvement is needed, the current danger/inconvenience, and how it makes the city stronger..."
-            class="w-full px-4 py-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
-            required
-          ></textarea>
-          <p v-if="errors.details" class="text-xs text-red-500 mt-1 flex items-center gap-1">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            {{ errors.details }}
-          </p>
-        </div>
-
-        <div class="pt-4 flex justify-end">
-          <k-button
-            type="button"
-            @click="validateAndNextStep1"
-            :rounded="true"
-            large
-            class="font-bold text-base w-full sm:w-auto px-8"
-          >
-            <span>Next: Choose Location</span>
-            <i class="fa-solid fa-arrow-right ml-2"></i>
-          </k-button>
+        <div v-if="draft.location?.latitude" class="text-[11px] text-zinc-500 font-mono flex-shrink-0">
+          {{ Number(draft.location.latitude).toFixed(4) }}, {{ Number(draft.location.longitude).toFixed(4) }}
         </div>
       </div>
 
-      <!-- ================= STEP 2: LOCATE ================= -->
-      <div v-else-if="draft.step === 2" class="space-y-4">
-        <div>
-          <h2 class="text-2xl font-bold mb-1">Pin Suggestion Location</h2>
-          <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-            Drag the map or search an address to set the exact coordinates.
-          </p>
-        </div>
-
-        <!-- Google Maps Target Container Wrapper -->
-        <div class="relative w-full h-[55vh] min-h-[360px] max-h-[550px] rounded-2xl overflow-hidden border border-zinc-300 dark:border-zinc-700 flex flex-col bg-zinc-900">
-          <!-- Search Bar Overlay with Autocomplete Dropdown -->
-          <div class="absolute top-3 left-3 right-3 z-30 flex flex-col max-w-lg">
-            <div class="relative flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg">
-              <span class="pl-3.5 pr-2 text-zinc-400">
-                <i class="fa-solid fa-magnifying-glass"></i>
-              </span>
-              <input
-                type="text"
-                v-model="mapSearchQuery"
-                @input="onSearchInput"
-                placeholder="Search address or street corridor..."
-                class="w-full py-2.5 pr-8 bg-transparent text-sm text-black dark:text-white placeholder-zinc-400 focus:outline-none"
-              />
-              <button
-                v-if="mapSearchQuery"
-                @click="mapSearchQuery = ''; mapSearchResults = []"
-                class="p-2 text-zinc-400 hover:text-black dark:hover:text-white"
-                type="button"
-                aria-label="Clear search"
-              >
-                <i class="fa-solid fa-xmark text-sm"></i>
-              </button>
-              <span v-if="isSearching" class="pr-3 text-zinc-400">
-                <i class="fa-solid fa-spinner animate-spin text-sm"></i>
-              </span>
-            </div>
-
-            <!-- Autocomplete Dropdown Menu -->
-            <div
-              v-if="mapSearchResults.length > 0"
-              class="mt-1 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-2xl max-h-52 overflow-y-auto z-40 divide-y divide-zinc-200 dark:divide-zinc-800"
-            >
-              <button
-                v-for="item in mapSearchResults"
-                :key="item.id"
-                type="button"
-                @click="selectAddress(item)"
-                class="w-full text-left px-3.5 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-2.5 text-xs sm:text-sm text-black dark:text-white"
-              >
-                <i class="fa-solid fa-location-dot text-zinc-500 mt-0.5 flex-shrink-0"></i>
-                <span class="line-clamp-2">{{ item.displayName }}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Pure Map Canvas Element -->
-          <div class="relative w-full flex-1 min-h-[300px] bg-zinc-900 overflow-hidden">
-            <div
-              ref="mapContainerEl"
-              class="w-full h-full min-h-[300px] bg-zinc-900"
-              style="height: 100%; width: 100%;"
-            ></div>
-
-            <!-- Missing API Key Overlay -->
-            <div
-              v-if="!hasGoogleMapsKey || googleMapsAuthError"
-              class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 text-zinc-300 z-20 backdrop-blur-sm"
-            >
-              <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-3"></i>
-              <h4 class="text-base font-bold text-white mb-1">Google Maps Setup Required</h4>
-              <p class="text-xs text-zinc-300 max-w-sm mb-3">
-                {{ googleMapsAuthError || 'Set VITE_GOOGLE_MAPS_API_KEY in your .env file.' }}
-              </p>
-            </div>
-
-            <!-- Loading indicator -->
-            <div
-              v-else-if="!isMapReady"
-              class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 z-10"
-            >
-              <k-preloader class="w-8 h-8 mb-2" />
-              <span class="text-xs font-semibold">Loading Map...</span>
-            </div>
-          </div>
-
-          <!-- Basemap Switcher (Streets / Satellite) -->
-          <div class="absolute top-3 right-3 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
-            <k-segmented :raised="true" class="w-auto">
-              <k-segmented-button
-                :active="currentMapType === 'roadmap'"
-                @click="setMapType('roadmap')"
-                small
-                class="text-xs font-bold px-2.5 py-1"
-              >
-                <i class="fa-solid fa-road mr-1"></i>
-                Streets
-              </k-segmented-button>
-              <k-segmented-button
-                :active="currentMapType === 'hybrid'"
-                @click="setMapType('hybrid')"
-                small
-                class="text-xs font-bold px-2.5 py-1"
-              >
-                <i class="fa-solid fa-earth-americas mr-1"></i>
-                Satellite
-              </k-segmented-button>
-            </k-segmented>
-          </div>
-
-          <!-- GPS Recenter Button -->
-          <div class="absolute bottom-3 right-3 z-30">
-            <k-button
-              type="button"
-              @click="requestGpsLocation"
-              :disabled="isLocating"
-              :rounded="true"
-              class="w-11 h-11 p-0 flex items-center justify-center shadow-xl backdrop-blur-md"
-              title="Recenter to current location"
-            >
-              <i class="fa-solid fa-crosshairs text-lg" :class="{ 'animate-spin': isLocating }"></i>
-            </k-button>
-          </div>
-
-          <!-- Describe Location Overlay Button -->
-          <div class="absolute bottom-3 left-3 z-30">
-            <k-button
-              type="button"
-              @click="openLocationDescModal"
-              :rounded="true"
-              small
-              class="shadow-xl text-xs sm:text-sm font-semibold"
-            >
-              <i class="fa-solid fa-comment-dots mr-1"></i>
-              <span>{{ draft.location?.description ? 'Edit Description' : 'Describe location' }}</span>
-            </k-button>
-          </div>
-
-          <!-- Location Summary Footer -->
-          <div class="px-3.5 py-2 bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-300 dark:border-zinc-700 text-xs flex items-center justify-between gap-2 z-20">
-            <div class="truncate flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
-              <i class="fa-solid fa-map-pin text-zinc-500"></i>
-              <span class="font-semibold">{{ displayAddress || 'Tap or drag pin to set location' }}</span>
-            </div>
-            <div v-if="draft.location?.latitude" class="text-[11px] text-zinc-500 font-mono flex-shrink-0">
-              {{ Number(draft.location.latitude).toFixed(4) }}, {{ Number(draft.location.longitude).toFixed(4) }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Describe Location Modal Dialog -->
-        <div
-          v-if="isDescModalOpen"
-          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
-          @click.self="discardDescModal"
-        >
-          <k-card
-            :outline="true"
-            :content-wrap="false"
-            class="max-w-lg w-full p-5 sm:p-6 bg-white dark:bg-zinc-900 text-black dark:text-white shadow-2xl border border-zinc-300 dark:border-zinc-700 rounded-2xl m-0"
-          >
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-bold flex items-center gap-2">
-                <i class="fa-solid fa-comment-dots"></i>
-                Describe Location
-              </h3>
-              <button
-                type="button"
-                @click="discardDescModal"
-                class="text-zinc-400 hover:text-black dark:hover:text-white p-1"
-                aria-label="Close"
-              >
-                <i class="fa-solid fa-xmark text-base"></i>
-              </button>
-            </div>
-
-            <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-              Add landmarks, intersection details, or specific physical cues (e.g., "Northwest corner in front of the bakery").
-            </p>
-
-            <textarea
-              v-model="tempDescription"
-              rows="3"
-              placeholder="e.g., Along Elm St between Harwood and St Paul, opposite Pegasus Plaza..."
-              class="w-full px-4 py-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none mb-5"
-              autofocus
-            ></textarea>
-
-            <div class="flex items-center justify-end gap-3">
-              <k-button
-                type="button"
-                @click="discardDescModal"
-                :outline="true"
-                :rounded="true"
-                small
-                class="text-sm px-4 py-2"
-              >
-                Discard
-              </k-button>
-              <k-button
-                type="button"
-                @click="saveDescModal"
-                :rounded="true"
-                small
-                class="text-sm font-bold px-5 py-2"
-              >
-                Okay
-              </k-button>
-            </div>
-          </k-card>
-        </div>
-
-        <div class="pt-4 flex items-center justify-between gap-3">
-          <k-button
-            type="button"
-            @click="prevStep"
-            :outline="true"
-            :rounded="true"
-            class="text-sm"
-          >
-            <i class="fa-solid fa-arrow-left mr-2"></i>
-            Back
-          </k-button>
-
-          <k-button
-            type="button"
-            @click="nextStep"
-            :rounded="true"
-            large
-            class="font-bold text-base px-8"
-          >
-            <span>Next: Add Photos</span>
-            <i class="fa-solid fa-arrow-right ml-2"></i>
-          </k-button>
-        </div>
-      </div>
-
-      <!-- ================= STEP 3: PHOTO ================= -->
-      <div v-else-if="draft.step === 3" class="space-y-5">
-        <div>
-          <h2 class="text-2xl font-bold mb-1">Attach Photos</h2>
-          <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-            Upload up to 10 photos of the location, hazards, or site conditions.
-          </p>
-        </div>
-
-        <!-- Action Bar: Upload Button & Camera Button -->
-        <div class="flex flex-wrap items-center gap-3">
-          <!-- File Upload Input Trigger -->
-          <label
-            class="inline-block cursor-pointer"
-            :class="{ 'opacity-50 pointer-events-none': (draft.photos || []).length >= 10 || isProcessingPhotos }"
-          >
-            <k-button
-              component="div"
-              :rounded="true"
-              :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-              class="font-bold text-sm shadow cursor-pointer pointer-events-none"
-            >
-              <i class="fa-solid fa-cloud-arrow-up mr-2"></i>
-              <span>Upload Photos</span>
-            </k-button>
+      <!-- Google Maps Target Container Wrapper -->
+      <div class="relative w-full flex-grow flex flex-col bg-zinc-900">
+        <!-- Search Bar Overlay with Autocomplete Dropdown -->
+        <div class="absolute top-3 left-3 right-3 z-30 flex flex-col max-w-lg">
+          <div class="relative flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded border border-zinc-300 dark:border-zinc-700 shadow-lg">
+            <span class="pl-3.5 pr-2 text-zinc-400">
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </span>
             <input
-              ref="fileInput"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-              @change="handleFilesSelected"
+              type="text"
+              v-model="mapSearchQuery"
+              @input="onSearchInput"
+              placeholder="Search..."
+              class="w-full py-2.5 pr-8 bg-transparent text-sm text-black dark:text-white placeholder-zinc-400 focus:outline-none"
             />
-          </label>
+            <button
+              v-if="mapSearchQuery"
+              @click="mapSearchQuery = ''; mapSearchResults = []"
+              class="p-2 text-zinc-400 hover:text-black dark:hover:text-white"
+              type="button"
+              aria-label="Clear search"
+            >
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+            <span v-if="isSearching" class="pr-3 text-zinc-400">
+              <i class="fa-solid fa-spinner animate-spin text-sm"></i>
+            </span>
+          </div>
 
-          <!-- Camera Capture Trigger -->
-          <label
-            class="inline-block cursor-pointer"
-            :class="{ 'opacity-50 pointer-events-none': (draft.photos || []).length >= 10 || isProcessingPhotos }"
+          <!-- Autocomplete Dropdown Menu -->
+          <div
+            v-if="mapSearchResults.length > 0"
+            class="mt-1 bg-white dark:bg-zinc-900 rounded border border-zinc-300 dark:border-zinc-700 shadow-2xl max-h-52 overflow-y-auto z-40 divide-y divide-zinc-200 dark:divide-zinc-800"
           >
+            <button
+              v-for="item in mapSearchResults"
+              :key="item.id"
+              type="button"
+              @click="selectAddress(item)"
+              class="w-full text-left px-3.5 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-2.5 text-xs sm:text-sm text-black dark:text-white"
+            >
+              <i class="fa-solid fa-location-dot text-zinc-500 mt-0.5 flex-shrink-0"></i>
+              <span class="line-clamp-2">{{ item.displayName }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Pure Map Canvas Element -->
+        <div class="relative w-full flex-1 min-h-[300px] bg-zinc-900 overflow-hidden">
+          <div
+            ref="mapContainerEl"
+            class="w-full h-full min-h-[300px] bg-zinc-900"
+            style="height: 100%; width: 100%;"
+          ></div>
+
+          <!-- Missing API Key Overlay -->
+          <div
+            v-if="!hasGoogleMapsKey || googleMapsAuthError"
+            class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 text-zinc-300 z-20 backdrop-blur-sm"
+          >
+            <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-3"></i>
+            <h4 class="text-base font-bold text-white mb-1">Google Maps Setup Required</h4>
+            <p class="text-xs text-zinc-300 max-w-sm mb-3">
+              {{ googleMapsAuthError || 'Set VITE_GOOGLE_MAPS_API_KEY in your .env file.' }}
+            </p>
+          </div>
+
+          <!-- Loading indicator -->
+          <div
+            v-else-if="!isMapReady"
+            class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 z-10"
+          >
+            <k-preloader class="w-8 h-8 mb-2" />
+            <span class="text-xs font-semibold">Loading Map...</span>
+          </div>
+        </div>
+
+      <!-- Basemap Switcher (Streets / Satellite) with Konsta Segmented -->
+      <div
+        class="absolute bottom-3 left-3 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
+        <k-segmented :raised="true" class="w-auto">
+          <k-segmented-button :active="currentMapType === 'roadmap'" @click="setMapType('roadmap')" small
+            class="text-xs font-bold px-2.5 py-1">
+            <i class="fa-solid fa-road mr-1"></i>
+            Streets
+          </k-segmented-button>
+          <k-segmented-button :active="currentMapType === 'hybrid'" @click="setMapType('hybrid')" small
+            class="text-xs font-bold px-2.5 py-1">
+            <i class="fa-solid fa-earth-americas mr-1"></i>
+            Satellite
+          </k-segmented-button>
+          <k-segmented-button @click="requestGps" small
+            class="text-xs font-bold px-2.5 py-1"
+            title="Center on my location" aria-label="Center on my location">
+            <i class="fa-solid fa-crosshairs mr-1" :class="{ 'animate-spin': isLocating }"></i>
+            Recenter
+          </k-segmented-button>
+        </k-segmented>
+      </div>
+        
+      </div>
+
+      <!-- Back / Next -->
+      <div class="p-4 flex items-center justify-between gap-3">
+        <k-button
+          type="button"
+          @click="prevStep"
+          :outline="true"
+          large
+          class="font-bold text-base px-8"
+        >
+          <i class="fa-solid fa-arrow-left mr-2"></i>
+          Back
+        </k-button>
+
+        <k-button
+          type="button"
+          @click="nextStep"
+          large
+          class="font-bold text-base px-8"
+        >
+          <span>Next</span>
+          <i class="fa-solid fa-arrow-right ml-2"></i>
+        </k-button>
+      </div>
+
+      <!-- Describe Location Modal Dialog -->
+      <div
+        v-if="isDescModalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+        @click.self="discardDescModal"
+      >
+        <k-card
+          :outline="true"
+          :content-wrap="false"
+          class="max-w-lg w-full p-5 sm:p-6 bg-white dark:bg-zinc-900 text-black dark:text-white shadow-2xl border border-zinc-300 dark:border-zinc-700 rounded-2xl m-0"
+        >
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-bold flex items-center gap-2">
+              <i class="fa-solid fa-comment-dots"></i>
+              Describe Location
+            </h3>
+            <button
+              type="button"
+              @click="discardDescModal"
+              class="text-zinc-400 hover:text-black dark:hover:text-white p-1"
+              aria-label="Close"
+            >
+              <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+          </div>
+
+          <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+            Add landmarks, intersection details, or specific physical cues (e.g., "Northwest corner in front of the bakery").
+          </p>
+
+          <textarea
+            v-model="tempDescription"
+            rows="3"
+            placeholder="e.g., Along Elm St between Harwood and St Paul, opposite Pegasus Plaza..."
+            class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none mb-5"
+            autofocus
+          ></textarea>
+
+          <div class="flex items-center justify-end gap-3">
             <k-button
-              component="div"
+              type="button"
+              @click="discardDescModal"
               :outline="true"
               :rounded="true"
-              :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-              class="font-semibold text-sm shadow cursor-pointer pointer-events-none"
+              small
+              class="text-sm px-4 py-2"
             >
-              <i class="fa-solid fa-camera mr-2"></i>
-              <span>Take Photo</span>
+              Discard
             </k-button>
-            <input
-              ref="cameraInput"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              class="hidden"
-              :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-              @change="handleFilesSelected"
-            />
-          </label>
-
-          <!-- Photos Counter Badge with Konsta Badge -->
-          <k-badge class="text-xs font-semibold px-3 py-1.5 rounded-full">
-            {{ (draft.photos || []).length }} / 10 Photos
-          </k-badge>
-        </div>
-
-        <!-- Processing Indicator with Konsta Preloader -->
-        <div v-if="isProcessingPhotos" class="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs flex items-center gap-2">
-          <k-preloader class="w-4 h-4" />
-          <span>Compressing & optimizing image(s)...</span>
-        </div>
-
-        <!-- Error Alert -->
-        <div v-if="photoError" class="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            <span>{{ photoError }}</span>
+            <k-button
+              type="button"
+              @click="saveDescModal"
+              :rounded="true"
+              small
+              class="text-sm font-bold px-5 py-2"
+            >
+              Okay
+            </k-button>
           </div>
-          <button @click="photoError = ''" class="text-red-500 hover:text-black dark:hover:text-white">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
+        </k-card>
+      </div>
+    </div>
 
-        <!-- Empty State -->
+    <!-- ================= STEP 3: PHOTO ================= -->
+    <div v-else-if="draft.step === 3" class="p-6 space-y-5">
+      <div>
+        <h2 class="text-2xl font-bold mb-1">Attach Photos</h2>
+        <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+          Upload up to 10 photos of the location, hazards, or site conditions.
+        </p>
+      </div>
+
+      <!-- Action Bar: Upload Button & Camera Button -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- File Upload Input Trigger -->
+        <label
+          class="inline-block cursor-pointer"
+          :class="{ 'opacity-50 pointer-events-none': (draft.photos || []).length >= 10 || isProcessingPhotos }"
+        >
+          <k-button
+            component="div"
+            :rounded="true"
+            :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
+            class="font-bold text-sm shadow cursor-pointer pointer-events-none"
+          >
+            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>
+            <span>Upload Photos</span>
+          </k-button>
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
+            @change="handleFilesSelected"
+          />
+        </label>
+
+        <!-- Camera Capture Trigger -->
+        <label
+          class="inline-block cursor-pointer"
+          :class="{ 'opacity-50 pointer-events-none': (draft.photos || []).length >= 10 || isProcessingPhotos }"
+        >
+          <k-button
+            component="div"
+            :outline="true"
+            :rounded="true"
+            :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
+            class="font-semibold text-sm shadow cursor-pointer pointer-events-none"
+          >
+            <i class="fa-solid fa-camera mr-2"></i>
+            <span>Take Photo</span>
+          </k-button>
+          <input
+            ref="cameraInput"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            class="hidden"
+            :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
+            @change="handleFilesSelected"
+          />
+        </label>
+
+        <!-- Photos Counter Badge with Konsta Badge -->
+        <k-badge class="text-xs font-semibold px-3 py-1.5 rounded-full">
+          {{ (draft.photos || []).length }} / 10 Photos
+        </k-badge>
+      </div>
+
+      <!-- Processing Indicator with Konsta Preloader -->
+      <div v-if="isProcessingPhotos" class="p-3 rounded bg-zinc-100 dark:bg-zinc-800 text-xs flex items-center gap-2">
+        <k-preloader class="w-4 h-4" />
+        <span>Compressing & optimizing image(s)...</span>
+      </div>
+
+      <!-- Error Alert -->
+      <div v-if="photoError" class="p-3 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>{{ photoError }}</span>
+        </div>
+        <button @click="photoError = ''" class="text-red-500 hover:text-black dark:hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+
+      <!-- Photos Grid with Konsta Card -->
+      <div
+        v-if="draft.photos && draft.photos.length > 0"
+      >
         <div
-          v-if="!draft.photos || draft.photos.length === 0"
-          class="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl p-8 text-center text-zinc-500"
+          v-for="(photo, index) in draft.photos"
+          :key="photo.id || index"
+          :content-wrap="false"
+          class="rounded-2xl mb-4 flex flex-col gap-2 relative"
         >
-          <div class="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-2 text-xl text-zinc-400">
-            <i class="fa-solid fa-images"></i>
-          </div>
-          <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1">No photos added yet (optional)</p>
-          <p class="text-xs text-zinc-500 max-w-sm mx-auto">
-            Adding photos of street conditions, bike lanes, or crosswalks helps local planners understand your idea.
-          </p>
-        </div>
-
-        <!-- Photos Grid with Konsta Card -->
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <k-card
-            v-for="(photo, index) in draft.photos"
-            :key="photo.id || index"
-            :outline="true"
-            :content-wrap="false"
-            class="p-3 rounded-2xl flex flex-col gap-2 relative m-0"
-          >
-            <div class="relative w-full h-44 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-700">
-              <img
-                :src="photo.dataUrl || photo.url"
-                :alt="photo.caption || 'Photo'"
-                class="w-full h-full object-cover"
-              />
-              <k-badge class="absolute top-2 left-2 text-[11px] font-bold">
-                #{{ index + 1 }}
-              </k-badge>
-              <button
-                type="button"
-                @click="removePhoto(index)"
-                class="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition active:scale-90"
-                title="Remove Photo"
-              >
-                <i class="fa-solid fa-trash-can text-xs"></i>
-              </button>
-            </div>
-
-            <!-- Caption input -->
-            <input
-              type="text"
-              v-model="photo.caption"
-              @input="persistDraft"
-              placeholder="Add photo caption (optional)..."
-              class="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-black dark:text-white placeholder-zinc-400 focus:outline-none"
+          <div class="relative w-full rounded overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-700">
+            <img
+              :src="photo.dataUrl || photo.url"
+              :alt="photo.caption || 'Photo'"
+              class="w-full h-full object-contain"
             />
-          </k-card>
-        </div>
+            <k-badge class="absolute top-2 left-2 text-[11px] font-bold">
+              #{{ index + 1 }}
+            </k-badge>
+            <button
+              type="button"
+              @click="removePhoto(index)"
+              class="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition active:scale-90"
+              title="Remove Photo"
+            >
+              <i class="fa-solid fa-trash-can text-xs"></i>
+            </button>
+          </div>
 
-        <div class="pt-4 flex items-center justify-between gap-3">
-          <k-button
-            type="button"
-            @click="prevStep"
-            :outline="true"
-            :rounded="true"
-            class="text-sm"
-          >
-            <i class="fa-solid fa-arrow-left mr-2"></i>
-            Back
-          </k-button>
-
-          <k-button
-            type="button"
-            @click="nextStep"
-            :rounded="true"
-            large
-            class="font-bold text-base px-8"
-          >
-            <span>Next: Review & Submit</span>
-            <i class="fa-solid fa-arrow-right ml-2"></i>
-          </k-button>
+          <!-- Caption input -->
+          <input
+            type="text"
+            v-model="photo.caption"
+            @input="persistDraft"
+            placeholder="Add photo caption (optional)..."
+            class="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-black dark:text-white placeholder-zinc-400 focus:outline-none"
+          />
         </div>
       </div>
 
-      <!-- ================= STEP 4: REVIEW & SUBMIT ================= -->
-      <div v-else-if="draft.step === 4" class="space-y-6">
-        <div>
-          <h2 class="text-2xl font-bold mb-1">Review Your Submission</h2>
-          <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-            Verify your suggestion details before publishing.
-          </p>
-        </div>
-
-        <!-- Review Section: Step 1 Describe -->
-        <k-card
+      <div class="pt-4 flex items-center justify-between gap-3">
+        <k-button
+          type="button"
+          @click="prevStep"
           :outline="true"
-          :content-wrap="false"
-          class="p-4 rounded-xl m-0"
+          large
+          class="font-bold text-base px-8 py-3.5 shadow-lg"
         >
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <i class="fa-solid fa-pen"></i>
-              1. Description
-            </h3>
-            <k-button
-              type="button"
-              @click="goToStep(1)"
-              :clear="true"
-              small
-              class="text-xs font-bold"
-            >
-              <i class="fa-solid fa-pen-to-square mr-1"></i>
-              Edit
-            </k-button>
-          </div>
-          <p class="font-bold text-base mb-1 text-black dark:text-white">{{ draft.summary || '(No summary provided)' }}</p>
-          <p class="text-xs text-zinc-600 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">{{ draft.details || '(No details provided)' }}</p>
-        </k-card>
+          <i class="fa-solid fa-arrow-left mr-2"></i>
+          Back
+        </k-button>
 
-        <!-- Review Section: Step 2 Locate -->
-        <k-card
-          :outline="true"
-          :content-wrap="false"
-          class="p-4 rounded-xl m-0"
+        <k-button
+          type="button"
+          @click="nextStep"
+          large
+          class="font-bold text-base px-8"
         >
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <i class="fa-solid fa-location-dot"></i>
-              2. Location
-            </h3>
-            <k-button
-              type="button"
-              @click="goToStep(2)"
-              :clear="true"
-              small
-              class="text-xs font-bold"
-            >
-              <i class="fa-solid fa-pen-to-square mr-1"></i>
-              Edit
-            </k-button>
-          </div>
-          <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-            {{ draft.location?.address || 'Dallas, TX' }}
-          </p>
-          <p v-if="draft.location?.description" class="text-xs text-zinc-500 mt-1">
-            <span class="font-semibold text-zinc-600 dark:text-zinc-400">Note:</span> {{ draft.location.description }}
-          </p>
-          <p v-if="draft.location?.latitude" class="text-[11px] text-zinc-400 font-mono mt-1">
-            {{ Number(draft.location.latitude).toFixed(5) }}, {{ Number(draft.location.longitude).toFixed(5) }}
-          </p>
-        </k-card>
+          <span>Next</span>
+          <i class="fa-solid fa-arrow-right ml-2"></i>
+        </k-button>
+      </div>
+    </div>
 
-        <!-- Review Section: Step 3 Photo -->
-        <k-card
-          :outline="true"
-          :content-wrap="false"
-          class="p-4 rounded-xl m-0"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <i class="fa-solid fa-camera"></i>
-              3. Photos ({{ (draft.photos || []).length }})
-            </h3>
-            <k-button
-              type="button"
-              @click="goToStep(3)"
-              :clear="true"
-              small
-              class="text-xs font-bold"
-            >
-              <i class="fa-solid fa-pen-to-square mr-1"></i>
-              Edit
-            </k-button>
-          </div>
+    <!-- ================= STEP 4: REVIEW & SUBMIT ================= -->
+    <div v-else-if="draft.step === 4" class="p-6 space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold mb-1">Review Your Submission</h2>
+        <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+          Verify your suggestion details before publishing.
+        </p>
+      </div>
 
-          <div v-if="draft.photos && draft.photos.length > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-            <div
-              v-for="(ph, idx) in draft.photos"
-              :key="idx"
-              class="relative rounded-lg overflow-hidden h-20 bg-zinc-800 border border-zinc-700"
-            >
-              <img :src="ph.dataUrl || ph.url" class="w-full h-full object-cover" alt="" />
-              <div v-if="ph.caption" class="absolute bottom-0 inset-x-0 bg-black/70 text-[10px] text-white p-1 truncate">
-                {{ ph.caption }}
-              </div>
-            </div>
-          </div>
-          <p v-else class="text-xs text-zinc-500">No photos attached.</p>
-        </k-card>
-
-        <!-- Author Name & Email (Required) -->
-        <div class="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
-          <h3 class="text-base font-bold text-black dark:text-white">
-            Author Contact Information
+      <!-- Review Section: Step 1 Describe -->
+      <k-card
+        :outline="true"
+        :content-wrap="false"
+        class="p-4 rounded !mx-0"
+      >
+        <div class="flex flex-row justify-stretch items-center mb-2 w-auto">
+          <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
+            <i class="fa-solid fa-lightbulb"></i>
+            DESCRIPTION
           </h3>
+          <k-button
+            type="button"
+            @click="goToStep(1)"
+            :clear="true"
+            small
+            class="text-xs font-bold w-auto"
+          >
+            <i class="fa-solid fa-pen-to-square mr-1"></i>
+            Edit
+          </k-button>
+        </div>
+        <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+          {{ draft.details || '(No details provided)' }}
+        </p>
+        <p v-if="draft.location?.description" class="text-xs text-zinc-500 mt-1">
+          <span class="font-semibold text-zinc-600 dark:text-zinc-400">Note:</span> {{ draft.location.description }}
+        </p>
+        <p v-if="draft.location?.latitude" class="text-[11px] text-zinc-400 font-mono mt-1">
+          {{ Number(draft.location.latitude).toFixed(5) }}, {{ Number(draft.location.longitude).toFixed(5) }}
+        </p>
+      </k-card>
+          
 
-          <div>
-            <label for="input-author-name" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
-              <span>Your Name <span class="text-red-500">*</span></span>
-              <span class="text-xs font-normal text-zinc-400">{{ (draft.author?.name || '').length }}/70</span>
-            </label>
-            <input
-              id="input-author-name"
-              type="text"
-              v-model="draft.author.name"
-              @input="persistDraft"
-              maxlength="70"
-              placeholder="e.g. Jane Jacobs"
-              class="w-full px-4 py-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
-              required
-            />
-            <p v-if="errors.authorName" class="text-xs text-red-500 mt-1 flex items-center gap-1">
-              <i class="fa-solid fa-circle-exclamation"></i>
-              {{ errors.authorName }}
-            </p>
-          </div>
+      <!-- Review Section: Step 2 Locate -->
+      <k-card
+        :outline="true"
+        :content-wrap="false"
+        class="p-4 rounded !mx-0"
+      >
+        <div class="flex flex-row justify-stretch items-center mb-2 w-auto">
+          <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
+            <i class="fa-solid fa-location-dot"></i>
+            Location
+          </h3>
+          <k-button
+            type="button"
+            @click="goToStep(2)"
+            :clear="true"
+            small
+            class="text-xs font-bold w-auto"
+          >
+            <i class="fa-solid fa-pen-to-square mr-1"></i>
+            Edit
+          </k-button>
+        </div>
+        <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+          {{ draft.location?.address || 'Dallas, TX' }}
+        </p>
+        <p v-if="draft.location?.description" class="text-xs text-zinc-500 mt-1">
+          <span class="font-semibold text-zinc-600 dark:text-zinc-400">Note:</span> {{ draft.location.description }}
+        </p>
+        <p v-if="draft.location?.latitude" class="text-[11px] text-zinc-400 font-mono mt-1">
+          {{ Number(draft.location.latitude).toFixed(5) }}, {{ Number(draft.location.longitude).toFixed(5) }}
+        </p>
+      </k-card>
 
-          <div>
-            <label for="input-author-email" class="block text-sm font-bold mb-1.5">
-              Your Email Address <span class="text-red-500">*</span>
-            </label>
-            <input
-              id="input-author-email"
-              type="email"
-              v-model="draft.author.email"
-              @input="persistDraft"
-              placeholder="e.g. jane@strongtowns.org"
-              class="w-full px-4 py-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
-              required
-            />
-            <p v-if="errors.authorEmail" class="text-xs text-red-500 mt-1 flex items-center gap-1">
-              <i class="fa-solid fa-circle-exclamation"></i>
-              {{ errors.authorEmail }}
-            </p>
-          </div>
+      <!-- Review Section: Step 3 Photo -->
+      <k-card
+        :outline="true"
+        :content-wrap="false"
+        class="p-4 rounded !mx-0"
+      >
+        <div class="flex flex-row justify-stretch items-center mb-2 w-auto">
+          <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
+            <i class="fa-solid fa-camera"></i>
+            Photos ({{ (draft.photos || []).length }})
+          </h3>
+          <k-button
+            type="button"
+            @click="goToStep(3)"
+            :clear="true"
+            small
+            class="text-xs font-bold w-auto"
+          >
+            <i class="fa-solid fa-pen-to-square mr-1"></i>
+            Edit
+          </k-button>
         </div>
 
-        <!-- Submit Final Action -->
-        <div class="pt-4 flex items-center justify-between gap-3">
-          <k-button
-            type="button"
-            @click="prevStep"
-            :outline="true"
-            :rounded="true"
-            class="text-sm"
+        <div v-if="draft.photos && draft.photos.length > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+          <div
+            v-for="(ph, idx) in draft.photos"
+            :key="idx"
+            class="relative rounded-lg overflow-hidden h-20 bg-zinc-800 border border-zinc-700"
           >
-            <i class="fa-solid fa-arrow-left mr-2"></i>
-            Back
-          </k-button>
+            <img :src="ph.dataUrl || ph.url" class="w-full h-full object-cover" alt="" />
+            <div v-if="ph.caption" class="absolute bottom-0 inset-x-0 bg-black/70 text-[10px] text-white p-1 truncate">
+              {{ ph.caption }}
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-xs text-zinc-500">No photos attached.</p>
+      </k-card>
 
-          <k-button
-            type="button"
-            @click="submitFinalSuggestion"
-            :rounded="true"
-            large
-            class="font-bold text-base px-8 py-3.5 shadow-lg"
-          >
-            <i class="fa-solid fa-paper-plane mr-2"></i>
-            Submit Suggestion
-          </k-button>
+      <!-- Author Name & Email (Required) -->
+      <div class="pt-2 border-zinc-200 dark:border-zinc-800 space-y-4">
+        <div>
+          <label for="input-author-name" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
+            <span>Your name <span class="text-red-500">*</span></span>
+            <span class="text-xs font-normal text-zinc-400">{{ (draft.author?.name || '').length }}/70</span>
+          </label>
+          <input
+            id="input-author-name"
+            type="text"
+            v-model="draft.author.name"
+            @input="persistDraft"
+            maxlength="70"
+            placeholder=""
+            class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
+            required
+          />
+          <p v-if="errors.authorName" class="text-xs text-red-500 mt-1 flex items-center gap-1">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            {{ errors.authorName }}
+          </p>
+        </div>
+
+        <div>
+          <label for="input-author-email" class="block text-sm font-bold mb-1.5">
+            Your email <span class="text-red-500">*</span>
+          </label>
+          <input
+            id="input-author-email"
+            type="email"
+            v-model="draft.author.email"
+            @input="persistDraft"
+            class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
+            required
+          />
+          <p v-if="errors.authorEmail" class="text-xs text-red-500 mt-1 flex items-center gap-1">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            {{ errors.authorEmail }}
+          </p>
         </div>
       </div>
-    </k-card>
+
+      <!-- Submit Final Action -->
+      <div class="pt-4 flex items-center justify-between gap-3">
+        <k-button
+          type="button"
+          @click="prevStep"
+          :outline="true"
+          large
+          class="font-bold text-base px-8 py-3.5 shadow-lg"
+        >
+          <i class="fa-solid fa-arrow-left mr-2"></i>
+          Back
+        </k-button>
+
+        <k-button
+          type="button"
+          @click="submitFinalSuggestion"
+          large
+          class="font-bold text-base px-8 py-3.5 shadow-lg"
+        >
+          <i class="fa-solid fa-paper-plane mr-2"></i>
+          Submit
+        </k-button>
+      </div>
+    </div>
 
     <!-- SUBMISSION PROGRESS / STATUS MODAL OVERLAY -->
     <div
