@@ -35,23 +35,12 @@
 
       <!-- Basemap Switcher (Streets / Satellite) with Konsta Segmented -->
       <div
-        class="absolute bottom-3 left-3 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
+        class="absolute bottom-8 left-2 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
         <k-segmented :raised="true" class="w-auto">
-          <k-segmented-button :active="currentMapType === 'roadmap'" @click="setMapType('roadmap')" small
-            class="text-xs font-bold px-2.5 py-1">
-            <i class="fa-solid fa-road mr-1"></i>
-            Streets
-          </k-segmented-button>
-          <k-segmented-button :active="currentMapType === 'hybrid'" @click="setMapType('hybrid')" small
-            class="text-xs font-bold px-2.5 py-1">
-            <i class="fa-solid fa-earth-americas mr-1"></i>
-            Satellite
-          </k-segmented-button>
-          <k-segmented-button @click="requestGps" small
-            class="text-xs font-bold px-2.5 py-1"
+          <k-segmented-button @click="requestGps"
+            class="text-xs font-bold px-3 py-1"
             title="Center on my location" aria-label="Center on my location">
-            <i class="fa-solid fa-crosshairs mr-1" :class="{ 'animate-spin': isLocating }"></i>
-            Recenter
+            <i class="fa-solid fa-crosshairs" :class="{ 'animate-spin': isLocating }"></i>
           </k-segmented-button>
         </k-segmented>
       </div>
@@ -193,9 +182,15 @@
       class="w-full sticky bottom-0 z-30"
     >
       <k-tabbar-link
-        label="Map"
-        :active="activeTab === 'map'"
-        @click="setTab('map')"
+        label="Streets"
+        :active="activeTab === 'map' && currentMapType === 'roadmap'"
+        @click="setTab('map'); setMapType('roadmap')"
+      ></k-tabbar-link>
+
+      <k-tabbar-link
+        label="Satellite"
+        :active="activeTab === 'map' && currentMapType === 'hybrid'"
+        @click="setTab('map'); setMapType('hybrid')"
       ></k-tabbar-link>
 
       <k-tabbar-link

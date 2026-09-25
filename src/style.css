@@ -47,3 +47,12 @@ body {
 .k-toolbar [tabbar]:right-child {
     border-right: none;
 }
+
+.k-toolbar.sticky {
+    --shadow-color: black;
+    box-shadow: 0 0 20px var(--shadow-color);
+}
+
+.light .k-toolbar.sticky {
+    --shadow-color: grey;
+}
