@@ -11,7 +11,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test": "playwright test"
+    "test": "playwright test",
+    "major": "npm version major && git push origin main --tags",
+    "minor": "npm version minor && git push origin main --tags",
+    "patch": "npm version patch && git push origin main --tags"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
