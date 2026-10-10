@@ -139,8 +139,8 @@
               <k-badge v-if="activeSort === 2 && item._formattedDistance" class="absolute bottom-1 left-1 text-[10px] font-bold">
                 {{ item._formattedDistance }}
               </k-badge>
-              <k-badge v-else-if="activeSort === 1 && formatRelativeTime(item.createdAt)" class="absolute bottom-1 left-1 text-[10px] font-bold">
-                {{ formatRelativeTime(item.createdAt) }}
+              <k-badge v-else-if="activeSort === 1 && formatRelativeTime(item.creationDate)" class="absolute bottom-1 left-1 text-[10px] font-bold">
+                {{ formatRelativeTime(item.creationDate) }}
               </k-badge>
             </div>
 
@@ -156,7 +156,7 @@
               <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
                 <span>By {{ item.author?.name || 'Anonymous' }}</span>
                 <span>•</span>
-                <span>{{ formatTime(item.createdAt) }}</span>
+                <span>{{ formatTime(item.creationDate) }}</span>
               </div>
             </div>
           </div>
@@ -293,8 +293,8 @@ const sortedListSuggestions = computed(() => {
     return sortSuggestionsByDistance(suggestions.value, userLocation.value.lat, userLocation.value.lng);
   }
   return [...suggestions.value].sort((a, b) => {
-    const timeA = new Date(a.createdAt || a.timestamp || 0).getTime();
-    const timeB = new Date(b.createdAt || b.timestamp || 0).getTime();
+    const timeA = new Date(a.creationDate || 0).getTime();
+    const timeB = new Date(b.creationDate || 0).getTime();
     return timeB - timeA;
   });
 });
@@ -463,7 +463,7 @@ function createInfoWindowContent(suggestion) {
   const summary = suggestion.content?.summary || 'Civic Suggestion';
   const photoUrl = getPrimaryPhoto(suggestion);
   const address = suggestion.location?.address;
-  const timeStr = formatTime(suggestion.createdAt);
+  const timeStr = formatTime(suggestion.creationDate);
 
   let html = `<h4 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.35;">${escapeHtml(summary)}</h4>`;
 
