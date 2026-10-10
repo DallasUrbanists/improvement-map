@@ -2,7 +2,7 @@
   <div class="flex flex-col h-full">
 
     <!-- ================= STEP 1: DESCRIBE ================= -->
-    <div v-if="draft.step === 1" class="space-y-5 p-6 flex-grow">
+    <div v-if="draft.step === 1" class="space-y-5 p-6 flex-grow min-h-0 overflow-y-auto">
       <div>
         <h2 class="text-2xl font-bold mb-1">Describe your idea</h2>
         <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
@@ -254,7 +254,7 @@
     </div>
 
     <!-- ================= STEP 3: PHOTO ================= -->
-    <div v-else-if="draft.step === 3" class="p-6 space-y-5">
+    <div v-else-if="draft.step === 3" class="p-6 space-y-5 flex-grow min-h-0 overflow-y-auto">
       <div>
         <h2 class="text-2xl font-bold mb-1">Attach Photos</h2>
         <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
@@ -404,7 +404,7 @@
     </div>
 
     <!-- ================= STEP 4: REVIEW & SUBMIT ================= -->
-    <div v-else-if="draft.step === 4" class="p-6 space-y-6">
+    <div v-else-if="draft.step === 4" class="p-6 space-y-6 flex-grow min-h-0 overflow-y-auto">
       <div>
         <h2 class="text-2xl font-bold mb-1">Review Your Submission</h2>
         <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
