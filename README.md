@@ -54,9 +54,16 @@ A wizard-style multi-step form with persistent `localStorage` draft saving:
 ## 🚀 Local Development & Testing
 
 ### 1. Install Dependencies
+Use Node.js 24.12.0 or newer (required by Firebase); CI uses Node.js 24.
+
 ```bash
-npm install
+npm ci
 ```
+
+#### Dependency security
+Run `npm audit` after dependency updates. CI also runs `npm audit --audit-level=high` before building to block known high/critical vulnerabilities.
+
+Firebase's Firestore dependency currently requests the vulnerable `@grpc/grpc-js` 1.9.x series. A scoped override in [package.json](./package.json) pins it to patched version 1.13.6, addressing [GHSA-m9gg-hp2v-232j](https://github.com/advisories/GHSA-m9gg-hp2v-232j) and [GHSA-f596-whhp-79r4](https://github.com/advisories/GHSA-f596-whhp-79r4) while retaining the compatible proto-loader 0.7 dependency family. Keep [package-lock.json](./package-lock.json) committed so clean installs reproduce the fix. Remove the override only after Firebase uses a patched version itself, then rerun the audit, build, and tests. Avoid repeated `npm audit fix --force`: it may downgrade Firebase without fixing its upstream dependency constraint.
 
 ### 2. Start Development Server
 ```bash
