@@ -397,7 +397,7 @@
           large
           class="font-bold text-base px-8"
         >
-          <span>Next</span>
+          <span>{{ (draft.photos || []).length === 0 ? 'Skip' : 'Next' }}</span>
           <i class="fa-solid fa-arrow-right ml-2"></i>
         </k-button>
       </div>
