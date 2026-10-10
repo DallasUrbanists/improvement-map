@@ -11,36 +11,16 @@
       </div>
 
       <div>
-        <label for="input-summary" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
-          <span>Summary <span class="text-red-500">*</span></span>
-          <span class="text-xs font-normal text-zinc-400">{{ (draft.summary || '').length }}/120</span>
-        </label>
-        <input
-          id="input-summary"
-          type="text"
-          v-model="draft.summary"
-          @input="persistDraft"
-          maxlength="120"
-          placeholder="e.g., Install protected bike lane on Elm Street"
-          class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
-          required
-        />
-        <p v-if="errors.summary" class="text-xs text-red-500 mt-1 flex items-center gap-1">
-          <i class="fa-solid fa-circle-exclamation"></i>
-          {{ errors.summary }}
-        </p>
-      </div>
-
-      <div>
-        <label for="input-details" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
+        <label for="input-details" class="" hidden>
           <span>Details <span class="text-red-500">*</span></span>
         </label>
         <textarea
           id="input-details"
+          ref="detailsInput"
           v-model="draft.details"
-          @input="persistDraft"
+          @input="onDetailsInput"
           rows="5"
-          placeholder="Explain why this improvement is needed, the current danger/inconvenience, and how it makes the city stronger..."
+          placeholder=""
           class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
           required
         ></textarea>
@@ -744,9 +724,9 @@ const setSubmitting = inject('setSubmitting', () => {});
 
 // Draft reactive state
 const draft = reactive(loadWizardDraft());
+const detailsInput = ref(null);
 
 const errors = reactive({
-  summary: '',
   details: '',
   authorName: '',
   authorEmail: '',
@@ -813,6 +793,21 @@ function persistDraft() {
   saveWizardDraft(draft);
 }
 
+function resizeDetailsInput() {
+  if (!detailsInput.value) return;
+  detailsInput.value.style.height = 'auto';
+  detailsInput.value.style.height = `${detailsInput.value.scrollHeight}px`;
+}
+
+function onDetailsInput() {
+  resizeDetailsInput();
+  persistDraft();
+}
+
+watch(() => draft.step, (step) => {
+  if (step === 1) nextTick(resizeDetailsInput);
+}, { immediate: true });
+
 function goToStep(stepNumber) {
   draft.step = stepNumber;
   persistDraft();
@@ -848,20 +843,13 @@ function nextStep() {
 }
 
 function validateAndNextStep1() {
-  errors.summary = '';
   errors.details = '';
 
-  const summaryTrimmed = (draft.summary || '').trim();
   const detailsTrimmed = (draft.details || '').trim();
 
-  if (!summaryTrimmed) {
-    errors.summary = 'Summary is required.';
-  }
   if (!detailsTrimmed) {
     errors.details = 'Details description is required.';
-  }
-
-  if (!errors.summary && !errors.details) {
+  } else {
     nextStep();
   }
 }
@@ -1161,7 +1149,7 @@ async function submitFinalSuggestion() {
         email: draft.author.email.trim(),
       },
       content: {
-        summary: draft.summary.trim(),
+        summary: draft.details.trim().slice(0, 120),
         details: draft.details.trim(),
         ...(uploadedPhotos.length > 0 ? { photos: uploadedPhotos } : {}),
       },
