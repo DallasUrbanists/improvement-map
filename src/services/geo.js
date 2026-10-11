@@ -39,6 +39,21 @@ export function formatDistance(miles) {
   return `${Math.round(miles)} mi`;
 }
 
+export function addFormattedDistances(suggestions, userLat, userLng) {
+  if (!Array.isArray(suggestions)) return [];
+
+  return suggestions.map(item => {
+    const itemLat = item.location?.latitude ?? item.latitude;
+    const itemLng = item.location?.longitude ?? item.longitude;
+    const dist = calculateDistance(userLat, userLng, itemLat, itemLng, 'miles');
+    return {
+      ...item,
+      _distanceMiles: dist,
+      _formattedDistance: formatDistance(dist),
+    };
+  });
+}
+
 /**
  * Sorts suggestions by distance from user coordinates using Turf JS
  * @param {Array} suggestions
@@ -57,16 +72,8 @@ export function sortSuggestionsByDistance(suggestions, userLat, userLng) {
     });
   }
 
-  return [...suggestions].map(item => {
-    const itemLat = item.location?.latitude ?? item.latitude;
-    const itemLng = item.location?.longitude ?? item.longitude;
-    const dist = calculateDistance(userLat, userLng, itemLat, itemLng, 'miles');
-    return {
-      ...item,
-      _distanceMiles: dist,
-      _formattedDistance: formatDistance(dist)
-    };
-  }).sort((a, b) => a._distanceMiles - b._distanceMiles);
+  return addFormattedDistances(suggestions, userLat, userLng)
+    .sort((a, b) => a._distanceMiles - b._distanceMiles);
 }
 
 /**

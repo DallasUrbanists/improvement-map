@@ -91,7 +91,7 @@
       v-show="activeTab === 'list'"
       ref="listContainerEl"
       @scroll="onListScroll"
-      class="bg-slate-300 dark:bg-slate-700 flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 w-full mx-auto scrollable"
+      class="dark:bg-slate-700 flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 w-full mx-auto scrollable"
     >
       <div class="mb-4">
         <h2 class="text-xl sm:text-2xl font-bold">Submissions</h2>
@@ -121,52 +121,43 @@
       <div v-if="sortedListSuggestions.length > 0" class="">
         <!-- List Card item using Konsta Card -->
         <k-card v-for="item in sortedListSuggestions" :key="item.id" :content-wrap="false"
-          class="!mx-0 mb-4 p-3.5 gap-3.5 sm:p-4 hover:shadow-md transition-all flex flex-col sm:flex-row cursor-pointer"
+          class="!mx-0 mb-1 !rounded-none !bg-transparent hover:!bg-zinc-100 dark:hover:!bg-zinc-800 transition-colors flex flex-col sm:flex-row cursor-pointer"
           @click="$router.push(`/suggestion/${item.id}`)">
           <!-- Left: Thumbnail and Summary -->
-          <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+          <div class="flex items-stretch gap-3 flex-1 min-w-0">
             <!-- Photo thumbnail -->
             <div
-              class="w-20 h-20 sm:w-24 sm:h-20 rounded-xl bg-zinc-100 dark:bg-zinc-800 overflow-hidden flex-shrink-0 border border-zinc-200 dark:border-zinc-700 relative">
-              <img v-if="getPrimaryPhoto(item)" :src="getPrimaryPhoto(item)" :alt="item.content?.summary"
-                class="w-full h-full object-cover" loading="lazy" />
+              class="w-20 sm:w-24 min-h-20 self-stretch bg-zinc-100 dark:bg-zinc-800 overflow-hidden flex-shrink-0 border border-zinc-200 dark:border-zinc-700 relative">
+              <img v-if="getPrimaryPhoto(item) && !failedPhotoIds.has(item.id)" :src="getPrimaryPhoto(item)" :alt="item.content?.summary"
+                class="w-full h-full object-cover" loading="lazy" @error="onPhotoError(item.id)" />
               <div v-else
                 class="w-full h-full flex items-center justify-center text-zinc-400 bg-zinc-50 dark:bg-zinc-900">
                 <i class="fa-solid fa-camera text-base"></i>
               </div>
-
-              <!-- Badge (Distance or Relative Time) with Konsta Badge -->
-              <k-badge v-if="activeSort === 2 && item._formattedDistance" class="absolute bottom-1 left-1 text-[10px] font-bold">
-                {{ item._formattedDistance }}
-              </k-badge>
-              <k-badge v-else-if="activeSort === 1 && formatRelativeTime(item.creationDate)" class="absolute bottom-1 left-1 text-[10px] font-bold">
-                {{ formatRelativeTime(item.creationDate) }}
-              </k-badge>
             </div>
 
             <!-- Summary Text and Meta -->
-            <div class="min-w-0 flex-1">
+            <div class="min-w-0 flex-1 py-1">
               <h3 class="font-bold text-sm sm:text-base line-clamp-2 leading-snug">
                 {{ item.content?.summary || 'Public Improvement' }}
               </h3>
-              <p v-if="item.location?.address" class="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-1">
-                <i class="fa-solid fa-location-dot mr-1 text-zinc-400"></i>
-                {{ item.location.address }}
-              </p>
               <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
-                <span>By {{ item.author?.name || 'Anonymous' }}</span>
-                <span>•</span>
-                <span>{{ formatTime(item.creationDate) }}</span>
+                <span>
+                  <i class="fa-solid fa-clock text-zinc-400"></i>
+                  {{ formatCreationDate(item.creationDate) }}
+                </span>
+                <span>
+                  <i class="fa-solid fa-location-dot text-zinc-400"></i>
+                  {{ item._formattedDistance }},
+                  {{ formatBrowseAddress(item.location.address) }}
+                </span>
+                <span>
+                  <i class="fa-solid fa-user text-zinc-400"></i>
+                  {{ item.author?.name || 'Anonymous' }}
+                </span>
               </div>
             </div>
           </div>
-
-          <!-- Right: View Suggestion Button Link -->
-          <k-button type="button" :rounded="true" small class="font-bold flex-shrink-0 w-full sm:w-auto text-center"
-            @click="router.push(`/suggestion/${item.id}`)">
-            <span>View suggestion</span>
-            <i class="fa-solid fa-arrow-right ml-1"></i>
-          </k-button>
         </k-card>
       </div>
 
@@ -234,7 +225,7 @@ import {
 } from 'konsta/vue';
 import { isDark } from '../services/theme';
 import { getSuggestions } from '../services/api';
-import { sortSuggestionsByDistance } from '../services/geo';
+import { addFormattedDistances, sortSuggestionsByDistance } from '../services/geo';
 import {
   getStoredBrowseTab,
   setStoredBrowseTab,
@@ -264,6 +255,7 @@ const router = useRouter();
 const savedTab = getStoredBrowseTab(); // 'streets' | 'satellite' | 'list'
 const activeTab = ref(savedTab === 'list' ? 'list' : 'map'); // 'map' | 'list'
 const suggestions = ref([]);
+const failedPhotoIds = ref(new Set());
 const isLoading = ref(false);
 const userLocation = ref(null); // { lat, lng }
 const isLocating = ref(false);
@@ -292,11 +284,14 @@ const sortedListSuggestions = computed(() => {
   if (activeSort.value === 2 && userLocation.value) {
     return sortSuggestionsByDistance(suggestions.value, userLocation.value.lat, userLocation.value.lng);
   }
-  return [...suggestions.value].sort((a, b) => {
+  const newestFirst = [...suggestions.value].sort((a, b) => {
     const timeA = new Date(a.creationDate || 0).getTime();
     const timeB = new Date(b.creationDate || 0).getTime();
     return timeB - timeA;
   });
+
+  if (!userLocation.value) return newestFirst;
+  return addFormattedDistances(newestFirst, userLocation.value.lat, userLocation.value.lng);
 });
 
 function selectTab(tab) {
@@ -594,13 +589,33 @@ function getPrimaryPhoto(item) {
   return photos.length > 0 ? photos[0].url : '';
 }
 
-function formatRelativeTime(timestamp) {
-  if (!timestamp) return '';
-  try {
-    return dayjs(timestamp).fromNow();
-  } catch {
-    return '';
-  }
+function onPhotoError(itemId) {
+  failedPhotoIds.value = new Set(failedPhotoIds.value).add(itemId);
+}
+
+const usStateCodes = new Set('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'.split(' '));
+const usStateNames = new Set([
+  'alabama', 'alaska', 'arizona', 'arkansas', 'california', 'colorado', 'connecticut',
+  'delaware', 'florida', 'georgia', 'hawaii', 'idaho', 'illinois', 'indiana', 'iowa',
+  'kansas', 'kentucky', 'louisiana', 'maine', 'maryland', 'massachusetts', 'michigan',
+  'minnesota', 'mississippi', 'missouri', 'montana', 'nebraska', 'nevada', 'new hampshire',
+  'new jersey', 'new mexico', 'new york', 'north carolina', 'north dakota', 'ohio',
+  'oklahoma', 'oregon', 'pennsylvania', 'rhode island', 'south carolina', 'south dakota',
+  'tennessee', 'texas', 'utah', 'vermont', 'virginia', 'washington', 'west virginia',
+  'wisconsin', 'wyoming', 'district of columbia',
+]);
+
+function formatBrowseAddress(address) {
+  if (typeof address !== 'string') return '';
+
+  const parts = address.split(',').map(part => part.trim());
+  const stateIndex = parts.findIndex(part => {
+    const state = part.replace(/\s+\d{5}(?:-\d{4})?$/, '');
+    const match = state.match(/^([A-Z]{2})$/i);
+    return (match && usStateCodes.has(match[1].toUpperCase())) || usStateNames.has(state.toLowerCase());
+  });
+
+  return stateIndex > 0 ? parts.slice(0, stateIndex).join(', ') : address;
 }
 
 function formatTime(timestamp) {
@@ -610,6 +625,18 @@ function formatTime(timestamp) {
   } catch {
     return 'Recently';
   }
+}
+
+function formatCreationDate(timestamp) {
+  if (!timestamp) return 'Recently';
+
+  const createdAt = dayjs(timestamp);
+  if (!createdAt.isValid()) return 'Recently';
+
+  const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+  return Date.now() - createdAt.valueOf() < twoWeeksMs
+    ? createdAt.fromNow()
+    : formatTime(timestamp);
 }
 
 // Search handling with Google Maps Autocomplete / Geocoder
