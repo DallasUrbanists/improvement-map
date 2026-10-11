@@ -203,6 +203,100 @@ test('auto improve menu opens upward when there is limited space below', async (
   expect(menuBounds).toEqual({ topVisible: true, bottomVisible: true });
 });
 
+test('submission uses an AI-generated imperative summary with required limits', async ({ page }) => {
+  const detailsText = '  Add a protected bike lane on Oak Street near the library. Include safe crossings at each intersection.  ';
+  const generatedSummary = 'Install a protected bike lane on Oak Street near the library.';
+  let summaryRequest;
+  let suggestionPayload;
+
+  await page.route('**/api/assist/summarize', async (route) => {
+    summaryRequest = {
+      method: route.request().method(),
+      body: route.request().postDataJSON(),
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { text: generatedSummary } }),
+    });
+  });
+  await page.route('**/api/public-improvements/suggestions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    suggestionPayload = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id: 'summary-test-suggestion' } }),
+    });
+  });
+  await page.addInitScript((details) => {
+    localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({
+      step: 4,
+      details,
+      location: { latitude: 32.7767, longitude: -96.797, address: 'Dallas, TX' },
+      photos: [],
+      author: { name: 'Test User', email: 'test@example.com' },
+    }));
+  }, detailsText);
+
+  await page.goto('/submit');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByRole('heading', { name: 'Submission complete!' })).toBeVisible();
+  await expect.poll(() => summaryRequest).toEqual({
+    method: 'POST',
+    body: {
+      text: detailsText.trim(),
+      type: 'imperative',
+      max_sentences: 1,
+      max_characters: 120,
+    },
+  });
+  expect(suggestionPayload.content.summary).toBe(generatedSummary);
+  expect(suggestionPayload.content.details).toBe(detailsText.trim());
+});
+
+test('submission falls back to a 120-character description slice if summary generation fails', async ({ page }) => {
+  const detailsText = '  ' + 'Add a protected crossing near the school. '.repeat(5) + '  ';
+  let suggestionPayload;
+
+  await page.route('**/api/assist/summarize', async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'Summary service unavailable.' }),
+    });
+  });
+  await page.route('**/api/public-improvements/suggestions', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    suggestionPayload = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id: 'summary-fallback-suggestion' } }),
+    });
+  });
+  await page.addInitScript((details) => {
+    localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({
+      step: 4,
+      details,
+      location: { latitude: 32.7767, longitude: -96.797, address: 'Dallas, TX' },
+      photos: [],
+      author: { name: 'Test User', email: 'test@example.com' },
+    }));
+  }, detailsText);
+
+  await page.goto('/submit');
+  await page.getByRole('button', { name: 'Submit' }).click();
+  await expect(page.getByRole('heading', { name: 'Submission complete!' })).toBeVisible();
+  expect(suggestionPayload.content.summary).toBe(detailsText.trim().slice(0, 120));
+});
+
 test('speech-to-text recording appends recognized words to the idea', async ({ page }) => {
   await page.addInitScript(() => {
     class MockSpeechRecognition {

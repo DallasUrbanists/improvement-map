@@ -337,14 +337,14 @@ export async function createSuggestion(payload) {
   return newDoc;
 }
 
-async function requestTextAssistance(endpoint, serviceName, text) {
+async function requestTextAssistance(endpoint, serviceName, text, options = {}) {
   const response = await fetch(`${API_BASE_URL}/api/assist/${endpoint}`, {
     method: 'POST',
     headers: await apiHeaders({
       'Accept': 'application/json',
       'Content-Type': 'application/json',
     }),
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, ...options }),
   });
 
   const result = await response.json();
@@ -364,4 +364,12 @@ export async function fixGrammarAndSpelling(text) {
 
 export async function improveClarityAndStructure(text) {
   return requestTextAssistance('clarity', 'Clarity assistance', text);
+}
+
+export async function generateSuggestionSummary(text) {
+  return requestTextAssistance('summarize', 'Summary generation', text, {
+    type: 'imperative',
+    max_sentences: 1,
+    max_characters: 120,
+  });
 }

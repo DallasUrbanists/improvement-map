@@ -808,6 +808,7 @@ import {
   createSuggestion,
   fixGrammarAndSpelling,
   improveClarityAndStructure,
+  generateSuggestionSummary,
 } from '../services/api';
 import { resizeImage } from '../services/image';
 import { isDark } from '../services/theme';
@@ -1470,6 +1471,16 @@ async function submitFinalSuggestion() {
       }
     }
 
+    submissionProgress.value = 80;
+    dynamicProgressMessage.value = 'Generating suggestion summary...';
+    const details = draft.details.trim();
+    let summary = details.slice(0, 120);
+    try {
+      summary = await generateSuggestionSummary(details);
+    } catch (error) {
+      console.warn('Summary generation failed; using description excerpt:', error);
+    }
+
     submissionProgress.value = 85;
     dynamicProgressMessage.value = 'Submitting suggestion...';
 
@@ -1479,8 +1490,8 @@ async function submitFinalSuggestion() {
         email: draft.author.email.trim(),
       },
       content: {
-        summary: draft.details.trim().slice(0, 120),
-        details: draft.details.trim(),
+        summary,
+        details,
         ...(uploadedPhotos.length > 0 ? { photos: uploadedPhotos } : {}),
       },
       location: {
