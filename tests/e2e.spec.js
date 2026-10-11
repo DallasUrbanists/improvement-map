@@ -57,6 +57,88 @@ test.describe('Improvement Map - PWA and Navigation', () => {
   });
 });
 
+test('speech-to-text recording appends recognized words to the idea', async ({ page }) => {
+  await page.addInitScript(() => {
+    class MockSpeechRecognition {
+      start() {
+        window.mockSpeechRecognition = this;
+      }
+
+      stop() {
+        this.onend?.();
+      }
+    }
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async (constraints) => {
+          window.microphonePermissionRequested = constraints.audio === true;
+          return { getTracks: () => [{ stop() {} }] };
+        },
+      },
+    });
+    window.SpeechRecognition = MockSpeechRecognition;
+  });
+
+  await page.goto('/submit');
+  const details = page.getByRole('textbox', { name: /Details/i });
+  const recordButton = page.getByRole('button', { name: 'Record' });
+  await details.fill('Existing description');
+  await expect(recordButton).toHaveClass(/bg-zinc-600/);
+  await recordButton.click();
+  const stopButton = page.getByRole('button', { name: 'Stop recording' });
+  await expect(stopButton).toHaveClass(/bg-red-600/);
+  await expect(stopButton).toHaveClass(/animate-pulse/);
+  expect(await page.evaluate(() => window.microphonePermissionRequested)).toBe(true);
+
+  const speechText = 'Spoken details. '.repeat(400);
+  await page.evaluate((transcript) => {
+    window.mockSpeechRecognition.onresult({
+      results: [[{ transcript }]],
+    });
+  }, speechText);
+  await expect(details).toHaveValue(`Existing description\n${speechText}`);
+  const textareaLayout = await details.evaluate((textarea) => {
+    const container = textarea.closest('.overflow-y-auto');
+    const button = textarea.parentElement.querySelector('button');
+    const containerBounds = container.getBoundingClientRect();
+    const buttonBounds = button.getBoundingClientRect();
+    return {
+      contentFits: textarea.scrollHeight <= textarea.clientHeight,
+      overflowY: getComputedStyle(textarea).overflowY,
+      buttonVisible: buttonBounds.top >= containerBounds.top - 1 && buttonBounds.bottom <= containerBounds.bottom + 1,
+    };
+  });
+  expect(textareaLayout).toEqual({ contentFits: true, overflowY: 'hidden', buttonVisible: true });
+
+  await stopButton.click();
+  await expect(recordButton).toBeVisible();
+  await expect(recordButton).toHaveClass(/bg-zinc-600/);
+});
+
+test('speech-to-text explains when microphone permission is blocked', async ({ page }) => {
+  await page.addInitScript(() => {
+    class MockSpeechRecognition {}
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          throw Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' });
+        },
+      },
+    });
+    window.SpeechRecognition = MockSpeechRecognition;
+  });
+
+  await page.goto('/submit');
+  await page.getByRole('button', { name: 'Record' }).click();
+  await expect(page.getByRole('status')).toHaveText(
+    'Microphone access is blocked. Allow microphone access for this site in your browser settings, then try again.',
+  );
+});
+
 test.describe('Browse Mode - Active Tab and Map View Persistence', () => {
   test('persists active tabs to local storage across page refresh', async ({ page }) => {
     await page.goto('/');

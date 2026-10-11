@@ -4,16 +4,10 @@
     <!-- ================= STEP 1: DESCRIBE ================= -->
     <div v-if="draft.step === 1" class="space-y-5 p-6 flex-grow min-h-0 overflow-y-auto">
       <div>
-        <h2 class="text-2xl font-bold mb-1">Describe your idea</h2>
-        <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-          Tell us your pedestrian, bike, or transit issue and how it can be improved.
-        </p>
+        <h2 class="text-2xl font-bold">Describe your idea</h2>
       </div>
 
       <div>
-        <label for="input-details" class="" hidden>
-          <span>Details <span class="text-red-500">*</span></span>
-        </label>
         <textarea
           id="input-details"
           ref="detailsInput"
@@ -21,9 +15,26 @@
           @input="onDetailsInput"
           rows="5"
           placeholder=""
-          class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
+          class="block w-full resize-none overflow-hidden px-4 py-3 rounded rounded-b-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none mb-0"
           required
         ></textarea>
+          <button
+            ref="recordButton"
+            type="button"
+            @click="toggleSpeechRecognition"
+            :aria-pressed="isRecording"
+            :disabled="isRequestingMicrophone"
+            class="w-full mt-0 gap-2 rounded rounded-t-none px-4 py-2 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus:ring-offset-zinc-900 cursor-pointer"
+            :class="isRecording
+              ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500 animate-pulse shadow-lg shadow-red-500/70'
+              : 'bg-zinc-600 hover:bg-zinc-700 focus:ring-zinc-500 dark:bg-zinc-700 dark:hover:bg-zinc-600'"
+          >
+            <i :class="isRequestingMicrophone ? 'fa-solid fa-spinner animate-spin' : (isRecording ? 'fa-solid fa-stop mr-1' : 'fa-solid fa-microphone mr-1')"></i>
+            {{ isRequestingMicrophone ? 'Requesting access…' : (isRecording ? 'Stop recording' : 'Record speech to text') }}
+          </button>
+          <p v-if="speechError" class="text-xs text-red-600 dark:text-red-400" role="status">
+            {{ speechError }}
+          </p>
         <p v-if="errors.details" class="text-xs text-red-500 mt-1 flex items-center gap-1">
           <i class="fa-solid fa-circle-exclamation"></i>
           {{ errors.details }}
@@ -683,7 +694,7 @@ export default {
 </script>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onActivated, watch, inject, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, onActivated, onBeforeUnmount, watch, inject, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   kCard,
@@ -725,6 +736,12 @@ const setSubmitting = inject('setSubmitting', () => {});
 // Draft reactive state
 const draft = reactive(loadWizardDraft());
 const detailsInput = ref(null);
+const recordButton = ref(null);
+const isRecording = ref(false);
+const isRequestingMicrophone = ref(false);
+const speechError = ref('');
+let speechRecognition = null;
+let recordingBaseDetails = '';
 
 const errors = reactive({
   details: '',
@@ -796,7 +813,9 @@ function persistDraft() {
 function resizeDetailsInput() {
   if (!detailsInput.value) return;
   detailsInput.value.style.height = 'auto';
-  detailsInput.value.style.height = `${detailsInput.value.scrollHeight}px`;
+  const styles = window.getComputedStyle(detailsInput.value);
+  const borders = parseFloat(styles.borderTopWidth) + parseFloat(styles.borderBottomWidth);
+  detailsInput.value.style.height = `${detailsInput.value.scrollHeight + borders}px`;
 }
 
 function onDetailsInput() {
@@ -804,9 +823,92 @@ function onDetailsInput() {
   persistDraft();
 }
 
+async function toggleSpeechRecognition() {
+  if (isRecording.value) {
+    speechRecognition?.stop();
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    speechError.value = 'Speech-to-text is not supported by this browser.';
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    speechError.value = 'Microphone access requires a secure connection and a supported browser.';
+    return;
+  }
+
+  speechError.value = '';
+  isRequestingMicrophone.value = true;
+  let microphoneStream;
+  try {
+    microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (error) {
+    const messages = {
+      NotAllowedError: 'Microphone access is blocked. Allow microphone access for this site in your browser settings, then try again.',
+      NotFoundError: 'No microphone was found. Connect or enable a microphone, then try again.',
+      NotReadableError: 'The microphone is unavailable. Check that it is connected and not being used by another app.',
+    };
+    speechError.value = messages[error.name] || 'Could not access the microphone. Check your browser permissions and try again.';
+    isRequestingMicrophone.value = false;
+    return;
+  } finally {
+    microphoneStream?.getTracks().forEach((track) => track.stop());
+  }
+  isRequestingMicrophone.value = false;
+
+  if (draft.step !== 1) return;
+
+  recordingBaseDetails = draft.details || '';
+  speechRecognition = new SpeechRecognition();
+  speechRecognition.lang = 'en-US';
+  speechRecognition.continuous = true;
+  speechRecognition.interimResults = true;
+  speechRecognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map((result) => result[0].transcript)
+      .join('');
+    const separator = recordingBaseDetails && !/\s$/.test(recordingBaseDetails) ? '\n' : '';
+    draft.details = `${recordingBaseDetails}${separator}${transcript}`;
+    persistDraft();
+    nextTick(() => {
+      resizeDetailsInput();
+      recordButton.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
+    });
+  };
+  speechRecognition.onerror = (event) => {
+    const messages = {
+      'not-allowed': 'Microphone access is blocked. Allow microphone access for this site in your browser settings, then try again.',
+      'service-not-allowed': 'Speech recognition is unavailable in this browser.',
+      'audio-capture': 'No microphone was found. Connect or enable a microphone, then try again.',
+      network: 'Speech recognition could not connect. Check your internet connection, then try again.',
+      'no-speech': 'No speech was detected. Try speaking closer to your microphone.',
+      'language-not-supported': 'English (US) speech recognition is not supported by this browser.',
+    };
+    speechError.value = messages[event.error] || 'Speech recognition failed. Please try again.';
+    isRecording.value = false;
+  };
+  speechRecognition.onend = () => {
+    isRecording.value = false;
+    speechRecognition = null;
+  };
+
+  try {
+    speechRecognition.start();
+    isRecording.value = true;
+  } catch {
+    speechError.value = 'Could not start speech recognition. Please try again.';
+    speechRecognition = null;
+  }
+}
+
 watch(() => draft.step, (step) => {
   if (step === 1) nextTick(resizeDetailsInput);
+  else if (isRecording.value) speechRecognition?.stop();
 }, { immediate: true });
+
+onBeforeUnmount(() => speechRecognition?.stop());
 
 function goToStep(stepNumber) {
   draft.step = stepNumber;
