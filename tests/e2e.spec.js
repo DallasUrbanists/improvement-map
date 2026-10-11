@@ -57,6 +57,152 @@ test.describe('Improvement Map - PWA and Navigation', () => {
   });
 });
 
+test('auto improve menu appears only after three words and leaves options inactive', async ({ page }) => {
+  await page.goto('/submit');
+  const details = page.locator('#input-details');
+  const autoImprove = page.getByRole('button', { name: 'Auto improve' });
+
+  await details.fill('One two');
+  await expect(autoImprove).toHaveCount(0);
+  await details.fill('One two three.');
+  await expect(autoImprove).toBeVisible();
+  await expect(autoImprove).toHaveClass(/cursor-pointer/);
+  await autoImprove.click();
+  await expect(page.getByRole('menu')).toHaveClass(/top-full/);
+
+  const grammarOption = page.getByRole('menuitem', { name: 'Fix grammar and spelling' });
+  await expect(grammarOption).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Improve clarity and structure' })).toBeVisible();
+  await grammarOption.click();
+  await expect(details).toHaveValue('One two three.');
+});
+
+test('grammar assistance replaces the description after a successful response', async ({ page }) => {
+  let requestBody;
+  let releaseResponse;
+  await page.route('**/api/assist/grammar', async (route) => {
+    requestBody = route.request().postDataJSON();
+    await new Promise((resolve) => {
+      releaseResponse = resolve;
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { text: 'There is a meeting tomorrow.' } }),
+    });
+  });
+
+  await page.goto('/submit');
+  const details = page.locator('#input-details');
+  await details.fill('Their is a meeting tomorow.');
+  await page.getByRole('button', { name: 'Auto improve' }).click();
+  await page.getByRole('menuitem', { name: 'Fix grammar and spelling' }).click();
+
+  const loadingMessage = page.getByRole('status').filter({ hasText: 'Fixing grammar and spelling' });
+  await expect(loadingMessage).toBeVisible();
+  await expect(details).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Next/i })).toBeDisabled();
+  await expect.poll(() => requestBody).toEqual({ text: 'Their is a meeting tomorow.' });
+  releaseResponse();
+
+  await expect(details).toHaveValue('There is a meeting tomorrow.');
+  await expect(loadingMessage).toHaveCount(0);
+});
+
+test('clarity assistance previews a rewrite and discard preserves the original text', async ({ page }) => {
+  let requestData;
+  let releaseResponse;
+  await page.route('**/api/assist/clarity', async (route) => {
+    requestData = {
+      method: route.request().method(),
+      body: route.request().postDataJSON(),
+    };
+    await new Promise((resolve) => {
+      releaseResponse = resolve;
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { text: 'A clearer suggested rewrite.' } }),
+    });
+  });
+
+  await page.goto('/submit');
+  const details = page.locator('#input-details');
+  const originalText = 'Please improve this crossing for everyone.';
+  await details.fill(originalText);
+  await page.getByRole('button', { name: 'Auto improve' }).click();
+  await page.getByRole('menuitem', { name: 'Improve clarity and structure' }).click();
+
+  const loadingOverlay = page.getByRole('status').filter({ hasText: 'Improving clarity and structure' });
+  await expect(loadingOverlay).toBeVisible();
+  await expect(details).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Next/i })).toBeDisabled();
+  await expect.poll(() => requestData).toEqual({ method: 'POST', body: { text: originalText } });
+  releaseResponse();
+
+  const dialog = page.getByRole('dialog', { name: 'Accept rewrite of message?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('A clearer suggested rewrite.');
+  await expect(details).toHaveValue(originalText);
+  await dialog.getByRole('button', { name: 'Discard changes' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(details).toHaveValue(originalText);
+});
+
+test('applying a clarity rewrite updates the textarea and scrolls Next into view', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 500 });
+  const rewrite = 'A clear rewrite sentence. '.repeat(120);
+  await page.route('**/api/assist/clarity', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { text: rewrite } }),
+    });
+  });
+
+  await page.goto('/submit');
+  const details = page.locator('#input-details');
+  await details.fill('Please improve this crossing for everyone.');
+  await page.getByRole('button', { name: 'Auto improve' }).click();
+  await page.getByRole('menuitem', { name: 'Improve clarity and structure' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Accept rewrite of message?' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Apply rewrite' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(details).toHaveValue(rewrite);
+  await expect(page.getByRole('button', { name: /Next/i })).toBeInViewport();
+});
+
+test('auto improve menu opens upward when there is limited space below', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 360 });
+  await page.goto('/submit');
+  await page.locator('#input-details').fill('A longer description '.repeat(300));
+
+  const scrollContainer = page.locator('.overflow-y-auto').first();
+  await scrollContainer.evaluate((container) => {
+    container.scrollTop = Math.max(0, container.scrollHeight - container.clientHeight - 100);
+  });
+
+  await page.getByRole('button', { name: 'Auto improve' }).click();
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  await expect(menu).toHaveClass(/bottom-full/);
+
+  const menuBounds = await menu.evaluate((element) => {
+    const container = element.parentElement.closest('.overflow-y-auto').getBoundingClientRect();
+    const menu = element.getBoundingClientRect();
+    const visibleTop = Math.max(0, container.top);
+    const visibleBottom = Math.min(window.innerHeight, container.bottom);
+    return {
+      topVisible: menu.top >= visibleTop - 1,
+      bottomVisible: menu.bottom <= visibleBottom + 1,
+    };
+  });
+  expect(menuBounds).toEqual({ topVisible: true, bottomVisible: true });
+});
+
 test('speech-to-text recording appends recognized words to the idea', async ({ page }) => {
   await page.addInitScript(() => {
     class MockSpeechRecognition {
@@ -82,23 +228,43 @@ test('speech-to-text recording appends recognized words to the idea', async ({ p
   });
 
   await page.goto('/submit');
-  const details = page.getByRole('textbox', { name: /Details/i });
+  const details = page.locator('#input-details');
   const recordButton = page.getByRole('button', { name: 'Record' });
-  await details.fill('Existing description');
-  await expect(recordButton).toHaveClass(/bg-zinc-600/);
+  const autoImprove = page.getByRole('button', { name: 'Auto improve' });
+  await details.fill('Existing description today');
+  await expect(recordButton).toHaveText('Record');
+  await expect(autoImprove).toBeVisible();
+  await expect(recordButton).toHaveClass(/bg-zinc-100/);
   await recordButton.click();
   const stopButton = page.getByRole('button', { name: 'Stop recording' });
+  await expect(autoImprove).toHaveCount(0);
   await expect(stopButton).toHaveClass(/bg-red-600/);
   await expect(stopButton).toHaveClass(/animate-pulse/);
   expect(await page.evaluate(() => window.microphonePermissionRequested)).toBe(true);
 
+  await page.evaluate(() => {
+    const button = document.querySelector('#input-details').parentElement.querySelector('button');
+    const scrollIntoView = button.scrollIntoView.bind(button);
+    window.scrollIntoViewCalls = 0;
+    button.scrollIntoView = (...args) => {
+      window.scrollIntoViewCalls += 1;
+      return scrollIntoView(...args);
+    };
+  });
+  await page.evaluate(() => {
+    window.mockSpeechRecognition.onresult({ results: [[{ transcript: 'Short speech.' }]] });
+  });
+  await expect(details).toHaveValue('Existing description today\nShort speech.');
+  expect(await page.evaluate(() => window.scrollIntoViewCalls)).toBe(0);
+
   const speechText = 'Spoken details. '.repeat(400);
   await page.evaluate((transcript) => {
     window.mockSpeechRecognition.onresult({
-      results: [[{ transcript }]],
+      results: [[{ transcript: `Short speech. ${transcript}` }]],
     });
   }, speechText);
-  await expect(details).toHaveValue(`Existing description\n${speechText}`);
+  await expect(details).toHaveValue(`Existing description today\nShort speech. ${speechText}`);
+  expect(await page.evaluate(() => window.scrollIntoViewCalls)).toBeGreaterThan(0);
   const textareaLayout = await details.evaluate((textarea) => {
     const container = textarea.closest('.overflow-y-auto');
     const button = textarea.parentElement.querySelector('button');
@@ -114,7 +280,8 @@ test('speech-to-text recording appends recognized words to the idea', async ({ p
 
   await stopButton.click();
   await expect(recordButton).toBeVisible();
-  await expect(recordButton).toHaveClass(/bg-zinc-600/);
+  await expect(recordButton).toHaveClass(/bg-zinc-100/);
+  await expect(autoImprove).toBeVisible();
 });
 
 test('speech-to-text explains when microphone permission is blocked', async ({ page }) => {

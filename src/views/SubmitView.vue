@@ -13,26 +13,74 @@
           ref="detailsInput"
           v-model="draft.details"
           @input="onDetailsInput"
+          :disabled="isGrammarLoading || isClarityLoading"
           rows="5"
           placeholder=""
           class="block w-full resize-none overflow-hidden px-4 py-3 rounded rounded-b-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none mb-0"
           required
         ></textarea>
+        <div class="relative flex items-stretch rounded-b border border-t-0 border-zinc-300 dark:border-zinc-700">
           <button
             ref="recordButton"
             type="button"
             @click="toggleSpeechRecognition"
             :aria-pressed="isRecording"
-            :disabled="isRequestingMicrophone"
-            class="w-full mt-0 gap-2 rounded rounded-t-none px-4 py-2 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus:ring-offset-zinc-900 cursor-pointer"
-            :class="isRecording
-              ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500 animate-pulse shadow-lg shadow-red-500/70'
-              : 'bg-zinc-600 hover:bg-zinc-700 focus:ring-zinc-500 dark:bg-zinc-700 dark:hover:bg-zinc-600'"
+            :disabled="isRequestingMicrophone || isGrammarLoading || isClarityLoading"
+            class="flex-1 gap-2 rounded-t-none px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus:ring-offset-zinc-900 cursor-pointer"
+            :class="[
+              isRecording
+                            ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 animate-pulse shadow-lg shadow-red-500/70'
+                            : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 focus:ring-zinc-500 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700',
+              showAutoImprove ? 'rounded-bl-md rounded-br-none' : 'rounded-bl-md rounded-br-md',
+            ]"
           >
             <i :class="isRequestingMicrophone ? 'fa-solid fa-spinner animate-spin' : (isRecording ? 'fa-solid fa-stop mr-1' : 'fa-solid fa-microphone mr-1')"></i>
-            {{ isRequestingMicrophone ? 'Requesting access…' : (isRecording ? 'Stop recording' : 'Record speech to text') }}
+            {{ isRecording ? 'Stop recording' : (showAutoImprove ? 'Record' : (isRequestingMicrophone ? 'Requesting access…' : 'Record speech to text')) }}
           </button>
-          <p v-if="speechError" class="text-xs text-red-600 dark:text-red-400" role="status">
+          <div v-if="showAutoImprove" class="relative border-l border-zinc-300 dark:border-zinc-600">
+            <button
+              ref="autoImproveButton"
+              type="button"
+              @click="toggleAutoImproveMenu"
+              :aria-expanded="isAutoImproveOpen"
+              aria-haspopup="menu"
+              aria-controls="auto-improve-menu"
+              :disabled="isGrammarLoading || isClarityLoading"
+              class="h-full cursor-pointer disabled:cursor-wait disabled:opacity-70 rounded-br-md bg-zinc-100 px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-zinc-500 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+            >
+              <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>
+              Auto improve
+              <i class="fa-solid fa-chevron-down ml-1 text-xs"></i>
+            </button>
+            <div
+              v-if="isAutoImproveOpen"
+              id="auto-improve-menu"
+              ref="autoImproveMenu"
+              role="menu"
+              :style="{ maxHeight: autoImproveMenuMaxHeight === null ? undefined : `${autoImproveMenuMaxHeight}px` }"
+              :class="isAutoImproveOpensUp ? 'absolute right-0 bottom-full z-30 mb-1' : 'absolute right-0 top-full z-30 mt-1'"
+              class="min-w-56 max-h-48 overflow-y-auto rounded border border-zinc-300 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              <button type="button" role="menuitem" @click="handleFixGrammarAndSpelling" class="w-full px-4 py-2.5 text-left text-sm text-zinc-800 hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-70 dark:text-zinc-200 dark:hover:bg-zinc-800">
+                Fix grammar and spelling
+              </button>
+              <button type="button" role="menuitem" @click="handleImproveClarity" class="w-full px-4 py-2.5 text-left text-sm text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800">
+                Improve clarity and structure
+              </button>
+            </div>
+          </div>
+        </div>
+        <p v-if="isGrammarLoading" class="mt-2 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300" role="status" aria-live="polite">
+          <i class="fa-solid fa-spinner animate-spin"></i>
+          Fixing grammar and spelling…
+        </p>
+        <p v-if="grammarError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
+          {{ grammarError }}
+        </p>
+        <p v-if="clarityError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
+          {{ clarityError }}
+        </p>
+        <p v-if="speechError" class="text-xs text-red-600 dark:text-red-400" role="status">
             {{ speechError }}
           </p>
         <p v-if="errors.details" class="text-xs text-red-500 mt-1 flex items-center gap-1">
@@ -41,10 +89,11 @@
         </p>
       </div>
 
-      <div class="pt-4 flex justify-end">
+      <div ref="stepOneNextContainer" class="pt-4 flex justify-end">
         <k-button
           type="button"
           @click="validateAndNextStep1"
+          :disabled="isGrammarLoading || isClarityLoading"
           large
           class="font-bold px-8"
         >
@@ -595,6 +644,47 @@
       </div>
     </div>
 
+    <div
+      v-if="isClarityLoading"
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div class="flex items-center gap-4 rounded-lg border border-zinc-300 bg-white p-5 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
+        <k-preloader class="h-8 w-8 flex-shrink-0" />
+        <div>
+          <h2 class="font-bold text-zinc-900 dark:text-white">Improving clarity and structure</h2>
+          <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Please wait while we prepare a suggested rewrite.</p>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="isRewriteModalOpen"
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rewrite-modal-title"
+    >
+      <div class="flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg border border-zinc-300 bg-white p-5 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 sm:p-6">
+        <h2 id="rewrite-modal-title" class="mb-4 text-lg font-bold text-zinc-900 dark:text-white">
+          Accept rewrite of message?
+        </h2>
+        <div class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100">
+          {{ proposedRewrite }}
+        </div>
+        <div class="mt-5 flex flex-col-reverse justify-end gap-3 sm:flex-row">
+          <k-button type="button" :outline="true" @click="discardRewrite" class="font-semibold">
+            Discard changes
+          </k-button>
+          <k-button type="button" @click="applyRewrite" class="font-bold">
+            Apply rewrite
+          </k-button>
+        </div>
+      </div>
+    </div>
+
     <!-- SUBMISSION PROGRESS / STATUS MODAL OVERLAY -->
     <div
       v-if="showSubmissionOverlay"
@@ -716,6 +806,8 @@ import {
   requestPhotoUploadUrl,
   uploadPhotoBinary,
   createSuggestion,
+  fixGrammarAndSpelling,
+  improveClarityAndStructure,
 } from '../services/api';
 import { resizeImage } from '../services/image';
 import { isDark } from '../services/theme';
@@ -736,10 +828,24 @@ const setSubmitting = inject('setSubmitting', () => {});
 // Draft reactive state
 const draft = reactive(loadWizardDraft());
 const detailsInput = ref(null);
+const stepOneNextContainer = ref(null);
 const recordButton = ref(null);
+const autoImproveButton = ref(null);
+const autoImproveMenu = ref(null);
+const isAutoImproveOpen = ref(false);
+const isAutoImproveOpensUp = ref(false);
+const autoImproveMenuMaxHeight = ref(null);
 const isRecording = ref(false);
+const hasEnoughDetailsWords = computed(() => (draft.details || '').trim().split(/\s+/).filter(Boolean).length >= 3);
+const showAutoImprove = computed(() => hasEnoughDetailsWords.value && !isRecording.value);
 const isRequestingMicrophone = ref(false);
 const speechError = ref('');
+const isGrammarLoading = ref(false);
+const grammarError = ref('');
+const isClarityLoading = ref(false);
+const clarityError = ref('');
+const proposedRewrite = ref('');
+const isRewriteModalOpen = ref(false);
 let speechRecognition = null;
 let recordingBaseDetails = '';
 
@@ -818,10 +924,121 @@ function resizeDetailsInput() {
   detailsInput.value.style.height = `${detailsInput.value.scrollHeight + borders}px`;
 }
 
+function areSpeechTargetsVisible() {
+  if (!detailsInput.value || !recordButton.value) return true;
+
+  const visualViewport = window.visualViewport;
+  const viewportTop = visualViewport?.offsetTop ?? 0;
+  const viewportBottom = viewportTop + (visualViewport?.height ?? window.innerHeight);
+  const scrollContainer = detailsInput.value.closest('.overflow-y-auto');
+  const scrollBounds = scrollContainer?.getBoundingClientRect();
+  const visibleTop = Math.max(viewportTop, scrollBounds ? scrollBounds.top + scrollContainer.clientTop : viewportTop);
+  const visibleBottom = Math.min(
+    viewportBottom,
+    scrollBounds ? scrollBounds.top + scrollContainer.clientTop + scrollContainer.clientHeight : viewportBottom,
+  );
+  const textareaBottom = detailsInput.value.getBoundingClientRect().bottom;
+  const buttonBounds = recordButton.value.getBoundingClientRect();
+
+  return textareaBottom >= visibleTop
+    && textareaBottom <= visibleBottom
+    && buttonBounds.top >= visibleTop
+    && buttonBounds.bottom <= visibleBottom;
+}
+
 function onDetailsInput() {
   resizeDetailsInput();
   persistDraft();
 }
+
+function toggleAutoImproveMenu() {
+  isAutoImproveOpen.value = !isAutoImproveOpen.value;
+  if (isAutoImproveOpen.value) {
+    isAutoImproveOpensUp.value = false;
+    autoImproveMenuMaxHeight.value = null;
+  }
+}
+
+async function handleFixGrammarAndSpelling() {
+  isAutoImproveOpen.value = false;
+  grammarError.value = '';
+  isGrammarLoading.value = true;
+
+  try {
+    draft.details = await fixGrammarAndSpelling(draft.details || '');
+    persistDraft();
+    await nextTick();
+    resizeDetailsInput();
+    if (!areSpeechTargetsVisible()) {
+      recordButton.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
+    }
+  } catch (error) {
+    grammarError.value = error instanceof Error ? error.message : 'Could not fix grammar and spelling. Please try again.';
+  } finally {
+    isGrammarLoading.value = false;
+  }
+}
+
+async function handleImproveClarity() {
+  isAutoImproveOpen.value = false;
+  clarityError.value = '';
+  proposedRewrite.value = '';
+  isClarityLoading.value = true;
+
+  try {
+    proposedRewrite.value = await improveClarityAndStructure(draft.details || '');
+    isRewriteModalOpen.value = true;
+  } catch (error) {
+    clarityError.value = error instanceof Error ? error.message : 'Could not improve clarity and structure. Please try again.';
+  } finally {
+    isClarityLoading.value = false;
+  }
+}
+
+function discardRewrite() {
+  isRewriteModalOpen.value = false;
+  proposedRewrite.value = '';
+}
+
+async function applyRewrite() {
+  draft.details = proposedRewrite.value;
+  persistDraft();
+  isRewriteModalOpen.value = false;
+  proposedRewrite.value = '';
+  await nextTick();
+  resizeDetailsInput();
+  stepOneNextContainer.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
+}
+
+function updateAutoImproveMenuPosition() {
+  if (!autoImproveButton.value || !autoImproveMenu.value) return;
+
+  const buttonBounds = autoImproveButton.value.getBoundingClientRect();
+  const scrollContainer = autoImproveButton.value.closest('.overflow-y-auto');
+  const scrollBounds = scrollContainer?.getBoundingClientRect();
+  const visualViewport = window.visualViewport;
+  const viewportTop = visualViewport?.offsetTop ?? 0;
+  const viewportBottom = viewportTop + (visualViewport?.height ?? window.innerHeight);
+  const visibleTop = Math.max(viewportTop, scrollBounds?.top ?? viewportTop);
+  const visibleBottom = Math.min(viewportBottom, scrollBounds?.bottom ?? viewportBottom);
+  const spaceAbove = Math.max(0, buttonBounds.top - visibleTop);
+  const spaceBelow = Math.max(0, visibleBottom - buttonBounds.bottom);
+  const opensUp = spaceBelow < autoImproveMenu.value.scrollHeight + 8 && spaceAbove > spaceBelow;
+
+  isAutoImproveOpensUp.value = opensUp;
+  autoImproveMenuMaxHeight.value = Math.max(0, (opensUp ? spaceAbove : spaceBelow) - 8);
+}
+
+watch(isAutoImproveOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('scroll', updateAutoImproveMenuPosition, true);
+    window.addEventListener('resize', updateAutoImproveMenuPosition);
+    nextTick(updateAutoImproveMenuPosition);
+  } else {
+    window.removeEventListener('scroll', updateAutoImproveMenuPosition, true);
+    window.removeEventListener('resize', updateAutoImproveMenuPosition);
+  }
+});
 
 async function toggleSpeechRecognition() {
   if (isRecording.value) {
@@ -829,6 +1046,7 @@ async function toggleSpeechRecognition() {
     return;
   }
 
+  isAutoImproveOpen.value = false;
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     speechError.value = 'Speech-to-text is not supported by this browser.';
@@ -874,7 +1092,9 @@ async function toggleSpeechRecognition() {
     persistDraft();
     nextTick(() => {
       resizeDetailsInput();
-      recordButton.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
+      if (!areSpeechTargetsVisible()) {
+        recordButton.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
+      }
     });
   };
   speechRecognition.onerror = (event) => {
@@ -903,12 +1123,20 @@ async function toggleSpeechRecognition() {
   }
 }
 
+watch(hasEnoughDetailsWords, (hasEnoughWords) => {
+  if (!hasEnoughWords) isAutoImproveOpen.value = false;
+});
+
 watch(() => draft.step, (step) => {
   if (step === 1) nextTick(resizeDetailsInput);
   else if (isRecording.value) speechRecognition?.stop();
 }, { immediate: true });
 
-onBeforeUnmount(() => speechRecognition?.stop());
+onBeforeUnmount(() => {
+  speechRecognition?.stop();
+  window.removeEventListener('scroll', updateAutoImproveMenuPosition, true);
+  window.removeEventListener('resize', updateAutoImproveMenuPosition);
+});
 
 function goToStep(stepNumber) {
   draft.step = stepNumber;

@@ -336,3 +336,32 @@ export async function createSuggestion(payload) {
 
   return newDoc;
 }
+
+async function requestTextAssistance(endpoint, serviceName, text) {
+  const response = await fetch(`${API_BASE_URL}/api/assist/${endpoint}`, {
+    method: 'POST',
+    headers: await apiHeaders({
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({ text }),
+  });
+
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.message || result.error || `${serviceName} failed (HTTP ${response.status}).`);
+  }
+  if (typeof result.data?.text !== 'string') {
+    throw new Error(`${serviceName} returned an invalid response.`);
+  }
+
+  return result.data.text;
+}
+
+export async function fixGrammarAndSpelling(text) {
+  return requestTextAssistance('grammar', 'Grammar assistance', text);
+}
+
+export async function improveClarityAndStructure(text) {
+  return requestTextAssistance('clarity', 'Clarity assistance', text);
+}
