@@ -1,5 +1,5 @@
 <template>
-  <div class="">
+  <div class="h-full min-h-0 overflow-y-auto">
     <!-- Back button with Konsta Button -->
     <div class="m-4">
       <k-button

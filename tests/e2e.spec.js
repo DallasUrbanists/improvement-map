@@ -17,7 +17,41 @@ test.describe('Improvement Map - PWA and Navigation', () => {
     await expect(page.getByRole('link', { name: /Submit/i }).first()).toBeVisible();
   });
 
-  test('toggle dark and light theme persists correctly', async ({ page }) => {
+  test('suggestion details view scrolls when content exceeds the viewport', async ({ page }) => {
+  await page.route('**/api/public-improvements/suggestions/scroll-test', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          id: 'scroll-test',
+          content: {
+            summary: 'Long suggestion details',
+            details: 'This detailed suggestion should remain scrollable. '.repeat(100),
+            photos: [],
+          },
+          author: { name: 'Test Contributor' },
+          location: { address: 'Dallas, TX' },
+        },
+      }),
+    });
+  });
+
+  await page.goto('/suggestion/scroll-test');
+  await expect(page.getByRole('heading', { name: 'Long suggestion details' })).toBeVisible();
+  const scroller = page.locator('.view-panel');
+  const scrollDimensions = await scroller.evaluate((element) => ({
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+  }));
+  expect(scrollDimensions.scrollHeight).toBeGreaterThan(scrollDimensions.clientHeight);
+  await scroller.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+});
+
+test('toggle dark and light theme persists correctly', async ({ page }) => {
     await page.goto('/');
 
     // Dark mode is default
