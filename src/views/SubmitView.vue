@@ -1,8 +1,8 @@
 <template>
   <div class="flex flex-col h-full">
 
-    <!-- ================= STEP 1: DESCRIBE ================= -->
-    <div v-if="draft.step === 1" class="space-y-5 p-6 flex-grow min-h-0 overflow-y-auto">
+    <!-- ================= STEP 3: DESCRIBE ================= -->
+    <div v-if="draft.step === 3" class="space-y-5 p-6 flex-grow min-h-0 overflow-y-auto">
       <div>
         <h2 class="text-2xl font-bold">Describe your idea</h2>
       </div>
@@ -97,10 +97,21 @@
         </p>
       </div>
 
-      <div ref="stepOneNextContainer" class="pt-4 flex justify-end">
+      <div ref="stepThreeNextContainer" class="pt-4 flex items-center justify-between gap-3">
         <k-button
           type="button"
-          @click="validateAndNextStep1"
+          @click="prevStep"
+          :outline="true"
+          large
+          class="font-bold text-base px-8"
+        >
+          <i class="fa-solid fa-arrow-left mr-2"></i>
+          Back
+        </k-button>
+
+        <k-button
+          type="button"
+          @click="validateAndNextStep3"
           :disabled="isGrammarLoading || isClarityLoading"
           large
           class="font-bold px-8"
@@ -111,8 +122,8 @@
       </div>
     </div>
 
-    <!-- ================= STEP 2: LOCATE ================= -->
-    <div v-else-if="draft.step === 2" class="flex-grow flex flex-col">
+    <!-- ================= STEP 1: LOCATE ================= -->
+    <div v-else-if="draft.step === 1" class="flex-grow flex flex-col">
       <!-- Header -->
       <div class="p-6">
         <h2 class="text-2xl font-bold mb-1">Pin Suggestion Location</h2>
@@ -234,19 +245,8 @@
         
       </div>
 
-      <!-- Back / Next -->
-      <div class="p-4 flex items-center justify-between gap-3">
-        <k-button
-          type="button"
-          @click="prevStep"
-          :outline="true"
-          large
-          class="font-bold text-base px-8"
-        >
-          <i class="fa-solid fa-arrow-left mr-2"></i>
-          Back
-        </k-button>
-
+      <!-- Next -->
+      <div class="p-4 flex justify-end">
         <k-button
           type="button"
           @click="nextStep"
@@ -321,8 +321,8 @@
       </div>
     </div>
 
-    <!-- ================= STEP 3: PHOTO ================= -->
-    <div v-else-if="draft.step === 3" class="p-6 space-y-5 flex-grow min-h-0 overflow-y-auto">
+    <!-- ================= STEP 2: PHOTO ================= -->
+    <div v-else-if="draft.step === 2" class="p-6 space-y-5 flex-grow min-h-0 overflow-y-auto">
       <div>
         <h2 class="text-2xl font-bold mb-1">Attach Photos</h2>
         <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
@@ -480,7 +480,7 @@
         </p>
       </div>
 
-      <!-- Review Section: Step 1 Describe -->
+      <!-- Review Section: Description -->
       <k-card
         :outline="true"
         :content-wrap="false"
@@ -493,7 +493,7 @@
           </h3>
           <k-button
             type="button"
-            @click="goToStep(1)"
+            @click="goToStep(3)"
             :clear="true"
             small
             class="text-xs font-bold w-auto"
@@ -514,7 +514,7 @@
       </k-card>
           
 
-      <!-- Review Section: Step 2 Locate -->
+      <!-- Review Section: Location -->
       <k-card
         :outline="true"
         :content-wrap="false"
@@ -527,7 +527,7 @@
           </h3>
           <k-button
             type="button"
-            @click="goToStep(2)"
+            @click="goToStep(1)"
             :clear="true"
             small
             class="text-xs font-bold w-auto"
@@ -547,7 +547,7 @@
         </p>
       </k-card>
 
-      <!-- Review Section: Step 3 Photo -->
+      <!-- Review Section: Photos -->
       <k-card
         :outline="true"
         :content-wrap="false"
@@ -560,7 +560,7 @@
           </h3>
           <k-button
             type="button"
-            @click="goToStep(3)"
+            @click="goToStep(2)"
             :clear="true"
             small
             class="text-xs font-bold w-auto"
@@ -838,7 +838,7 @@ const setSubmitting = inject('setSubmitting', () => {});
 // Draft reactive state
 const draft = reactive(loadWizardDraft());
 const detailsInput = ref(null);
-const stepOneNextContainer = ref(null);
+const stepThreeNextContainer = ref(null);
 const recordButton = ref(null);
 const autoImproveButton = ref(null);
 const autoImproveMenu = ref(null);
@@ -884,7 +884,7 @@ const errors = reactive({
   authorEmail: '',
 });
 
-// Step 2 Map & Location state
+// Step 1 Map & Location state
 const mapContainerEl = ref(null);
 const isMapReady = ref(false);
 const isLocating = ref(false);
@@ -901,7 +901,7 @@ let map = null;
 let marker = null;
 let googleMaps = null;
 
-// Step 3 Photo state
+// Step 2 Photo state
 const fileInput = ref(null);
 const cameraInput = ref(null);
 const isProcessingPhotos = ref(false);
@@ -918,11 +918,11 @@ const submissionErrorMessage = ref('');
 const currentStepTitle = computed(() => {
   switch (draft.step) {
     case 1:
-      return 'Describe';
-    case 2:
       return 'Locate';
-    case 3:
+    case 2:
       return 'Photo';
+    case 3:
+      return 'Describe';
     case 4:
       return 'Review & Submit';
     default:
@@ -1036,7 +1036,7 @@ async function applyRewrite() {
   proposedRewrite.value = '';
   await nextTick();
   resizeDetailsInput();
-  stepOneNextContainer.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
+  stepThreeNextContainer.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
 }
 
 function updateAutoImproveMenuPosition() {
@@ -1087,7 +1087,7 @@ watch(hasEnoughDetailsWords, (hasEnoughWords) => {
 });
 
 watch(() => draft.step, (step) => {
-  if (step === 1) nextTick(resizeDetailsInput);
+  if (step === 3) nextTick(resizeDetailsInput);
   else speechRecorder.cancel();
 }, { immediate: true });
 
@@ -1112,7 +1112,7 @@ onBeforeUnmount(() => {
 function goToStep(stepNumber) {
   draft.step = stepNumber;
   persistDraft();
-  if (stepNumber === 2) {
+  if (stepNumber === 1) {
     nextTick(() => {
       initMap();
     });
@@ -1123,7 +1123,7 @@ function prevStep() {
   if (draft.step > 1) {
     draft.step -= 1;
     persistDraft();
-    if (draft.step === 2) {
+    if (draft.step === 1) {
       nextTick(() => {
         initMap();
       });
@@ -1135,15 +1135,10 @@ function nextStep() {
   if (draft.step < 4) {
     draft.step += 1;
     persistDraft();
-    if (draft.step === 2) {
-      nextTick(() => {
-        initMap();
-      });
-    }
   }
 }
 
-function validateAndNextStep1() {
+function validateAndNextStep3() {
   errors.details = '';
 
   const detailsTrimmed = (draft.details || '').trim();
@@ -1507,7 +1502,7 @@ function handleGoHome() {
 
 onMounted(() => {
   persistDraft();
-  if (draft.step === 2) {
+  if (draft.step === 1) {
     initMap();
   }
 });
