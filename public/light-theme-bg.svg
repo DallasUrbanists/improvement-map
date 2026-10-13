@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1600" width="100%" height="100%">
+  <defs>
+    <!-- Light Theme Background Gradients -->
+    <linearGradient id="bg-base-light" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="50%" stop-color="#f1f5f9" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+
+    <radialGradient id="glow-top-right-light" cx="85%" cy="15%" r="60%">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.25" />
+      <stop offset="45%" stop-color="#93c5fd" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="glow-bottom-left-light" cx="15%" cy="85%" r="65%">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.22" />
+      <stop offset="50%" stop-color="#c4b5fd" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="glow-center-light" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Dot Matrix Pattern (Dark/Subtle slate dots) -->
+    <pattern id="dot-matrix-light" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.25" fill="#334155" fill-opacity="0.18" />
+    </pattern>
+
+    <!-- Dot Matrix Radial Mask for Soft Vignette Fade -->
+    <radialGradient id="matrix-fade-light" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.10" />
+    </radialGradient>
+
+    <mask id="dot-mask-light">
+      <rect width="900" height="1600" fill="url(#matrix-fade-light)" />
+    </mask>
+  </defs>
+
+  <!-- Clean Light Base Layer -->
+  <rect width="900" height="1600" fill="url(#bg-base-light)" />
+
+  <!-- Gentle Light Glow Layers -->
+  <rect width="900" height="1600" fill="url(#glow-top-right-light)" />
+  <rect width="900" height="1600" fill="url(#glow-bottom-left-light)" />
+  <rect width="900" height="1600" fill="url(#glow-center-light)" />
+
+  <!-- Dot Matrix Layer with Radial Fade Mask -->
+  <rect width="900" height="1600" fill="url(#dot-matrix-light)" mask="url(#dot-mask-light)" />
+</svg>

@@ -97,16 +97,16 @@
 
       </div>
 
-      <div ref="stepThreeNextContainer" data-testid="step-three-navigation" class="sticky bottom-0 z-30 flex-shrink-0 border-t border-zinc-200 bg-white/95 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+      <div ref="stepThreeNextContainer" data-testid="step-three-navigation" class="sticky bottom-0 z-30 flex-shrink-0 border-t border-zinc-200 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700">
         <k-segmented :raised="!isDark" :outline="isDark" class="w-full" aria-label="Description step navigation">
-          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="prevStep">
+                  <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900" @click="prevStep">
             <i class="fa-solid fa-arrow-left"></i>
             Back
           </k-segmented-button>
           <k-segmented-button
             type="button"
             :disabled="isGrammarLoading || isClarityLoading"
-            class="flex-1 justify-center gap-2 font-bold"
+            class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900"
             @click="validateAndNextStep3"
           >
             Next
@@ -421,12 +421,12 @@
         </p>
       </div>
 
-      <div data-testid="photo-step-controls" class="sticky bottom-0 z-30 flex-shrink-0 space-y-2 border-t border-zinc-200 bg-white/95 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+      <div data-testid="photo-step-controls" class="sticky bottom-0 z-30 flex-shrink-0 space-y-2 border-t border-zinc-200 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700">
         <k-segmented data-testid="photo-action-segment" :raised="!isDark" :outline="isDark" class="w-full" aria-label="Add photos">
           <k-segmented-button
             type="button"
             :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-            class="flex-1 justify-center gap-2 text-sm font-bold"
+            class="flex-1 justify-center gap-2 bg-white text-sm font-bold dark:bg-zinc-900"
             @click="openFilePicker"
           >
             <i class="fa-solid fa-cloud-arrow-up"></i>
@@ -435,7 +435,7 @@
           <k-segmented-button
             type="button"
             :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-            class="flex-1 justify-center gap-2 text-sm font-bold"
+            class="flex-1 justify-center gap-2 bg-white text-sm font-bold dark:bg-zinc-900"
             @click="openCameraPicker"
           >
             <i class="fa-solid fa-camera"></i>
@@ -463,11 +463,11 @@
         />
 
         <k-segmented data-testid="photo-navigation-segment" :raised="!isDark" :outline="isDark" class="w-full" aria-label="Photo step navigation">
-          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="prevStep">
+                  <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900" @click="prevStep">
             <i class="fa-solid fa-arrow-left"></i>
             Back
           </k-segmented-button>
-          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="nextStep">
+          <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900" @click="nextStep">
             Next
             <i class="fa-solid fa-arrow-right"></i>
           </k-segmented-button>
@@ -721,13 +721,13 @@
 
       </div>
 
-      <div data-testid="step-four-navigation" class="sticky bottom-0 z-30 flex-shrink-0 border-t border-zinc-200 bg-white/95 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+      <div data-testid="step-four-navigation" class="sticky bottom-0 z-30 flex-shrink-0 border-t border-zinc-200 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700">
         <k-segmented :raised="!isDark" :outline="isDark" class="w-full" aria-label="Review step navigation">
-          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="prevStep">
+                  <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900" @click="prevStep">
             <i class="fa-solid fa-arrow-left"></i>
             Back
           </k-segmented-button>
-          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="submitFinalSuggestion">
+          <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-primary font-bold text-zinc-900 hover:bg-amber-500" @click="submitFinalSuggestion">
             Submit
             <i class="fa-solid fa-paper-plane"></i>
           </k-segmented-button>
