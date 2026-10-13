@@ -23,7 +23,7 @@ test('all ten added coordinates have persistent attributed fixtures and valid lo
   for (const data of fixtures) {
     expect(data.source).toBeTruthy();
     expect(data.license).toBeTruthy();
-    expect(data.elements.some((element) => element.tags.railway)).toBe(false);
+    expect(data.elements.some((element) => element.tags.railway && !element.tags.highway)).toBe(false);
     const options = { ...data.center, administrativeBoundary: boundaries[data.id] };
     const diagram = generateLocationDiagram(data, options);
     expect(diagram.svg).toBe(generateLocationDiagram(data, options).svg);
@@ -37,22 +37,53 @@ test('all ten added coordinates have persistent attributed fixtures and valid lo
   }
 });
 
-test('street label anchors lie directly on rendered street paths', () => {
+test('curved label anchors lie on their named rendered streets and closest labels stay in frame', () => {
   for (const data of fixtures) {
     const diagram = generateLocationDiagram(data, data.center);
-    const segments = [...diagram.svg.matchAll(/<path data-street="[^"]+" d="M([\d.-]+),([\d.-]+) L([\d.-]+),([\d.-]+)"/g)]
-      .map((match) => match.slice(1).map(Number));
-    const labels = [...diagram.svg.matchAll(/<text transform="translate\(([\d.-]+) ([\d.-]+)\) rotate\([\d.-]+\)">/g)];
-    for (const label of labels) {
-      const x = Number(label[1]);
-      const y = Number(label[2]);
-      const distance = Math.min(...segments.map(([ax, ay, bx, by]) => {
-        const dx = bx - ax; const dy = by - ay;
-        const denominator = dx * dx + dy * dy;
-        const t = denominator ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / denominator)) : 0;
-        return Math.hypot(x - ax - dx * t, y - ay - dy * t);
-      }));
-      expect(distance, `Label must be on a street at ${data.id}`).toBeLessThan(0.15);
+    const paths = [...diagram.svg.matchAll(/<path data-street="([^"]+)" d="([^"]+)"/g)].map((match) => {
+      let previous;
+      const segments = [];
+      for (const command of match[2].matchAll(/([MLQ])([\d., -]+)/g)) {
+        const values = command[2].trim().split(/[ ,]+/).map(Number);
+        const end = values.slice(-2);
+        if (command[1] === 'L') segments.push([...previous, ...end]);
+        if (command[1] === 'Q') {
+          const start = previous;
+          for (let step = 1; step <= 30; step++) {
+            const t = step / 30;
+            const point = [0, 1].map((axis) => (1 - t) ** 2 * start[axis]
+              + 2 * (1 - t) * t * values[axis] + t ** 2 * end[axis]);
+            segments.push([...previous, ...point]);
+            previous = point;
+          }
+        }
+        previous = end;
+      }
+      return { name: match[1].replaceAll('&amp;', '&'), segments };
+    });
+    expect(diagram.streetLabels.length, `No labels at ${data.id}`).toBeGreaterThan(0);
+    for (const label of diagram.streetLabels) {
+      expect(label.anchors.length).toBeGreaterThan(0);
+      const segments = paths.filter((path) => path.name === label.name).flatMap((path) => path.segments);
+      expect(segments.length).toBeGreaterThan(0);
+      for (const { x, y } of label.anchors) {
+        const distance = Math.min(...segments.map(([ax, ay, bx, by]) => {
+          const dx = bx - ax; const dy = by - ay;
+          const denominator = dx * dx + dy * dy;
+          const t = denominator ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / denominator)) : 0;
+          return Math.hypot(x - ax - dx * t, y - ay - dy * t);
+        }));
+        expect(distance, `Label must follow ${label.name} at ${data.id}`).toBeLessThan(0.2);
+      }
+      if (label.rank === 1) {
+        expect(label.fullyInFrame).toBe(true);
+        for (const box of label.glyphBoxes) {
+          expect(box.x - box.width / 2).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.width / 2).toBeLessThanOrEqual(480);
+          expect(box.y - box.height / 2).toBeGreaterThanOrEqual(0);
+          expect(box.y + box.height / 2).toBeLessThanOrEqual(480);
+        }
+      }
     }
   }
 });

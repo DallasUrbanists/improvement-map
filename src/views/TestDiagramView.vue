@@ -4,9 +4,25 @@
       <header class="space-y-2">
         <p class="text-xs uppercase tracking-widest text-zinc-500">Temporary proof of concept</p>
         <h1 class="text-2xl font-bold">Location diagram</h1>
-        <p class="text-sm text-zinc-500">32.78145881782909, -96.7994967769097 · North up</p>
-        <p class="text-sm max-w-2xl">A procedural SVG showing all streets in view, labeling only the three nearest. Rail shapes and colors come from the supplied local GeoJSON catalog. Agency logos mark bus stops and rail stations from eighteen saved OpenStreetMap extracts. No live rail geometry requests are needed.</p>
+        <p class="text-sm text-zinc-500" data-testid="active-diagram-coordinates">{{ activeLocationData.center.lat }}, {{ activeLocationData.center.lon }} · North up</p>
+        <p class="text-sm max-w-2xl">A procedural SVG showing streets and protected bike routes in view, labeling up to the four nearest non-service streets. Rail shapes and colors come from the supplied local GeoJSON catalog. Agency logos mark bus stops and rail stations. Generate a custom preview from live OpenStreetMap data or browse the eighteen saved examples below. No live rail geometry requests are needed.</p>
       </header>
+
+      <form class="rounded-xl border border-zinc-300 dark:border-zinc-700 p-4 space-y-3" @submit.prevent="generateFromCoordinates" :aria-busy="isGenerating">
+        <label for="diagram-coordinates" class="block text-sm font-bold">Coordinates (latitude, longitude)</label>
+        <div class="flex flex-wrap gap-3">
+          <input id="diagram-coordinates" v-model="coordinateInput" type="text" autocomplete="off" :spellcheck="false"
+            placeholder="32.78145881782909, -96.7994967769097" :aria-invalid="Boolean(generationError)"
+            aria-describedby="diagram-coordinate-help diagram-coordinate-error"
+            class="min-w-0 w-full sm:flex-1 rounded-lg border border-zinc-400 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm" />
+          <button type="submit" :disabled="isGenerating" class="rounded-lg bg-blue-700 text-white px-4 py-2 text-sm font-bold disabled:opacity-50">{{ isGenerating ? 'Generating…' : 'Generate diagram' }}</button>
+          <button v-if="isGenerating" type="button" @click="cancelGeneration" class="text-sm underline">Cancel</button>
+          <button type="button" @click="resetExample" class="text-sm underline">Reset example</button>
+        </div>
+        <p id="diagram-coordinate-help" class="text-xs text-zinc-500">Enter latitude, longitude. Generating sends these coordinates to public OSM/Overpass services to fetch nearby streets, buildings, stops, and administrative areas. Rail shapes remain local. Results are not saved.</p>
+        <p v-if="generationStatus" class="text-sm" role="status" aria-live="polite">{{ generationStatus }}</p>
+        <p v-if="generationError" id="diagram-coordinate-error" class="text-sm text-red-700 dark:text-red-400" role="alert">{{ generationError }}</p>
+      </form>
 
       <div class="flex flex-wrap items-center gap-4">
         <label class="flex items-center gap-2 text-sm"><input v-model="showBuildings" type="checkbox" /> Show buildings</label>
@@ -57,9 +73,9 @@
               <li v-for="stop in diagram.transitStops" :key="stop.id">{{ stop.agencyNames.join(' / ') || 'No matching agency logo' }} · {{ stop.mode === 'bus+rail' ? 'Bus + Rail' : stop.mode === 'rail' ? 'Rail' : 'Bus' }} · {{ stop.name }}</li>
             </ul>
           </div>
-          <p class="text-sm text-zinc-500">All streets in view are drawn; only the three closest named streets receive labels. Distances are measured to street segments, not map nodes. Main Street is included as unlabeled context.</p>
+          <p class="text-sm text-zinc-500">All streets in view are drawn; up to the four closest named non-service streets receive labels. Distances are measured to street segments, not map nodes. Service/access roads remain visible but do not receive closest-street labels.</p>
           <p class="text-sm text-zinc-500">The local catalog contains {{ railCatalog.lines.length }} rail services and is loaded once. Only rail segments intersecting each viewport are processed. Direction/trip variants share offset lanes with rounded bends and aligned branch endpoints. Stop metadata remains independent of the rail shape source.</p>
-          <p class="text-sm text-zinc-500">The footer shows the smallest containing OSM administrative boundary. OSM may classify improvement or historic districts as administrative areas. These are verified saved lookups, not live boundary requests; the source geometry snapshot limitations are recorded with each lookup.</p>
+          <p class="text-sm text-zinc-500">The footer combines nearby intersection/stop context and containing administrative areas. OSM may classify improvement or historic districts as administrative areas. Saved examples retain documented polygon checks; custom previews use the live Overpass containing-area index, not independent polygon verification. Provider coverage and metadata may be incomplete.</p>
           <p class="text-sm text-zinc-500">This route does not change submission or Browse behavior, upload files, or persist generated images. Downloads include embedded logo artwork and work offline. Agency identity comes from OSM network/operator tags or route memberships; unknown agencies use neutral stop badges rather than guessed logos.</p>
         </div>
       </div>
@@ -91,7 +107,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onBeforeUnmount } from 'vue';
 import locationData from '../data/test-location-osm.json';
 import existingAdditionalLocations from '../data/additional-test-locations-osm.json';
 import extraLocations from '../data/extra-test-locations-osm.json';
@@ -99,20 +115,90 @@ import existingAdministrativeBoundaries from '../data/test-location-boundaries.j
 import extraAdministrativeBoundaries from '../data/extra-test-location-boundaries.json';
 import { generateLocationDiagram } from '../services/locationDiagram';
 import { railCatalog } from '../services/railCatalog';
+import { parseCoordinateString, fetchLocationData } from '../services/liveLocationData';
 
 const additionalLocations = [...existingAdditionalLocations, ...extraLocations];
 const administrativeBoundaries = { ...existingAdministrativeBoundaries, ...extraAdministrativeBoundaries };
 const showBuildings = ref(true);
-const diagram = computed(() => generateLocationDiagram(locationData, {
-  ...locationData.center,
+const activeLocationData = ref(locationData);
+const activeBoundary = ref(administrativeBoundaries[locationData.id]);
+const coordinateInput = ref(`${locationData.center.lat}, ${locationData.center.lon}`);
+const isGenerating = ref(false);
+const generationError = ref('');
+const generationStatus = ref('');
+let generationId = 0;
+let generationController = null;
+
+function cancelGeneration() {
+  generationId++;
+  generationController?.abort();
+  generationController = null;
+  isGenerating.value = false;
+  generationStatus.value = 'Generation canceled. Previous preview retained.';
+}
+
+function resetExample() {
+  cancelGeneration();
+  activeLocationData.value = locationData;
+  activeBoundary.value = administrativeBoundaries[locationData.id];
+  coordinateInput.value = `${locationData.center.lat}, ${locationData.center.lon}`;
+  generationError.value = '';
+  generationStatus.value = '';
+}
+
+async function generateFromCoordinates() {
+  if (isGenerating.value) return;
+  generationError.value = '';
+  let center;
+  try {
+    center = parseCoordinateString(coordinateInput.value);
+  } catch (error) {
+    generationStatus.value = '';
+    generationError.value = error.message;
+    return;
+  }
+  const requestId = ++generationId;
+  generationController = new AbortController();
+  isGenerating.value = true;
+  generationStatus.value = 'Fetching OpenStreetMap data…';
+  try {
+    const result = await fetchLocationData(center, {
+      signal: generationController.signal,
+      onProgress: (message) => { if (requestId === generationId) generationStatus.value = message; },
+    });
+    if (requestId !== generationId) return;
+    generateLocationDiagram(result.data, { ...center, buildings: showBuildings.value,
+      administrativeBoundary: result.administrativeBoundary, railCatalog });
+    activeLocationData.value = result.data;
+    activeBoundary.value = result.administrativeBoundary;
+    generationStatus.value = `Generated diagram for ${center.lat}, ${center.lon}.`;
+  } catch (error) {
+    if (requestId !== generationId) return;
+    generationStatus.value = '';
+    generationError.value = `${error.message || 'Unable to load map data.'} Previous preview retained.`;
+  } finally {
+    if (requestId === generationId) {
+      isGenerating.value = false;
+      generationController = null;
+    }
+  }
+}
+
+onBeforeUnmount(() => {
+  generationId++;
+  generationController?.abort();
+});
+
+const diagram = computed(() => generateLocationDiagram(activeLocationData.value, {
+  ...activeLocationData.value.center,
   buildings: showBuildings.value,
-  administrativeBoundary: administrativeBoundaries[locationData.id],
+  administrativeBoundary: activeBoundary.value,
   railCatalog,
 }));
 const svgUrl = (svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 const mapUrl = ({ lat, lon }) => `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=19/${lat}/${lon}`;
 const imageUrl = computed(() => svgUrl(diagram.value.svg));
-const osmUrl = mapUrl(locationData.center);
+const osmUrl = computed(() => mapUrl(activeLocationData.value.center));
 const additionalDiagrams = computed(() => additionalLocations.map((data) => {
   const diagram = generateLocationDiagram(data, { ...data.center, buildings: showBuildings.value,
     administrativeBoundary: administrativeBoundaries[data.id], railCatalog });

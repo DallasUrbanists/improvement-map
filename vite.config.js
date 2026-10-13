@@ -30,6 +30,16 @@ const getBasePath = () => {
 
 export default defineConfig({
   base: getBasePath(),
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const fixture = id.match(/[\\/](test-location-osm|additional-test-locations-osm|extra-test-locations-osm)\.json$/);
+          if (fixture) return `diagram-${fixture[1]}`;
+        },
+      },
+    },
+  },
   plugins: [
     vue(),
     tailwindcss(),

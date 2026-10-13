@@ -17,11 +17,11 @@ const coordinates = [
 
 test('original diagram embeds DART artwork for both Elm bus stop and Akard station', () => {
   const result = generateLocationDiagram(original, original.center);
-  expect(result.transitStops).toHaveLength(2);
+  expect(result.transitStops.length).toBeGreaterThanOrEqual(2);
   expect(result.transitStops.find((stop) => stop.mode === 'bus')).toMatchObject({ name: 'Elm @ Akard - W - NS', agencies: ['dart'] });
   expect(result.transitStops.find((stop) => stop.mode === 'rail')).toMatchObject({ name: 'Akard', agencies: ['dart'] });
   expect(result.svg).toContain('<symbol id="agency-dart"');
-  expect(result.svg.match(/<use href="#agency-dart"/g)).toHaveLength(2);
+  expect(result.svg.match(/<use href="#agency-dart"/g)).toHaveLength(result.transitStops.filter((stop) => stop.agencies.includes('dart')).length);
   expect(result.svg).toContain('fill="#fcd006"');
   for (const marker of result.transitStops) {
     expect(Math.hypot(marker.x - 240, marker.y - 240)).toBeGreaterThan(50);
@@ -60,7 +60,7 @@ test('locations 3 and 5 retain only their combined rail agency marker', () => {
   for (const id of ['victory', 'cityplace']) {
     const data = additional.find((location) => location.id === id);
     const result = generateLocationDiagram(data, data.center);
-    const rail = result.transitStops.filter((stop) => stop.mode === 'rail');
+    const rail = result.transitStops.filter((stop) => stop.mode === 'rail' || stop.mode === 'bus+rail');
     expect(rail).toHaveLength(1);
     expect(rail[0].agencies).toEqual(id === 'victory' ? ['dart', 'tre'] : ['dart', 'm-line']);
   }

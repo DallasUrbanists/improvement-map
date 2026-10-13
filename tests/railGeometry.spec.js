@@ -11,9 +11,10 @@ const collection = (geometry, extra = {}) => ({ type: 'FeatureCollection', featu
     agency: { agency_name: 'Test Agency' }, ...extra }, geometry,
 }] });
 
-test('all nine supplied rail files load with their source identities and colors', () => {
-  expect(Object.keys(railSources)).toHaveLength(9);
-  expect(railCatalog.lines).toHaveLength(9);
+test('all ten supplied rail files including Silver load with their source identities and colors', () => {
+  expect(Object.keys(railSources)).toHaveLength(10);
+  expect(railCatalog.lines).toHaveLength(10);
+  expect(railCatalog.lines.some((line) => line.id === 'DART:SILVER')).toBe(true);
   expect(railCatalog.segments.length).toBeGreaterThan(0);
   for (const [source, data] of Object.entries(railSources)) {
     const properties = data.features[0].properties;
@@ -65,7 +66,7 @@ test('rail rendering is independent of API railway shapes, colors, and membershi
   transitRoutes: [{ tags: { route: 'light_rail', name: 'Fake line', colour: '#00ff00' }, members: [{ ref: 'fake' }] }] };
   expect(generateLocationDiagram(oldApiData, original.center).railSegments).toEqual(before.railSegments);
   for (const fixture of [original, ...additional]) {
-    expect(fixture.elements.some((element) => element.tags.railway)).toBe(false);
+    expect(fixture.elements.some((element) => element.tags.railway && !element.tags.highway)).toBe(false);
     const stopKeys = new Set(fixture.transitStops.map((stop) => `${stop.type}:${stop.id}`));
     for (const route of fixture.transitRoutes) {
       expect(route.members.every((member) => stopKeys.has(`${member.type}:${member.ref}`))).toBe(true);

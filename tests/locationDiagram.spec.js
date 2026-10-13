@@ -8,9 +8,9 @@ const boundaries = JSON.parse(fs.readFileSync(new URL('../src/data/test-location
 
 const data = JSON.parse(fs.readFileSync(new URL('../src/data/test-location-osm.json', import.meta.url), 'utf8'));
 
-test('diagram selects three distinct closest streets and is deterministic', () => {
+test('diagram selects four distinct closest streets and is deterministic', () => {
   const result = generateLocationDiagram(data, data.center);
-  expect(result.streets.map((street) => street.name)).toEqual(['Elm Street', 'North Akard Street', 'Pacific Avenue']);
+  expect(result.streets.map((street) => street.name)).toEqual(['Elm Street', 'North Akard Street', 'Pacific Avenue', 'Main Street']);
   expect(result.streets[0].distance).toBeCloseTo(7.73, 1);
   expect(result.svg).toBe(generateLocationDiagram(data, data.center).svg);
   expect(result.svg).toContain('viewBox="0 0 480 480"');
@@ -22,14 +22,15 @@ test('diagram selects three distinct closest streets and is deterministic', () =
   expect(result.svg).not.toMatch(/NaN|Infinity|<script|<foreignObject/);
 });
 
-test('all visible streets render but only the three closest streets are labeled', () => {
+test('all visible streets render but only the four closest streets are label candidates', () => {
   const result = generateLocationDiagram(data, data.center);
   expect(result.renderedStreets).toContain('Main Street');
-  expect(result.renderedStreets.length).toBeGreaterThan(3);
+  expect(result.renderedStreets.length).toBeGreaterThan(4);
   expect(result.svg).toContain('data-street="Main Street"');
-  const labels = [...result.svg.matchAll(/<text transform="[^"]+">([^<]+)<\/text>/g)].map((match) => match[1]);
-  expect(labels).toEqual(['Elm St', 'N Akard St', 'Pacific Ave']);
-  expect(labels).not.toContain('Main St');
+  const labels = result.streetLabels.map((label) => label.text);
+  expect(labels).toEqual(['Elm St', 'N Akard St', 'Pacific Ave', 'Main St']);
+  expect(result.streetLabels[0].fullyInFrame).toBe(true);
+  expect(result.svg).toContain('<textPath');
   const extra = { id: 'unnamed', tags: { highway: 'residential' }, geometry: [
     { lat: data.center.lat - 0.0002, lon: data.center.lon - 0.002 },
     { lat: data.center.lat - 0.0002, lon: data.center.lon + 0.002 },
@@ -81,7 +82,8 @@ test('rail paths round bends without moving endpoints or exceeding short segment
 test('location 2 trunk order matches branches and every service meets at the same endpoint', () => {
   const fixture = additional.find((location) => location.id === 'west-end');
   const result = generateLocationDiagram(fixture, fixture.center);
-  expect(result.railJunctions).toContainEqual({
+  expect(result.railJunctions.map((junction) => ({ ...junction,
+    branchOrders: junction.branchOrders.map((order) => [...order].sort()) }))).toContainEqual({
     trunkOrder: ['DART:GREEN', 'DART:ORANGE', 'DART:BLUE', 'DART:RED'],
     branchOrders: [['DART:GREEN', 'DART:ORANGE'], ['DART:BLUE', 'DART:RED']],
   });
@@ -102,7 +104,10 @@ test('administrative footers use verified containing boundaries for the exact pi
     expect(boundary.name).toBe(expectedNames[index]);
     expect(result.administrativeBoundary).toEqual(boundary);
     expect(result.svg).toContain(`data-administrative-boundary="${boundary.osmId}"`);
-    expect(result.svg).toContain(`>${expectedNames[index]}</text>`);
+    expect(result.contextLabels).toContain(expectedNames[index]);
+    expect(result.contextLabels).toContain('TX');
+    expect(result.contextLabels).toContain('USA');
+    expect(result.svg).toContain(`<title>${result.contextLabels.join(', ').replaceAll('&', '&amp;')}</title>`);
     expect(result.svg).not.toContain('SCHEMATIC · NOT FOR NAVIGATION');
     expect(result.svg).toContain('Not for navigation');
   }
