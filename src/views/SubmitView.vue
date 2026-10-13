@@ -124,93 +124,40 @@
 
     <!-- ================= STEP 1: LOCATE ================= -->
     <div v-else-if="draft.step === 1" class="flex-grow flex flex-col">
-      <!-- Header -->
-      <div class="p-6">
-        <h2 class="text-2xl font-bold mb-1">Pin Suggestion Location</h2>
-        <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-          Drag the map or search an address to set the exact coordinates.
-        </p>
-      </div>
-
-      <!-- Location description bar -->
-      <div class="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-t border-zinc-300 dark:border-zinc-700 text-xs flex items-center justify-between gap-2 z-20">
-        <div class="truncate flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300">
-          <i class="fa-solid fa-map-pin text-zinc-500"></i>
-          <span class="font-semibold">{{ displayAddress || 'Tap or drag pin to set location' }}</span>
-        </div>
-        <div v-if="draft.location?.latitude" class="text-[11px] text-zinc-500 font-mono flex-shrink-0">
-          {{ Number(draft.location.latitude).toFixed(4) }}, {{ Number(draft.location.longitude).toFixed(4) }}
-        </div>
-      </div>
-
-      <!-- Google Maps Target Container Wrapper -->
-      <div class="relative w-full flex-grow flex flex-col bg-zinc-900">
-        <!-- Search Bar Overlay with Autocomplete Dropdown -->
-        <div class="absolute top-3 left-3 right-3 z-30 flex flex-col max-w-lg">
-          <div class="relative flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded border border-zinc-300 dark:border-zinc-700 shadow-lg">
-            <span class="pl-3.5 pr-2 text-zinc-400">
-              <i class="fa-solid fa-magnifying-glass"></i>
-            </span>
-            <input
-              type="text"
-              v-model="mapSearchQuery"
-              @input="onSearchInput"
-              placeholder="Search..."
-              class="w-full py-2.5 pr-8 bg-transparent text-sm text-black dark:text-white placeholder-zinc-400 focus:outline-none"
-            />
-            <button
-              v-if="mapSearchQuery"
-              @click="mapSearchQuery = ''; mapSearchResults = []"
-              class="p-2 text-zinc-400 hover:text-black dark:hover:text-white"
-              type="button"
-              aria-label="Clear search"
-            >
-              <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
-            <span v-if="isSearching" class="pr-3 text-zinc-400">
-              <i class="fa-solid fa-spinner animate-spin text-sm"></i>
-            </span>
+      <div ref="submitMapFrame" data-testid="submit-map-frame" class="relative flex-grow overflow-hidden">
+        <div class="absolute inset-0">
+          <div ref="mapContainerEl" class="w-full h-full"></div>
+          <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center" aria-hidden="true">
+            <svg ref="pinCrosshair" data-testid="suggestion-location-crosshair" class="h-[50px] w-[50px] drop-shadow" viewBox="0 0 50 50">
+              <circle cx="25" cy="25" r="17" :fill="pinButtonColor" />
+              <g transform="translate(25 25)" fill="none" :stroke="crosshairStrokeColor" stroke-width="3">
+                <circle r="9" />
+                <path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" />
+                <circle r="2" :fill="crosshairStrokeColor" stroke="none" />
+              </g>
+            </svg>
           </div>
 
-          <!-- Autocomplete Dropdown Menu -->
-          <div
-            v-if="mapSearchResults.length > 0"
-            class="mt-1 bg-white dark:bg-zinc-900 rounded border border-zinc-300 dark:border-zinc-700 shadow-2xl max-h-52 overflow-y-auto z-40 divide-y divide-zinc-200 dark:divide-zinc-800"
-          >
-            <button
-              v-for="item in mapSearchResults"
-              :key="item.id"
-              type="button"
-              @click="selectAddress(item)"
-              class="w-full text-left px-3.5 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-2.5 text-xs sm:text-sm text-black dark:text-white"
-            >
-              <i class="fa-solid fa-location-dot text-zinc-500 mt-0.5 flex-shrink-0"></i>
-              <span class="line-clamp-2">{{ item.displayName }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Pure Map Canvas Element -->
-        <div class="relative w-full flex-1 min-h-[300px] bg-zinc-900 overflow-hidden">
-          <div
-            ref="mapContainerEl"
-            class="w-full h-full min-h-[300px] bg-zinc-900"
-            style="height: 100%; width: 100%;"
-          ></div>
-
-          <!-- Missing API Key Overlay -->
           <div
             v-if="!hasGoogleMapsKey || googleMapsAuthError"
             class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 text-zinc-300 z-20 backdrop-blur-sm"
           >
             <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-3"></i>
             <h4 class="text-base font-bold text-white mb-1">Google Maps Setup Required</h4>
-            <p class="text-xs text-zinc-300 max-w-sm mb-3">
-              {{ googleMapsAuthError || 'Set VITE_GOOGLE_MAPS_API_KEY in your .env file.' }}
+            <p class="text-xs text-zinc-300 max-w-sm mb-4 leading-relaxed">
+              {{ googleMapsAuthError || 'Set VITE_GOOGLE_MAPS_API_KEY in your .env file and restart Vite (npm run dev).' }}
             </p>
+            <div class="text-[11px] text-zinc-400 bg-zinc-800/80 p-3 rounded-xl border border-zinc-700 text-left max-w-sm">
+              <div class="font-semibold text-zinc-200 mb-1">Required in Google Cloud Console:</div>
+              <ul class="list-disc list-inside space-y-0.5">
+                <li><strong>Maps JavaScript API</strong> enabled</li>
+                <li><strong>Places API</strong> enabled</li>
+                <li><strong>Geocoding API</strong> enabled</li>
+                <li>Billing account linked to GCP project</li>
+              </ul>
+            </div>
           </div>
 
-          <!-- Loading indicator -->
           <div
             v-else-if="!isMapReady"
             class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 z-10"
@@ -220,41 +167,82 @@
           </div>
         </div>
 
-      <!-- Basemap Switcher (Streets / Satellite) with Konsta Segmented -->
-      <div
-        class="absolute bottom-3 left-3 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
-        <k-segmented :raised="true" class="w-auto">
-          <k-segmented-button :active="currentMapType === 'roadmap'" @click="setMapType('roadmap')" small
-            class="text-xs font-bold px-2.5 py-1">
-            <i class="fa-solid fa-road mr-1"></i>
-            Streets
-          </k-segmented-button>
-          <k-segmented-button :active="currentMapType === 'hybrid'" @click="setMapType('hybrid')" small
-            class="text-xs font-bold px-2.5 py-1">
-            <i class="fa-solid fa-earth-americas mr-1"></i>
-            Satellite
-          </k-segmented-button>
-          <k-segmented-button @click="requestGps" small
-            class="text-xs font-bold px-2.5 py-1"
-            title="Center on my location" aria-label="Center on my location">
-            <i class="fa-solid fa-crosshairs mr-1" :class="{ 'animate-spin': isLocating }"></i>
-            Recenter
-          </k-segmented-button>
-        </k-segmented>
-      </div>
-        
-      </div>
+        <div class="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-30 flex flex-col">
+          <div class="relative flex items-center rounded-xl border border-zinc-300 bg-white/95 shadow-xl backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+            <span class="pl-3 pr-2 text-zinc-400"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <input
+              ref="mapSearchInput"
+              type="text"
+              v-model="mapSearchQuery"
+              @focus="onMapSearchFocus"
+              @blur="onMapSearchBlur"
+              @input="onSearchInput"
+              placeholder="Search address or neighborhood..."
+              aria-label="Search or edit suggestion location"
+              class="w-full bg-transparent py-2.5 pr-8 text-xs text-black placeholder-zinc-400 focus:outline-none dark:text-white sm:text-sm"
+            />
+            <button
+              v-if="mapSearchQuery"
+              @pointerdown.prevent
+              @click="clearMapSearch"
+              class="p-2 text-zinc-400 hover:text-black dark:hover:text-white"
+              type="button"
+              aria-label="Clear search"
+            >
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+            <span v-if="isSearching" class="pr-3 text-zinc-400"><i class="fa-solid fa-spinner animate-spin text-sm"></i></span>
+          </div>
 
-      <!-- Next -->
-      <div class="p-4 flex justify-end">
+          <div v-if="mapSearchResults.length > 0" class="mt-1 max-h-56 divide-y divide-zinc-200 overflow-y-auto rounded-xl border border-zinc-300 bg-white shadow-2xl dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
+            <button
+              v-for="item in mapSearchResults"
+              :key="item.id"
+              type="button"
+              @pointerdown.prevent
+              @click="selectAddress(item)"
+              class="flex w-full items-start gap-2 px-3.5 py-2.5 text-left text-xs text-black transition-colors hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800 sm:text-sm"
+            >
+              <i class="fa-solid fa-location-dot mt-0.5 flex-shrink-0 text-zinc-500"></i>
+              <span class="line-clamp-2">{{ item.displayName }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div ref="centerOnLocationButton" data-testid="center-on-location-control" class="absolute bottom-20 left-2 z-30 flex items-center rounded-xl border border-zinc-300 bg-white/95 p-0.5 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+          <k-segmented :raised="true" class="w-auto">
+            <k-segmented-button
+              @click="requestGpsLocation"
+              class="px-3 py-1 text-xs font-bold"
+              title="Center on my location"
+              aria-label="Center on my location"
+            >
+              <i class="fa-solid fa-crosshairs" :class="{ 'animate-spin': isLocating }"></i>
+            </k-segmented-button>
+          </k-segmented>
+        </div>
+
+        <div class="absolute bottom-8 left-3 right-16 z-30 flex items-center rounded-xl border border-zinc-300 bg-white/95 p-0.5 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+          <k-segmented :raised="true" class="w-full" aria-label="Suggestion map options">
+            <k-segmented-button :active="currentMapType === 'roadmap'" @click="setMapType('roadmap')" small class="flex-1 justify-center px-2.5 py-1 text-xs font-bold">
+              Streets
+            </k-segmented-button>
+            <k-segmented-button :active="currentMapType === 'hybrid'" @click="setMapType('hybrid')" small class="flex-1 justify-center px-2.5 py-1 text-xs font-bold">
+              Satellite
+            </k-segmented-button>
+          </k-segmented>
+        </div>
+
         <k-button
           type="button"
+          data-testid="pin-and-continue"
           @click="nextStep"
-          large
-          class="font-bold text-base px-8"
+          small
+          :style="pinButtonStyle"
+          :outline="true"
+          class="pointer-events-auto absolute left-1/2 z-30 w-auto -translate-x-1/2 -translate-y-1/2 whitespace-nowrap px-4 font-bold shadow-lg hover:brightness-110"
         >
-          <span>Next</span>
-          <i class="fa-solid fa-arrow-right ml-2"></i>
+          Set pin and continue
         </k-button>
       </div>
 
@@ -326,7 +314,7 @@
       <div>
         <h2 class="text-2xl font-bold mb-1">Attach Photos</h2>
         <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-          Upload up to 10 photos of the location, hazards, or site conditions.
+          Optionally attach up to 10 photos.
         </p>
       </div>
 
@@ -821,6 +809,7 @@ import {
 import { resizeImage } from '../services/image';
 import { createSpeechRecorder } from '../services/speechRecognition';
 import { isDark } from '../services/theme';
+import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
 import {
   loadGoogleMaps,
   hasGoogleMapsKey,
@@ -886,10 +875,23 @@ const errors = reactive({
 
 // Step 1 Map & Location state
 const mapContainerEl = ref(null);
+const submitMapFrame = ref(null);
+const pinCrosshair = ref(null);
+const centerOnLocationButton = ref(null);
+const pinAndContinueTop = ref('50%');
 const isMapReady = ref(false);
 const isLocating = ref(false);
 const currentMapType = ref('roadmap');
+const pinButtonColor = computed(() => (isDark.value ? '#60a5fa' : '#1e3a8a'));
+const crosshairStrokeColor = '#ffffff';
+const pinButtonStyle = computed(() => ({
+  top: pinAndContinueTop.value,
+  backgroundColor: pinButtonColor.value,
+  color: isDark.value ? '#0f172a' : '#ffffff',
+}));
 const mapSearchQuery = ref('');
+const mapSearchInput = ref(null);
+const isMapSearchEditing = ref(false);
 const mapSearchResults = ref([]);
 const isSearching = ref(false);
 let searchDebounce = null;
@@ -898,8 +900,11 @@ const isDescModalOpen = ref(false);
 const tempDescription = ref('');
 
 let map = null;
-let marker = null;
 let googleMaps = null;
+let mapIdleListener = null;
+let mapClickListener = null;
+let locationUpdateSequence = 0;
+let isSubmitViewActive = false;
 
 // Step 2 Photo state
 const fileInput = ref(null);
@@ -937,6 +942,25 @@ const displayAddress = computed(() => {
   }
   return '';
 });
+
+function updatePinAndContinuePosition() {
+  const frame = submitMapFrame.value;
+  const crosshair = pinCrosshair.value;
+  const locationControl = centerOnLocationButton.value;
+  if (!frame || !crosshair || !locationControl) return;
+
+  const frameBounds = frame.getBoundingClientRect();
+  const crosshairBounds = crosshair.getBoundingClientRect();
+  const locationButton = locationControl.querySelector('button, a') || locationControl;
+  const locationButtonTop = locationButton.getBoundingClientRect().top;
+  const crosshairCenter = crosshairBounds.top + crosshairBounds.height / 2;
+  const midpoint = (crosshairCenter + locationButtonTop) / 2;
+  pinAndContinueTop.value = `${midpoint - frameBounds.top}px`;
+}
+
+watch(displayAddress, (address) => {
+  if (!isMapSearchEditing.value) mapSearchQuery.value = address;
+}, { immediate: true });
 
 function persistDraft() {
   if (draft.author) {
@@ -1089,17 +1113,38 @@ watch(hasEnoughDetailsWords, (hasEnoughWords) => {
 watch(() => draft.step, (step) => {
   if (step === 3) nextTick(resizeDetailsInput);
   else speechRecorder.cancel();
+  if (step === 1) nextTick(updatePinAndContinuePosition);
 }, { immediate: true });
 
 onActivated(() => {
+  isSubmitViewActive = true;
   document.addEventListener('visibilitychange', cancelHiddenRecording);
   window.addEventListener('pagehide', speechRecorder.cancel);
+  if (draft.step === 1) {
+    window.addEventListener('resize', updatePinAndContinuePosition);
+    nextTick(() => {
+      updatePinAndContinuePosition();
+      initMap();
+    });
+  }
 });
 
 function deactivateSpeechRecorder() {
+  isSubmitViewActive = false;
   speechRecorder.cancel();
   document.removeEventListener('visibilitychange', cancelHiddenRecording);
   window.removeEventListener('pagehide', speechRecorder.cancel);
+  window.removeEventListener('resize', updatePinAndContinuePosition);
+  removeMapLocationListeners();
+
+  const sharedMap = sharedBrowseMap.value;
+  if (sharedMap?.map === map) {
+    sharedMap.moveToBrowse();
+    sharedMap.setSuggestionMarkersVisible(true);
+    map = null;
+    googleMaps = null;
+    isMapReady.value = false;
+  }
 }
 
 onDeactivated(deactivateSpeechRecorder);
@@ -1151,49 +1196,82 @@ function validateAndNextStep3() {
 }
 
 // ---------------- MAP & LOCATION LOGIC ---------------- //
+function bindMapLocationListeners() {
+  if (!map || mapIdleListener) return;
+
+  mapIdleListener = map.addListener('idle', () => {
+    const center = map?.getCenter();
+    if (!center) return;
+    updateCoordinates(center.lat(), center.lng());
+  });
+
+  mapClickListener = map.addListener('click', (event) => {
+    if (event.latLng) map?.panTo(event.latLng);
+  });
+}
+
+function removeMapLocationListeners() {
+  mapIdleListener?.remove();
+  mapClickListener?.remove();
+  mapIdleListener = null;
+  mapClickListener = null;
+}
+
 async function initMap() {
   try {
-    googleMaps = await loadGoogleMaps();
-    if (!mapContainerEl.value || !googleMaps) return;
+    if (!mapContainerEl.value) return;
 
-    const initialLat = draft.location?.latitude || 32.7767;
-    const initialLng = draft.location?.longitude || -96.7970;
-    const initialPos = { lat: Number(initialLat), lng: Number(initialLng) };
+    let sharedMap = sharedBrowseMap.value;
+    if (!sharedMap && browseMapInitialization.value === 'loading') {
+      await new Promise((resolve) => {
+        let stopWatching = () => {};
+        const checkReady = ([context, state]) => {
+          if (context || state !== 'loading') {
+            stopWatching();
+            resolve();
+          }
+        };
+        stopWatching = watch([sharedBrowseMap, browseMapInitialization], checkReady);
+        checkReady([sharedBrowseMap.value, browseMapInitialization.value]);
+      });
+      sharedMap = sharedBrowseMap.value;
+    }
+    if (!isSubmitViewActive) return;
 
-    map = new googleMaps.Map(mapContainerEl.value, {
-      center: initialPos,
-      zoom: 15,
-      mapTypeId: googleMaps.MapTypeId.ROADMAP,
-      styles: getMapStyles(isDark.value, currentMapType.value),
-      disableDefaultUI: true,
-      zoomControl: true,
-      gestureHandling: 'greedy',
-      clickableIcons: false,
-    });
+    if (sharedMap?.map && sharedMap.googleMaps) {
+      map = sharedMap.map;
+      googleMaps = sharedMap.googleMaps;
+      sharedMap.setSuggestionMarkersVisible(false);
+      sharedMap.moveTo(mapContainerEl.value);
+      currentMapType.value = map.getMapTypeId() === googleMaps.MapTypeId.HYBRID ? 'hybrid' : 'roadmap';
+    } else {
+      googleMaps = await loadGoogleMaps();
+      if (!googleMaps || !isSubmitViewActive || !mapContainerEl.value) return;
 
-    marker = new googleMaps.Marker({
-      position: initialPos,
-      map,
-      draggable: true,
-      animation: googleMaps.Animation?.DROP,
-      title: 'Suggestion Location',
-    });
+      if (!map) {
+        const initialLat = draft.location?.latitude ?? 32.7767;
+        const initialLng = draft.location?.longitude ?? -96.7970;
+        map = new googleMaps.Map(mapContainerEl.value, {
+          center: { lat: Number(initialLat), lng: Number(initialLng) },
+          zoom: 15,
+          mapTypeId: googleMaps.MapTypeId.ROADMAP,
+          styles: getMapStyles(isDark.value, currentMapType.value),
+          disableDefaultUI: true,
+          zoomControl: true,
+          gestureHandling: 'greedy',
+          clickableIcons: false,
+        });
+      }
+    }
 
-    marker.addListener('dragend', async () => {
-      const pos = marker.getPosition();
-      if (!pos) return;
-      await updateCoordinates(pos.lat(), pos.lng());
-    });
-
-    map.addListener('click', async (e) => {
-      if (!e.latLng) return;
-      const lat = e.latLng.lat();
-      const lng = e.latLng.lng();
-      marker.setPosition({ lat, lng });
-      await updateCoordinates(lat, lng);
-    });
-
+    bindMapLocationListeners();
     isMapReady.value = true;
+
+    if (sharedMap?.map === map) {
+      const center = map.getCenter();
+      if (center) await updateCoordinates(center.lat(), center.lng());
+      nextTick(() => googleMaps.event?.trigger(map, 'resize'));
+    }
   } catch (err) {
     console.warn('Map initialization warning:', err);
     isMapReady.value = true;
@@ -1201,6 +1279,7 @@ async function initMap() {
 }
 
 async function updateCoordinates(lat, lng, knownAddress = '') {
+  const updateSequence = ++locationUpdateSequence;
   draft.location = draft.location || {};
   draft.location.latitude = Number(lat);
   draft.location.longitude = Number(lng);
@@ -1208,20 +1287,27 @@ async function updateCoordinates(lat, lng, knownAddress = '') {
   if (knownAddress) {
     draft.location.address = knownAddress;
   } else {
+    draft.location.address = '';
     try {
       const rev = await reverseGeocodeWithGoogle(lat, lng);
-      if (rev) {
-        draft.location.address = rev;
-      }
+      if (updateSequence !== locationUpdateSequence) return;
+      if (rev) draft.location.address = rev;
     } catch {
       // fallback
     }
   }
+  if (updateSequence !== locationUpdateSequence) return;
+  if (!isMapSearchEditing.value) mapSearchQuery.value = displayAddress.value;
   persistDraft();
 }
 
 function setMapType(type) {
   currentMapType.value = type;
+  const sharedMap = sharedBrowseMap.value;
+  if (sharedMap?.map === map) {
+    sharedMap.setMapType(type);
+    return;
+  }
   if (!map || !googleMaps) return;
   if (type === 'hybrid') {
     map.setMapTypeId(googleMaps.MapTypeId.HYBRID);
@@ -1237,7 +1323,28 @@ watch(isDark, (darkMode) => {
   updateMapTheme(map, darkMode, currentMapType.value);
 });
 
+function onMapSearchFocus() {
+  isMapSearchEditing.value = true;
+  nextTick(() => mapSearchInput.value?.select());
+}
+
+function onMapSearchBlur() {
+  isMapSearchEditing.value = false;
+  if (searchDebounce) clearTimeout(searchDebounce);
+  mapSearchResults.value = [];
+  isSearching.value = false;
+  mapSearchQuery.value = displayAddress.value;
+}
+
+function clearMapSearch() {
+  mapSearchQuery.value = '';
+  mapSearchResults.value = [];
+  isSearching.value = false;
+  mapSearchInput.value?.focus();
+}
+
 function onSearchInput() {
+  isMapSearchEditing.value = true;
   if (searchDebounce) clearTimeout(searchDebounce);
   const q = mapSearchQuery.value.trim();
   if (q.length < 2) {
@@ -1248,7 +1355,9 @@ function onSearchInput() {
 
   isSearching.value = true;
   searchDebounce = setTimeout(async () => {
-    mapSearchResults.value = await searchAddressWithGoogle(q);
+    const results = await searchAddressWithGoogle(q);
+    if (!isMapSearchEditing.value || mapSearchQuery.value.trim() !== q) return;
+    mapSearchResults.value = results;
     isSearching.value = false;
   }, 350);
 }
@@ -1269,13 +1378,16 @@ async function selectAddress(item) {
   }
 
   if (lat !== undefined && lng !== undefined) {
-    if (map && marker) {
+    isMapSearchEditing.value = false;
+    if (map) {
       const pos = { lat: Number(lat), lng: Number(lng) };
-      marker.setPosition(pos);
       map.setCenter(pos);
       map.setZoom(16);
     }
     await updateCoordinates(lat, lng, item.displayName);
+  } else {
+    isMapSearchEditing.value = false;
+    mapSearchQuery.value = displayAddress.value;
   }
 }
 
@@ -1287,10 +1399,8 @@ function requestGpsLocation() {
       isLocating.value = false;
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      if (map && marker) {
-        const p = { lat, lng };
-        marker.setPosition(p);
-        map.setCenter(p);
+      if (map) {
+        map.setCenter({ lat, lng });
         map.setZoom(16);
       }
       await updateCoordinates(lat, lng);
@@ -1502,8 +1612,5 @@ function handleGoHome() {
 
 onMounted(() => {
   persistDraft();
-  if (draft.step === 1) {
-    initMap();
-  }
 });
 </script>

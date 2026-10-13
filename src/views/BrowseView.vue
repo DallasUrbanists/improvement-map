@@ -214,7 +214,7 @@ export default {
 </script>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onActivated, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -230,6 +230,7 @@ import {
   kPreloader,
 } from 'konsta/vue';
 import { isDark } from '../services/theme';
+import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
 import { getSuggestions } from '../services/api';
 import { addFormattedDistances, sortSuggestionsByDistance } from '../services/geo';
 import {
@@ -275,8 +276,10 @@ const isMapReady = ref(false);
 let map = null;
 let googleMaps = null;
 let infoWindow = null;
+let browseMapHome = null;
 let markersArray = [];
 let userLocationMarker = null;
+let areSuggestionMarkersVisible = true;
 let isProgrammaticChange = false;
 
 // Address search state
@@ -380,6 +383,32 @@ function saveCurrentMapView() {
   }
 }
 
+function moveMapTo(container) {
+  const mapElement = browseMapContainerEl.value;
+  if (!mapElement || !container || !map) return;
+
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+  if (mapElement.parentElement !== container) {
+    mapElement.style.width = '100%';
+    mapElement.style.height = '100%';
+    container.appendChild(mapElement);
+  }
+
+  requestAnimationFrame(() => {
+    if (!map || !googleMaps) return;
+    googleMaps.event?.trigger(map, 'resize');
+    if (center) map.setCenter(center);
+    if (typeof zoom === 'number') map.setZoom(zoom);
+  });
+}
+
+function setSuggestionMarkersVisible(visible) {
+  areSuggestionMarkersVisible = visible;
+  markersArray.forEach((suggestionMarker) => suggestionMarker.setMap(visible ? map : null));
+  if (!visible) infoWindow?.close();
+}
+
 // Watch theme changes to update Streets basemap styling dynamically
 watch(isDark, (darkMode) => {
   if (!map || !googleMaps) return;
@@ -389,9 +418,13 @@ watch(isDark, (darkMode) => {
 async function initGoogleMap() {
   try {
     googleMaps = await loadGoogleMaps();
-    if (!browseMapContainerEl.value || !googleMaps) return;
+    if (!browseMapContainerEl.value || !googleMaps) {
+      browseMapInitialization.value = 'failed';
+      return;
+    }
 
     isProgrammaticChange = true;
+    browseMapHome = browseMapHome || browseMapContainerEl.value.parentElement;
     const savedView = getStoredMapView();
     const initialCenter = savedView
       ? { lat: savedView.lat, lng: savedView.lng }
@@ -414,6 +447,15 @@ async function initGoogleMap() {
     });
 
     infoWindow = new googleMaps.InfoWindow();
+    sharedBrowseMap.value = {
+      map,
+      googleMaps,
+      moveTo: moveMapTo,
+      moveToBrowse: () => moveMapTo(browseMapHome),
+      setSuggestionMarkersVisible,
+      setMapType,
+    };
+    browseMapInitialization.value = 'ready';
 
     map.addListener('dragend', () => {
       saveCurrentMapView();
@@ -443,6 +485,7 @@ async function initGoogleMap() {
     console.warn('Google Maps BrowseView init warning:', err);
     isMapReady.value = true;
     isProgrammaticChange = false;
+    browseMapInitialization.value = 'failed';
   }
 }
 
@@ -549,7 +592,7 @@ function renderSuggestionMarkers() {
     if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
       const gMarker = new googleMaps.Marker({
         position: { lat: Number(lat), lng: Number(lng) },
-        map,
+        map: areSuggestionMarkersVisible ? map : null,
         title: s.content?.summary || 'Suggestion',
         animation: googleMaps.Animation?.DROP,
       });
@@ -748,15 +791,22 @@ watch(
 );
 
 onMounted(async () => {
+  browseMapInitialization.value = 'loading';
   requestGps();
+  initGoogleMap();
   suggestions.value = await getSuggestions(false);
   if (activeTab.value === 'list') {
     restoreListScroll();
   }
-  initGoogleMap();
 });
 
 onActivated(() => {
+  if (sharedBrowseMap.value?.map === map) {
+    sharedBrowseMap.value.moveToBrowse();
+    sharedBrowseMap.value.setSuggestionMarkersVisible(true);
+    currentMapType.value = map.getMapTypeId() === googleMaps.MapTypeId.HYBRID ? 'hybrid' : 'roadmap';
+  }
+
   if (activeTab.value === 'map' && map && googleMaps) {
     nextTick(() => {
       googleMaps.event?.trigger(map, 'resize');
@@ -768,6 +818,12 @@ onActivated(() => {
     }, 320);
   } else if (activeTab.value === 'list') {
     restoreListScroll();
+  }
+});
+
+onBeforeUnmount(() => {
+  if (sharedBrowseMap.value?.map === map) {
+    sharedBrowseMap.value = null;
   }
 });
 </script>

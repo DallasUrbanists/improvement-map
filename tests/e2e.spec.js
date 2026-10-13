@@ -51,29 +51,35 @@ test.describe('Improvement Map - PWA and Navigation', () => {
   expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 });
 
-test('toggle dark and light theme persists correctly', async ({ page }) => {
-    await page.goto('/');
+test('theme menu supports light, dark, and system themes', async ({ page }) => {
+  await page.goto('/');
 
-    // Dark mode is default
-    const htmlElement = page.locator('html');
-    await expect(htmlElement).toHaveClass(/dark/);
+  const htmlElement = page.locator('html');
+  const menuButton = page.locator('#theme-menu-btn');
+  await expect(htmlElement).toHaveClass(/dark/);
 
-    // Click theme toggle button in the top tabbar
-    const themeBtn = page.locator('#theme-toggle-btn');
-    await themeBtn.click();
+  await menuButton.click();
+  await page.getByRole('menuitemradio', { name: 'Light theme' }).click();
+  await expect(htmlElement).toHaveClass(/light/);
 
-    // Now light mode
-    await expect(htmlElement).toHaveClass(/light/);
+  await page.reload();
+  await expect(htmlElement).toHaveClass(/light/);
 
-    // Reload page to verify persistence in localStorage
-    await page.reload();
-    await expect(htmlElement).toHaveClass(/light/);
+  await menuButton.click();
+  await page.getByRole('menuitemradio', { name: 'System theme' }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('improvement_map_theme'))).toBe('system');
 
-    // Toggle back to dark
-    const themeBtnReloaded = page.locator('#theme-toggle-btn');
-    await themeBtnReloaded.click();
-    await expect(htmlElement).toHaveClass(/dark/);
-  });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(htmlElement).toHaveClass(/dark/);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(htmlElement).toHaveClass(/light/);
+
+  await page.reload();
+  await expect(htmlElement).toHaveClass(/light/);
+  await menuButton.click();
+  await page.getByRole('menuitemradio', { name: 'Dark theme' }).click();
+  await expect(htmlElement).toHaveClass(/dark/);
+});
 
   test('bottom tabbar navigation works across all pages', async ({ page }) => {
     await page.goto('/');
@@ -81,13 +87,55 @@ test('toggle dark and light theme persists correctly', async ({ page }) => {
     // Navigate to Submit via top tabbar
     await page.getByRole('link', { name: /Submit/i }).first().click();
     await expect(page).toHaveURL(/\/submit/);
-    await expect(page.getByRole('heading', { name: /Describe your idea/i })).toBeVisible();
+    const locationSearch = page.getByRole('textbox', { name: 'Search or edit suggestion location' });
+    await expect(locationSearch).toBeVisible();
+    await locationSearch.fill('Dallas City Hall');
+    await expect(locationSearch).toHaveValue('Dallas City Hall');
+    await expect(page.getByTestId('suggestion-location-crosshair')).toBeVisible();
+    const pinAndContinue = page.getByTestId('pin-and-continue');
+    await expect(pinAndContinue).toHaveText('Pin and continue');
+    const buttonLayout = await page.evaluate(() => {
+      const frame = document.querySelector('[data-testid="submit-map-frame"]');
+      const crosshair = document.querySelector('[data-testid="suggestion-location-crosshair"]');
+      const locationControl = document.querySelector('[data-testid="center-on-location-control"]');
+      const button = document.querySelector('[data-testid="pin-and-continue"]');
+      const frameBounds = frame.getBoundingClientRect();
+      const crosshairBounds = crosshair.getBoundingClientRect();
+      const locationButton = locationControl.querySelector('button, a');
+      const buttonBounds = button.getBoundingClientRect();
+      return {
+        actualY: buttonBounds.top + buttonBounds.height / 2,
+        expectedY: (crosshairBounds.top + crosshairBounds.height / 2 + locationButton.getBoundingClientRect().top) / 2,
+        width: buttonBounds.width,
+        frameWidth: frameBounds.width,
+        background: getComputedStyle(button).backgroundColor,
+        crosshairFill: crosshair.querySelector('circle').getAttribute('fill'),
+      };
+    });
+    expect(Math.abs(buttonLayout.actualY - buttonLayout.expectedY)).toBeLessThan(2);
+    expect(buttonLayout.width).toBeLessThan(buttonLayout.frameWidth);
+    expect(buttonLayout.background).toBe('rgb(96, 165, 250)');
+    expect(buttonLayout.crosshairFill).toBe('#60a5fa');
+    const crosshairGroup = page.getByTestId('suggestion-location-crosshair').locator('g');
+    await expect(crosshairGroup).toHaveAttribute('stroke', '#ffffff');
+
+    await page.locator('#theme-menu-btn').click();
+    await page.getByRole('menuitemradio', { name: 'Light theme' }).click();
+    await expect(page.getByTestId('suggestion-location-crosshair').locator('circle').first()).toHaveAttribute('fill', '#1e3a8a');
+    await expect(crosshairGroup).toHaveAttribute('stroke', '#ffffff');
+    await page.getByText('Satellite', { exact: true }).click();
+    await expect(crosshairGroup).toHaveAttribute('stroke', '#ffffff');
+    await page.getByText('Streets', { exact: true }).click();
+    await expect(crosshairGroup).toHaveAttribute('stroke', '#ffffff');
+    await expect(page.getByText('Streets', { exact: true })).toBeVisible();
+    await expect(page.getByText('Satellite', { exact: true })).toBeVisible();
+    await expect(page.getByText('List', { exact: true })).toHaveCount(0);
 
     // Navigate back to Browse via top tabbar
     await page.getByRole('link', { name: /Browse/i }).first().click();
     await expect(page).toHaveURL(/\//);
-    await expect(page.getByRole('link', { name: 'Streets' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'List' })).toBeVisible();
+    await expect(page.getByText('Streets', { exact: true })).toBeVisible();
+    await expect(page.getByText('List', { exact: true })).toBeVisible();
   });
 });
 
