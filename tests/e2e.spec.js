@@ -1,5 +1,50 @@
 import { test, expect } from '@playwright/test';
 
+async function mockThumbnailUploads(page) {
+  const center = { lat: 32.7767, lon: -96.797 };
+  const elements = [
+    { id: 1, tags: { highway: 'residential', name: 'Test Main Street' }, geometry: [
+      { lat: center.lat + 0.0002, lon: center.lon - 0.003 }, { lat: center.lat + 0.0002, lon: center.lon + 0.003 },
+    ] },
+    { id: 2, tags: { highway: 'residential', name: 'Test Avenue' }, geometry: [
+      { lat: center.lat - 0.003, lon: center.lon + 0.0003 }, { lat: center.lat + 0.003, lon: center.lon + 0.0003 },
+    ] },
+    { id: 3, tags: { highway: 'residential', name: 'Test Boulevard' }, geometry: [
+      { lat: center.lat - 0.0006, lon: center.lon - 0.003 }, { lat: center.lat - 0.0006, lon: center.lon + 0.003 },
+    ] },
+    { id: 4, tags: { highway: 'residential', name: 'Test Fourth Street' }, geometry: [
+      { lat: center.lat + 0.001, lon: center.lon - 0.003 }, { lat: center.lat + 0.001, lon: center.lon + 0.003 },
+    ] },
+  ];
+  const uploadedFiles = [];
+
+  await page.route('**/api/interpreter', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ elements: elements.map((way) => ({ type: 'way', ...way })) }),
+  }));
+  await page.route('**/api/public-improvements/suggestions/upload-url', async (route) => {
+    const { filename } = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: {
+        uploadUrl: `https://uploads.test/${filename}`,
+        publicUrl: `https://cdn.test/${filename}`,
+      } }),
+    });
+  });
+  await page.route('https://uploads.test/**', async (route) => {
+    const request = route.request();
+    uploadedFiles.push({
+      contentType: request.headers()['content-type'],
+      body: (await request.postDataBuffer()).toString('utf8'),
+    });
+    await route.fulfill({ status: 200 });
+  });
+  return uploadedFiles;
+}
+
 test.describe('Improvement Map - PWA and Navigation', () => {
   test('default landing page loads Browse page and displays map/list controls', async ({ page }) => {
     await page.goto('/');
@@ -420,6 +465,7 @@ test('submission uses an AI-generated imperative summary with required limits', 
   const generatedSummary = 'Install a protected bike lane on Oak Street near the library.';
   let summaryRequest;
   let suggestionPayload;
+  const uploadedFiles = await mockThumbnailUploads(page);
 
   await page.route('**/api/assist/summarize', async (route) => {
     summaryRequest = {
@@ -449,7 +495,7 @@ test('submission uses an AI-generated imperative summary with required limits', 
       step: 4,
       details,
       location: { latitude: 32.7767, longitude: -96.797, address: 'Dallas, TX' },
-      photos: [],
+      photos: [{ id: 'existing-photo', dataUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', caption: 'User photo' }],
       author: { name: 'Test User', email: 'test@example.com' },
     }));
   }, detailsText);
@@ -468,11 +514,20 @@ test('submission uses an AI-generated imperative summary with required limits', 
   });
   expect(suggestionPayload.content.summary).toBe(generatedSummary);
   expect(suggestionPayload.content.details).toBe(detailsText.trim());
+  expect(suggestionPayload.content.photos.map(({ url }) => url)).toEqual([
+    'https://cdn.test/location-diagram.svg',
+    'https://cdn.test/photo-1.webp',
+  ]);
+  expect(suggestionPayload.content.photos[0].caption).toBe('Location diagram');
+  expect(suggestionPayload.content.photos[1].caption).toBe('User photo');
+  expect(uploadedFiles[0].contentType).toBe('image/svg+xml');
+  expect(uploadedFiles[0].body).toContain('<svg xmlns="http://www.w3.org/2000/svg"');
 });
 
 test('submission falls back to a 120-character description slice if summary generation fails', async ({ page }) => {
   const detailsText = '  ' + 'Add a protected crossing near the school. '.repeat(5) + '  ';
   let suggestionPayload;
+  await mockThumbnailUploads(page);
 
   await page.route('**/api/assist/summarize', async (route) => {
     await route.fulfill({

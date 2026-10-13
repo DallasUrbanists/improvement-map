@@ -506,41 +506,13 @@
         </p>
       </div>
 
-      <!-- Review Section: Description -->
-      <k-card
-        :outline="true"
-        :content-wrap="false"
-        class="p-4 rounded !mx-0"
-      >
-        <div class="flex flex-row justify-stretch items-center mb-2 w-auto">
-          <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
-            <i class="fa-solid fa-lightbulb"></i>
-            DESCRIPTION
-          </h3>
-          <k-button
-            type="button"
-            @click="goToStep(3)"
-            :clear="true"
-            small
-            class="text-xs font-bold w-auto"
-          >
-            <i class="fa-solid fa-pen-to-square mr-1"></i>
-            Edit
-          </k-button>
-        </div>
-        <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-          {{ draft.details || '(No details provided)' }}
-        </p>
-      </k-card>
-          
-
       <!-- Review Section: Location -->
       <k-card
         :outline="true"
         :content-wrap="false"
-        class="p-4 rounded !mx-0"
+        class="p-0 rounded !mx-0"
       >
-        <div class="flex flex-row justify-stretch items-center mb-2 w-auto">
+        <div class="flex flex-row justify-stretch items-center px-4 pt-4 pb-2 w-auto">
           <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
             <i class="fa-solid fa-location-dot"></i>
             Location
@@ -556,14 +528,48 @@
             Edit
           </k-button>
         </div>
-        <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-          {{ draft.location?.address || 'Dallas, TX' }}
-        </p>
-        <p v-if="draft.location?.description" class="text-xs text-zinc-500 mt-1">
+        <div class="relative overflow-hidden border-y border-zinc-200 dark:border-zinc-700">
+          <div class="relative flex items-center border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+            <input
+              type="text"
+              :value="draft.location?.address || 'Dallas, TX'"
+              readonly
+              aria-label="Selected location address"
+              class="min-w-0 flex-1 bg-transparent text-sm text-zinc-800 outline-none dark:text-zinc-100"
+            />
+            <button
+              type="button"
+              @click="centerReviewMap"
+              title="Center map on selected location"
+              aria-label="Center map on selected location"
+              class="ml-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            ><i class="fa-solid fa-crosshairs" aria-hidden="true"></i></button>
+          </div>
+          <div class="relative aspect-square bg-zinc-100 dark:bg-zinc-800" aria-label="Map preview of selected location">
+            <div ref="reviewMapContainer" class="absolute inset-0"></div>
+            <div class="absolute left-2 top-2 z-20 rounded-xl border border-zinc-300 bg-white/95 p-0.5 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+              <k-segmented :raised="!isDark" :outline="isDark" class="w-auto" aria-label="Review map view">
+                <k-segmented-button :active="reviewMapType === 'roadmap'" @click="setReviewMapType('roadmap')" small class="justify-center px-2.5 py-1 text-xs font-bold">Streets</k-segmented-button>
+                <k-segmented-button :active="reviewMapType === 'hybrid'" @click="setReviewMapType('hybrid')" small class="justify-center px-2.5 py-1 text-xs font-bold">Satellite</k-segmented-button>
+              </k-segmented>
+            </div>
+            <div class="pointer-events-none absolute inset-0 z-10 overflow-hidden" aria-hidden="true">
+              <svg ref="reviewCrosshair" :style="reviewCrosshairStyle" class="absolute h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 drop-shadow" viewBox="0 0 50 50">
+                <circle cx="25" cy="25" r="17" :fill="pinButtonColor" />
+                <g transform="translate(25 25)" fill="none" :stroke="crosshairStrokeColor" stroke-width="3">
+                  <circle r="9" />
+                  <path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" />
+                  <circle r="2" :fill="crosshairStrokeColor" stroke="none" />
+                </g>
+              </svg>
+            </div>
+          </div>
+          <p class="border-t border-zinc-200 px-3 py-2 text-[11px] font-mono text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            {{ Number(draft.location?.latitude ?? 32.7767).toFixed(5) }}, {{ Number(draft.location?.longitude ?? -96.797).toFixed(5) }}
+          </p>
+        </div>
+        <p v-if="draft.location?.description" class="px-4 py-3 text-xs text-zinc-500">
           <span class="font-semibold text-zinc-600 dark:text-zinc-400">Note:</span> {{ draft.location.description }}
-        </p>
-        <p v-if="draft.location?.latitude" class="text-[11px] text-zinc-400 font-mono mt-1">
-          {{ Number(draft.location.latitude).toFixed(5) }}, {{ Number(draft.location.longitude).toFixed(5) }}
         </p>
       </k-card>
 
@@ -591,19 +597,85 @@
         </div>
 
         <div v-if="draft.photos && draft.photos.length > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-          <div
+          <button
             v-for="(ph, idx) in draft.photos"
             :key="idx"
-            class="relative rounded-lg overflow-hidden h-20 bg-zinc-800 border border-zinc-700"
+            type="button"
+            @click="openPhotoLightbox(idx)"
+            :aria-label="`Preview photo ${idx + 1}${ph.caption ? `: ${ph.caption}` : ''}`"
+            class="relative rounded-lg overflow-hidden h-20 bg-zinc-800 border border-zinc-700 text-left"
           >
             <img :src="ph.dataUrl || ph.url" class="w-full h-full object-cover" alt="" />
-            <div v-if="ph.caption" class="absolute bottom-0 inset-x-0 bg-black/70 text-[10px] text-white p-1 truncate">
+            <span v-if="ph.caption" class="absolute bottom-0 inset-x-0 bg-black/70 text-[10px] text-white p-1 truncate">
               {{ ph.caption }}
-            </div>
-          </div>
+            </span>
+          </button>
         </div>
         <p v-else class="text-xs text-zinc-500">No photos attached.</p>
       </k-card>
+
+      <!-- Review Section: Description -->
+      <k-card
+        :outline="true"
+        :content-wrap="false"
+        class="p-4 rounded !mx-0"
+      >
+        <div class="flex flex-row justify-stretch items-center mb-2 w-auto">
+          <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
+            <i class="fa-solid fa-lightbulb"></i>
+            DESCRIPTION
+          </h3>
+          <k-button
+            type="button"
+            @click="goToStep(3)"
+            :clear="true"
+            small
+            class="text-xs font-bold w-auto"
+          >
+            <i class="fa-solid fa-pen-to-square mr-1"></i>
+            Edit
+          </k-button>
+        </div>
+        <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+          {{ draft.details || '(No details provided)' }}
+        </p>
+      </k-card>
+
+      <div
+        v-if="isPhotoLightboxOpen"
+        class="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/95 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Photo preview"
+        @click.self="closePhotoLightbox"
+        @pointerdown="startLightboxSwipe"
+        @pointerup="finishLightboxSwipe"
+        @pointercancel="lightboxPointerStart = null"
+        @keydown.left.prevent="navigateLightbox(-1)"
+        @keydown.right.prevent="navigateLightbox(1)"
+        tabindex="0"
+      >
+        <button type="button" @click="closePhotoLightbox" aria-label="Close photo preview" class="absolute right-4 top-4 z-10 rounded-full bg-black/60 p-3 text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <button v-if="draft.photos.length > 1" type="button" @click.stop="navigateLightbox(-1)" aria-label="Previous photo" class="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-3 text-white">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <img
+          v-if="draft.photos[lightboxPhotoIndex]"
+          :src="draft.photos[lightboxPhotoIndex].dataUrl || draft.photos[lightboxPhotoIndex].url"
+          :alt="draft.photos[lightboxPhotoIndex].caption || `Photo ${lightboxPhotoIndex + 1}`"
+          class="max-h-[78vh] max-w-full select-none object-contain"
+          draggable="false"
+        />
+        <button v-if="draft.photos.length > 1" type="button" @click.stop="navigateLightbox(1)" aria-label="Next photo" class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-3 text-white">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <div class="mt-4 max-w-xl text-center text-sm text-white">
+          <p>{{ draft.photos[lightboxPhotoIndex]?.caption || 'No caption' }}</p>
+          <p v-if="draft.photos.length > 1" class="mt-2 text-xs text-white/70">{{ lightboxPhotoIndex + 1 }} / {{ draft.photos.length }}</p>
+        </div>
+      </div>
 
       <!-- Author Name & Email (Required) -->
       <div class="pt-2 border-zinc-200 dark:border-zinc-800 space-y-4">
@@ -968,6 +1040,14 @@ const fileInput = ref(null);
 const cameraInput = ref(null);
 const photoViewer = ref(null);
 const activePhotoIndex = ref(0);
+const reviewMapContainer = ref(null);
+const reviewCrosshair = ref(null);
+const reviewCrosshairStyle = ref({ left: '50%', top: '50%' });
+const reviewMapType = ref('roadmap');
+let reviewMapInstance = null;
+const isPhotoLightboxOpen = ref(false);
+const lightboxPhotoIndex = ref(0);
+let lightboxPointerStart = null;
 const photoViewerStyle = {
   height: 'min(50vh, 28rem)',
   maxHeight: 'calc(100dvh - 17rem)',
@@ -1179,6 +1259,7 @@ watch(() => draft.step, (step) => {
   if (step === 3) nextTick(resizeDetailsInput);
   else speechRecorder.cancel();
   if (step === 1) nextTick(updatePinAndContinuePosition);
+  if (step === 4) nextTick(initReviewMap);
 }, { immediate: true });
 
 onActivated(() => {
@@ -1510,6 +1591,81 @@ function photoScrollAdvance(viewer) {
   return firstSlide.getBoundingClientRect().width + gap;
 }
 
+async function initReviewMap() {
+  const container = reviewMapContainer.value;
+  if (!container || draft.step !== 4 || !hasGoogleMapsKey) return;
+  const maps = await loadGoogleMaps();
+  if (!maps || container !== reviewMapContainer.value || draft.step !== 4) return;
+  const position = {
+    lat: Number(draft.location?.latitude ?? 32.7767),
+    lng: Number(draft.location?.longitude ?? -96.797),
+  };
+  const reviewMap = new maps.Map(container, {
+    center: position,
+    zoom: 16,
+    mapTypeId: reviewMapType.value === 'hybrid' ? maps.MapTypeId.HYBRID : maps.MapTypeId.ROADMAP,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+    zoomControl: true,
+    gestureHandling: 'cooperative',
+    clickableIcons: false,
+    styles: getMapStyles(isDark.value, 'roadmap'),
+  });
+  reviewMapInstance = reviewMap;
+  const crosshairOverlay = new maps.OverlayView();
+  crosshairOverlay.onAdd = () => {};
+  crosshairOverlay.draw = () => {
+    const point = crosshairOverlay.getProjection()?.fromLatLngToContainerPixel(position);
+    if (!point) return;
+    reviewCrosshairStyle.value = { left: `${point.x}px`, top: `${point.y}px` };
+  };
+  crosshairOverlay.onRemove = () => {};
+  crosshairOverlay.setMap(reviewMap);
+}
+
+function setReviewMapType(type) {
+  reviewMapType.value = type;
+  reviewMapInstance?.setMapTypeId(type);
+}
+
+function centerReviewMap() {
+  if (!reviewMapInstance) return;
+  reviewMapInstance.panTo({
+    lat: Number(draft.location?.latitude ?? 32.7767),
+    lng: Number(draft.location?.longitude ?? -96.797),
+  });
+}
+
+function openPhotoLightbox(index) {
+  lightboxPhotoIndex.value = index;
+  isPhotoLightboxOpen.value = true;
+  nextTick(() => document.querySelector('[role="dialog"][aria-label="Photo preview"]')?.focus());
+}
+
+function closePhotoLightbox() {
+  isPhotoLightboxOpen.value = false;
+  lightboxPointerStart = null;
+}
+
+function navigateLightbox(direction) {
+  const count = draft.photos?.length || 0;
+  if (count < 2) return;
+  lightboxPhotoIndex.value = (lightboxPhotoIndex.value + direction + count) % count;
+}
+
+function startLightboxSwipe(event) {
+  lightboxPointerStart = { x: event.clientX, y: event.clientY };
+}
+
+function finishLightboxSwipe(event) {
+  if (!lightboxPointerStart) return;
+  const dx = event.clientX - lightboxPointerStart.x;
+  const dy = event.clientY - lightboxPointerStart.y;
+  lightboxPointerStart = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) navigateLightbox(dx < 0 ? 1 : -1);
+}
+
 function updateActivePhotoIndex() {
   const viewer = photoViewer.value;
   if (!viewer || viewer.clientWidth === 0) return;
@@ -1624,6 +1780,43 @@ async function submitFinalSuggestion() {
 
   try {
     const uploadedPhotos = [];
+    const location = {
+      latitude: Number(draft.location?.latitude ?? 32.7767),
+      longitude: Number(draft.location?.longitude ?? -96.7970),
+    };
+
+    dynamicProgressMessage.value = 'Preparing location diagram renderer…';
+    const [{ fetchLocationData }, { generateLocationDiagram }, { railCatalog }] = await Promise.all([
+      import('../services/liveLocationData'),
+      import('../services/locationDiagram'),
+      import('../services/railCatalog'),
+    ]);
+    dynamicProgressMessage.value = 'Generating location thumbnail…';
+    const { data, administrativeBoundary } = await fetchLocationData({
+      lat: location.latitude,
+      lon: location.longitude,
+    }, {
+      onProgress: (message) => { dynamicProgressMessage.value = message; },
+    });
+    const { svg } = generateLocationDiagram(data, {
+      ...data.center,
+      administrativeBoundary,
+      railCatalog,
+    });
+    submissionProgress.value = 15;
+    dynamicProgressMessage.value = 'Uploading location thumbnail…';
+    const thumbnailType = 'image/svg+xml';
+    const { uploadUrl: thumbnailUploadUrl, publicUrl: thumbnailUrl } = await requestPhotoUploadUrl({
+      contentType: thumbnailType,
+      filename: 'location-diagram.svg',
+    });
+    await uploadPhotoBinary(thumbnailUploadUrl, new Blob([svg], { type: thumbnailType }), thumbnailType);
+    uploadedPhotos.push({
+      url: thumbnailUrl,
+      caption: 'Location diagram',
+      timestamp: new Date().toISOString(),
+    });
+
     const photosToUpload = (draft.photos || []).filter((p) => p.blob || p.url || p.dataUrl);
 
     if (photosToUpload.length > 0) {
@@ -1631,7 +1824,7 @@ async function submitFinalSuggestion() {
 
       for (let i = 0; i < photosToUpload.length; i++) {
         const p = photosToUpload[i];
-        submissionProgress.value = Math.round(10 + i * stepPercent);
+        submissionProgress.value = Math.round(15 + i * stepPercent);
         dynamicProgressMessage.value = `Uploading photo ${i + 1} of ${photosToUpload.length}...`;
 
         // If blob is missing (e.g. restored from localStorage draft), reconstitute from dataUrl
@@ -1686,8 +1879,7 @@ async function submitFinalSuggestion() {
         ...(uploadedPhotos.length > 0 ? { photos: uploadedPhotos } : {}),
       },
       location: {
-        latitude: draft.location?.latitude || 32.7767,
-        longitude: draft.location?.longitude || -96.7970,
+        ...location,
         address: draft.location?.address || 'Dallas, TX',
         ...(draft.location?.description ? { description: draft.location.description } : {})
       },
