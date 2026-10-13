@@ -139,6 +139,90 @@ test('theme menu supports light, dark, and system themes', async ({ page }) => {
   });
 });
 
+test('photo step uses sticky segmented controls and a bounded swipe viewer', async ({ page }) => {
+  await page.addInitScript(() => {
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function (callback, type, quality) {
+      setTimeout(() => originalToBlob.call(this, callback, type, quality), 250);
+    };
+    localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({
+      step: 2,
+      photos: [
+        { id: 'photo-1', dataUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', caption: 'First photo' },
+        { id: 'photo-2', dataUrl: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', caption: 'Second photo' },
+      ],
+    }));
+  });
+  await page.goto('/submit');
+
+  const controls = page.getByTestId('photo-step-controls');
+  const viewer = page.getByTestId('photo-swipe-viewer');
+  await expect(controls).toBeVisible();
+  await expect(page.getByTestId('photo-action-segment')).toHaveClass(/border/);
+  await expect(page.getByTestId('photo-navigation-segment')).toHaveClass(/border/);
+  await expect(page.getByRole('button', { name: 'Upload photos' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take photo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back' })).toBeVisible();
+  await expect(page.getByTestId('photo-navigation-segment').getByRole('button').nth(1)).toBeVisible();
+  await expect(viewer.locator('img')).toHaveCount(2);
+
+  const layout = await page.evaluate(() => {
+    const controls = document.querySelector('[data-testid="photo-step-controls"]');
+    const viewer = document.querySelector('[data-testid="photo-swipe-viewer"]');
+    return {
+      footerPosition: getComputedStyle(controls).position,
+      viewerHeight: viewer.getBoundingClientRect().height,
+      viewportHeight: window.innerHeight,
+      viewportWidth: window.innerWidth,
+      viewerLeft: viewer.getBoundingClientRect().left,
+      viewerWidth: viewer.getBoundingClientRect().width,
+      firstSlideWidth: viewer.firstElementChild.getBoundingClientRect().width,
+      viewerClientWidth: viewer.clientWidth,
+      viewerScrollWidth: viewer.scrollWidth,
+      scrollbarWidth: getComputedStyle(viewer).scrollbarWidth,
+    };
+  });
+  expect(layout.footerPosition).toBe('sticky');
+  expect(layout.viewerHeight).toBeLessThanOrEqual(layout.viewportHeight * 0.5 + 1);
+  expect(layout.viewerLeft).toBeLessThanOrEqual(1);
+  expect(layout.viewerWidth).toBeCloseTo(layout.viewportWidth, 0);
+  expect(layout.firstSlideWidth).toBeLessThan(layout.viewerWidth);
+  expect(layout.viewerScrollWidth).toBeGreaterThan(layout.viewerClientWidth);
+  expect(layout.scrollbarWidth).toBe('none');
+
+  const previousPhoto = page.getByRole('button', { name: 'Previous photo' });
+  const nextPhoto = page.getByRole('button', { name: 'Next photo' });
+  await expect(previousPhoto).toBeDisabled();
+  await nextPhoto.click();
+  await expect(page.getByText('2 / 2')).toBeVisible();
+  await expect(nextPhoto).toBeDisabled();
+  await previousPhoto.click();
+  await expect(page.getByText('1 / 2')).toBeVisible();
+
+  await viewer.evaluate((element) => {
+    element.scrollLeft = element.clientWidth;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect(page.getByText('2 / 2')).toBeVisible();
+
+  const controlsTop = (await controls.boundingBox()).y;
+  await page.locator('input[type="file"][multiple]').setInputFiles({
+    name: 'uploaded.gif',
+    mimeType: 'image/gif',
+    buffer: Buffer.from('R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=', 'base64'),
+  });
+  const toast = page.getByTestId('photo-processing-toast');
+  await expect(toast).toBeVisible();
+  const toastStyle = await toast.evaluate((element) => ({
+    position: getComputedStyle(element).position,
+    top: getComputedStyle(element).top,
+  }));
+  expect(toastStyle.position).toBe('fixed');
+  expect(toastStyle.top).toBe('16px');
+  expect((await controls.boundingBox()).y).toBe(controlsTop);
+  await expect(page.getByText('3 / 3')).toBeVisible();
+});
+
 test('auto improve menu appears only after three words and leaves options inactive', async ({ page }) => {
   await page.goto('/submit');
   const details = page.locator('#input-details');

@@ -35,6 +35,15 @@ body {
   scrollbar-color: #bcc6ec transparent;
 }
 
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .k-toolbar [tabbar] {
     --bg-gradient-direction: to bottom;
     --bg-gradient-opacity: 0.25;

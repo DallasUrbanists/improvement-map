@@ -210,7 +210,7 @@
         </div>
 
         <div ref="centerOnLocationButton" data-testid="center-on-location-control" class="absolute bottom-20 left-2 z-30 flex items-center rounded-xl border border-zinc-300 bg-white/95 p-0.5 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
-          <k-segmented :raised="true" class="w-auto">
+          <k-segmented :raised="!isDark" :outline="isDark" class="w-auto">
             <k-segmented-button
               @click="requestGpsLocation"
               class="px-3 py-1 text-xs font-bold"
@@ -223,7 +223,7 @@
         </div>
 
         <div class="absolute bottom-8 left-3 right-16 z-30 flex items-center rounded-xl border border-zinc-300 bg-white/95 p-0.5 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
-          <k-segmented :raised="true" class="w-full" aria-label="Suggestion map options">
+          <k-segmented :raised="!isDark" :outline="isDark" class="w-full" aria-label="Suggestion map options">
             <k-segmented-button :active="currentMapType === 'roadmap'" @click="setMapType('roadmap')" small class="flex-1 justify-center px-2.5 py-1 text-xs font-bold">
               Streets
             </k-segmented-button>
@@ -310,154 +310,170 @@
     </div>
 
     <!-- ================= STEP 2: PHOTO ================= -->
-    <div v-else-if="draft.step === 2" class="p-6 space-y-5 flex-grow min-h-0 overflow-y-auto">
-      <div>
-        <h2 class="text-2xl font-bold mb-1">Attach Photos</h2>
-        <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-          Optionally attach up to 10 photos.
+    <div v-else-if="draft.step === 2" class="flex flex-grow min-h-0 flex-col">
+      <div class="flex-grow min-h-0 space-y-5 overflow-y-auto p-6">
+        <div>
+          <h2 class="text-2xl font-bold mb-1">Attach photos</h2>
+        </div>
+
+        <div v-if="photoError" class="flex items-center justify-between rounded bg-red-100 p-3 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-400">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>{{ photoError }}</span>
+          </div>
+          <button type="button" @click="photoError = ''" class="text-red-500 hover:text-black dark:hover:text-white" aria-label="Dismiss photo error">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div v-if="draft.photos?.length" class="space-y-2">
+          <div
+            ref="photoViewer"
+            data-testid="photo-swipe-viewer"
+            class="hide-scrollbar -mx-6 flex min-h-0 w-[calc(100%+3rem)] snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-6 touch-pan-x"
+            :style="photoViewerStyle"
+            aria-label="Attached photos; swipe horizontally to browse"
+            @scroll.passive="updateActivePhotoIndex"
+          >
+            <div
+              v-for="(photo, index) in draft.photos"
+              :key="photo.id || index"
+              class="relative flex h-full w-[calc(100vw-3rem)] flex-none snap-start flex-col"
+            >
+              <div class="relative min-h-0 w-full flex-grow overflow-hidden rounded-t-lg border border-zinc-200 bg-zinc-900 dark:border-zinc-700">
+                <img
+                  :src="photo.dataUrl || photo.url"
+                  :alt="photo.caption || `Photo ${index + 1}`"
+                  class="h-full w-full object-contain"
+                />
+                <button
+                  type="button"
+                  @click="removePhoto(index)"
+                  class="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition hover:bg-red-500 active:scale-90"
+                  :aria-label="`Remove photo ${index + 1}`"
+                >
+                  <i class="fa-solid fa-trash-can text-xs"></i>
+                </button>
+              </div>
+
+              <input
+                type="text"
+                v-model="photo.caption"
+                @input="persistDraft"
+                placeholder="Add photo caption (optional)..."
+                :aria-label="`Caption for photo ${index + 1}`"
+                class="w-full flex-shrink-0 rounded-b-lg rounded-t-none border border-t-0 border-zinc-200 bg-zinc-100 px-3 py-2 text-xs text-black placeholder-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+              />
+            </div>
+          </div>
+
+          <div v-if="draft.photos.length > 1" class="flex items-center justify-center gap-3 text-xs text-zinc-500" aria-label="Photo navigation">
+            <button
+              type="button"
+              @click="scrollToPhoto(activePhotoIndex - 1)"
+              :disabled="activePhotoIndex === 0"
+              aria-label="Previous photo"
+              class="px-1 py-1 text-zinc-700 disabled:opacity-40 dark:text-zinc-200"
+            >
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="flex items-center justify-center gap-2">
+              <button
+                v-for="(_, index) in draft.photos"
+                :key="index"
+                type="button"
+                @click="scrollToPhoto(index)"
+                :aria-label="`Show photo ${index + 1}`"
+                :aria-current="activePhotoIndex === index ? 'true' : undefined"
+                class="h-2 w-2 rounded-full transition-colors"
+                :class="activePhotoIndex === index ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-600'"
+              ></button>
+              <span class="ml-1">{{ activePhotoIndex + 1 }} / {{ draft.photos.length }}</span>
+            </div>
+            <button
+              type="button"
+              @click="scrollToPhoto(activePhotoIndex + 1)"
+              :disabled="activePhotoIndex === draft.photos.length - 1"
+              aria-label="Next photo"
+              class="px-1 py-1 text-zinc-700 disabled:opacity-40 dark:text-zinc-200"
+            >
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+        <p v-else class="text-sm text-zinc-500 dark:text-zinc-400">
+          Photos are optional. Add images to show the location or conditions.
         </p>
       </div>
 
-      <!-- Action Bar: Upload Button & Camera Button -->
-      <div class="flex flex-wrap items-center gap-3">
-        <!-- File Upload Input Trigger -->
-        <label
-          class="inline-block cursor-pointer"
-          :class="{ 'opacity-50 pointer-events-none': (draft.photos || []).length >= 10 || isProcessingPhotos }"
-        >
-          <k-button
-            component="div"
-            :rounded="true"
+      <div data-testid="photo-step-controls" class="sticky bottom-0 z-30 flex-shrink-0 space-y-2 border-t border-zinc-200 bg-white/95 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+        <k-segmented data-testid="photo-action-segment" :raised="!isDark" :outline="isDark" class="w-full" aria-label="Add photos">
+          <k-segmented-button
+            type="button"
             :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-            class="font-bold text-sm shadow cursor-pointer pointer-events-none"
+            class="flex-1 justify-center gap-2 text-sm font-bold"
+            @click="openFilePicker"
           >
-            <i class="fa-solid fa-cloud-arrow-up mr-2"></i>
-            <span>Upload Photos</span>
-          </k-button>
-          <input
-            ref="fileInput"
-            type="file"
-            accept="image/*"
-            multiple
-            class="hidden"
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            Upload photos
+          </k-segmented-button>
+          <k-segmented-button
+            type="button"
             :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-            @change="handleFilesSelected"
-          />
-        </label>
-
-        <!-- Camera Capture Trigger -->
-        <label
-          class="inline-block cursor-pointer"
-          :class="{ 'opacity-50 pointer-events-none': (draft.photos || []).length >= 10 || isProcessingPhotos }"
-        >
-          <k-button
-            component="div"
-            :outline="true"
-            :rounded="true"
-            :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-            class="font-semibold text-sm shadow cursor-pointer pointer-events-none"
+            class="flex-1 justify-center gap-2 text-sm font-bold"
+            @click="openCameraPicker"
           >
-            <i class="fa-solid fa-camera mr-2"></i>
-            <span>Take Photo</span>
-          </k-button>
-          <input
-            ref="cameraInput"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            class="hidden"
-            :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-            @change="handleFilesSelected"
-          />
-        </label>
+            <i class="fa-solid fa-camera"></i>
+            Take photo
+          </k-segmented-button>
+        </k-segmented>
 
-        <!-- Photos Counter Badge with Konsta Badge -->
-        <k-badge class="text-xs font-semibold px-3 py-1.5 rounded-full">
-          {{ (draft.photos || []).length }} / 10 Photos
-        </k-badge>
-      </div>
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/*"
+          multiple
+          class="hidden"
+          :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
+          @change="handleFilesSelected"
+        />
+        <input
+          ref="cameraInput"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          class="hidden"
+          :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
+          @change="handleFilesSelected"
+        />
 
-      <!-- Processing Indicator with Konsta Preloader -->
-      <div v-if="isProcessingPhotos" class="p-3 rounded bg-zinc-100 dark:bg-zinc-800 text-xs flex items-center gap-2">
-        <k-preloader class="w-4 h-4" />
-        <span>Compressing & optimizing image(s)...</span>
-      </div>
-
-      <!-- Error Alert -->
-      <div v-if="photoError" class="p-3 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <i class="fa-solid fa-circle-exclamation"></i>
-          <span>{{ photoError }}</span>
-        </div>
-        <button @click="photoError = ''" class="text-red-500 hover:text-black dark:hover:text-white">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-
-      <!-- Photos Grid with Konsta Card -->
-      <div
-        v-if="draft.photos && draft.photos.length > 0"
-      >
-        <div
-          v-for="(photo, index) in draft.photos"
-          :key="photo.id || index"
-          :content-wrap="false"
-          class="rounded-2xl mb-4 flex flex-col gap-2 relative"
-        >
-          <div class="relative w-full rounded overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-700">
-            <img
-              :src="photo.dataUrl || photo.url"
-              :alt="photo.caption || 'Photo'"
-              class="w-full h-full object-contain"
-            />
-            <k-badge class="absolute top-2 left-2 text-[11px] font-bold">
-              #{{ index + 1 }}
-            </k-badge>
-            <button
-              type="button"
-              @click="removePhoto(index)"
-              class="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition active:scale-90"
-              title="Remove Photo"
-            >
-              <i class="fa-solid fa-trash-can text-xs"></i>
-            </button>
-          </div>
-
-          <!-- Caption input -->
-          <input
-            type="text"
-            v-model="photo.caption"
-            @input="persistDraft"
-            placeholder="Add photo caption (optional)..."
-            class="w-full px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-black dark:text-white placeholder-zinc-400 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div class="pt-4 flex items-center justify-between gap-3">
-        <k-button
-          type="button"
-          @click="prevStep"
-          :outline="true"
-          large
-          class="font-bold text-base px-8 py-3.5 shadow-lg"
-        >
-          <i class="fa-solid fa-arrow-left mr-2"></i>
-          Back
-        </k-button>
-
-        <k-button
-          type="button"
-          @click="nextStep"
-          large
-          class="font-bold text-base px-8"
-        >
-          <span>{{ (draft.photos || []).length === 0 ? 'Skip' : 'Next' }}</span>
-          <i class="fa-solid fa-arrow-right ml-2"></i>
-        </k-button>
+        <k-segmented data-testid="photo-navigation-segment" :raised="!isDark" :outline="isDark" class="w-full" aria-label="Photo step navigation">
+          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="prevStep">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back
+          </k-segmented-button>
+          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="nextStep">
+            Next
+            <i class="fa-solid fa-arrow-right"></i>
+          </k-segmented-button>
+        </k-segmented>
       </div>
     </div>
+
+    <k-toast
+      v-if="isProcessingPhotos"
+      data-testid="photo-processing-toast"
+      :opened="true"
+      position="center"
+      :style="{ top: '1rem', bottom: 'auto' }"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex items-center gap-2 text-sm">
+        <k-preloader class="h-4 w-4" />
+        <span>Compressing & optimizing image(s)...</span>
+      </div>
+    </k-toast>
 
     <!-- ================= STEP 4: REVIEW & SUBMIT ================= -->
     <div v-else-if="draft.step === 4" class="p-6 space-y-6 flex-grow min-h-0 overflow-y-auto">
@@ -788,6 +804,7 @@ import {
   kProgressbar,
   kPreloader,
   kBadge,
+  kToast,
   kSegmented,
   kSegmentedButton,
 } from 'konsta/vue';
@@ -909,6 +926,13 @@ let isSubmitViewActive = false;
 // Step 2 Photo state
 const fileInput = ref(null);
 const cameraInput = ref(null);
+const photoViewer = ref(null);
+const activePhotoIndex = ref(0);
+const photoViewerStyle = {
+  height: 'min(50vh, 28rem)',
+  maxHeight: 'calc(100dvh - 17rem)',
+  scrollPaddingInline: '1.5rem',
+};
 const isProcessingPhotos = ref(false);
 const photoError = ref('');
 
@@ -1430,6 +1454,37 @@ function saveDescModal() {
 }
 
 // ---------------- PHOTO LOGIC ---------------- //
+function openFilePicker() {
+  fileInput.value?.click();
+}
+
+function openCameraPicker() {
+  cameraInput.value?.click();
+}
+
+function photoScrollAdvance(viewer) {
+  const firstSlide = viewer.firstElementChild;
+  if (!firstSlide) return viewer.clientWidth;
+  const gap = Number.parseFloat(window.getComputedStyle(viewer).columnGap) || 0;
+  return firstSlide.getBoundingClientRect().width + gap;
+}
+
+function updateActivePhotoIndex() {
+  const viewer = photoViewer.value;
+  if (!viewer || viewer.clientWidth === 0) return;
+  activePhotoIndex.value = Math.min(
+    draft.photos.length - 1,
+    Math.round(viewer.scrollLeft / photoScrollAdvance(viewer)),
+  );
+}
+
+function scrollToPhoto(index) {
+  const viewer = photoViewer.value;
+  if (!viewer) return;
+  const targetIndex = Math.max(0, Math.min(index, draft.photos.length - 1));
+  viewer.scrollTo({ left: targetIndex * photoScrollAdvance(viewer), behavior: 'smooth' });
+}
+
 async function handleFilesSelected(event) {
   const files = Array.from(event.target.files || []);
   if (files.length === 0) return;
@@ -1458,6 +1513,9 @@ async function handleFilesSelected(event) {
         caption: '',
         name: file.name,
       });
+      await nextTick();
+      activePhotoIndex.value = draft.photos.length - 1;
+      scrollToPhoto(activePhotoIndex.value);
     }
     persistDraft();
   } catch (err) {
@@ -1470,7 +1528,23 @@ async function handleFilesSelected(event) {
 
 function removePhoto(index) {
   draft.photos.splice(index, 1);
+  if (draft.photos.length === 0) {
+    activePhotoIndex.value = 0;
+  } else if (index < activePhotoIndex.value) {
+    activePhotoIndex.value -= 1;
+  } else if (index === activePhotoIndex.value) {
+    activePhotoIndex.value = Math.min(index, draft.photos.length - 1);
+  }
+
   persistDraft();
+  nextTick(() => {
+    if (photoViewer.value) {
+      photoViewer.value.scrollTo({
+        left: activePhotoIndex.value * photoScrollAdvance(photoViewer.value),
+        behavior: 'auto',
+      });
+    }
+  });
 }
 
 // ---------------- STEP 4 & SUBMIT LOGIC ---------------- //
