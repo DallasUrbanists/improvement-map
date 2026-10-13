@@ -28,7 +28,7 @@ Hosted on **GitHub Pages**: [https://dallasurbanists.github.io/improvement-map/]
 
 ### 2. Submit Page (`/submit`)
 A wizard-style multi-step form with persistent `localStorage` draft saving:
-- **Step 1: Describe** — Required Summary and Details/Impact fields with validation.
+- **Step 1: Describe** — Required description with automatic resizing, speech-to-text recording, and grammar/clarity assistance.
 - **Step 2: Locate** — Embedded Google Maps SDK with draggable Google Maps marker, Streets (`ROADMAP`) & Satellite view toggle, Google Maps address search autocomplete, GPS recenter button, and optional "Describe location" modal.
 - **Step 3: Photo** — Client-side HTML5 Canvas resizing to WebP format, support for device photo library and camera capture for up to 10 photos with optional captions.
 - **Step 4: Review & Submit** — Detailed summary with subheadings and "Edit" links for each step, author name & email validation, and direct-to-cloud submission.
@@ -85,6 +85,24 @@ npm test
 # Run tests in UI mode
 npx playwright test --ui
 ```
+
+### Speech recording reliability
+
+Recording uses the browser's Web Speech API. Recognition starts directly from the Record click and requests microphone permission itself, without separately opening and releasing another microphone stream. Previously denied permission must still be reset in browser settings.
+
+- The controls distinguish starting, listening, and stopping. The initial startup shows **Cancel recording**; automatic restarts after a pause show **Please wait** until listening resumes. Either startup can still be cancelled by clicking the button; a missing start callback times out after 15 seconds. A stalled Stop is force-aborted after 1.5 seconds, and a listening session with no transcript updates ends after 30 seconds.
+- Android uses short recognition sessions rather than continuous mode. Completed sessions restart after 750 ms while recording remains requested, with limits of two consecutive empty-session retries and ten restarts per minute. Permission, network, and no-speech errors stop rather than retrying indefinitely.
+- Final results are retained once per session/result index; provisional text is replaced as recognition evolves. Deliberately repeated words are preserved. Editing is temporarily read-only during recording to avoid overwriting manual changes.
+- Leaving Submit, moving to another step, hiding the page, or cancelling invalidates pending callbacks and stops recognition. Displayed text remains in the saved draft. Native recognition still depends on device/browser services; use the keyboard's microphone when unavailable.
+- Console debug entries prefixed `[speech-recognition]` include only timestamps, session IDs, event names, and error codes—not source text, transcripts, or audio. The controller also keeps the last 100 diagnostic entries in memory. Browser recognition may use a remote transcription service; this app does not store audio.
+
+Focused regressions:
+
+```powershell
+npx playwright test 'speechRecognition.spec.js|e2e.spec.js' -g speech
+```
+
+Playwright's mobile project emulates a viewport; it does not exercise Android's microphone or speech service. Before releasing recording changes, test actual Android Chrome devices and desktop Edge over HTTPS (or localhost on desktop): allow/deny permission, cancel while starting, dictate several sentences with pauses, intentionally repeat words, stop/restart rapidly, switch tabs/routes, and test loss of connectivity. Confirm the microphone stops, the UI recovers, results do not accumulate duplicates, and long transcripts still resize/scroll correctly. Capture only the diagnostic event entries when investigating device failures.
 
 ---
 

@@ -336,22 +336,17 @@ test('speech-to-text recording appends recognized words to the idea', async ({ p
     class MockSpeechRecognition {
       start() {
         window.mockSpeechRecognition = this;
+        window.speechStartRequested = true;
+        this.onstart?.();
       }
 
       stop() {
         this.onend?.();
       }
+
+      abort() {}
     }
 
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: {
-        getUserMedia: async (constraints) => {
-          window.microphonePermissionRequested = constraints.audio === true;
-          return { getTracks: () => [{ stop() {} }] };
-        },
-      },
-    });
     window.SpeechRecognition = MockSpeechRecognition;
   });
 
@@ -368,7 +363,7 @@ test('speech-to-text recording appends recognized words to the idea', async ({ p
   await expect(autoImprove).toHaveCount(0);
   await expect(stopButton).toHaveClass(/bg-red-600/);
   await expect(stopButton).toHaveClass(/animate-pulse/);
-  expect(await page.evaluate(() => window.microphonePermissionRequested)).toBe(true);
+  expect(await page.evaluate(() => window.speechStartRequested)).toBe(true);
 
   await page.evaluate(() => {
     const button = document.querySelector('#input-details').parentElement.querySelector('button');
@@ -391,7 +386,7 @@ test('speech-to-text recording appends recognized words to the idea', async ({ p
       results: [[{ transcript: `Short speech. ${transcript}` }]],
     });
   }, speechText);
-  await expect(details).toHaveValue(`Existing description today\nShort speech. ${speechText}`);
+  await expect(details).toHaveValue(`Existing description today\nShort speech. ${speechText.trim()}`);
   expect(await page.evaluate(() => window.scrollIntoViewCalls)).toBeGreaterThan(0);
   const textareaLayout = await details.evaluate((textarea) => {
     const container = textarea.closest('.overflow-y-auto');
@@ -414,16 +409,14 @@ test('speech-to-text recording appends recognized words to the idea', async ({ p
 
 test('speech-to-text explains when microphone permission is blocked', async ({ page }) => {
   await page.addInitScript(() => {
-    class MockSpeechRecognition {}
+    class MockSpeechRecognition {
+      start() {
+        this.onerror?.({ error: 'not-allowed' });
+      }
 
-    Object.defineProperty(navigator, 'mediaDevices', {
-      configurable: true,
-      value: {
-        getUserMedia: async () => {
-          throw Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' });
-        },
-      },
-    });
+      abort() {}
+    }
+
     window.SpeechRecognition = MockSpeechRecognition;
   });
 

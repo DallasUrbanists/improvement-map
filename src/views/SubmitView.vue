@@ -14,6 +14,7 @@
           v-model="draft.details"
           @input="onDetailsInput"
           :disabled="isGrammarLoading || isClarityLoading"
+          :readonly="speechActive"
           rows="5"
           placeholder=""
           class="block w-full resize-none overflow-hidden px-4 py-3 rounded rounded-b-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none mb-0"
@@ -24,8 +25,9 @@
             ref="recordButton"
             type="button"
             @click="toggleSpeechRecognition"
-            :aria-pressed="isRecording"
-            :disabled="isRequestingMicrophone || isGrammarLoading || isClarityLoading"
+            :aria-pressed="speechActive"
+            :aria-busy="recordingState === 'starting' || recordingState === 'stopping'"
+            :disabled="recordingState === 'stopping' || isGrammarLoading || isClarityLoading"
             class="flex-1 gap-2 rounded-t-none px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus:ring-offset-zinc-900 cursor-pointer"
             :class="[
               isRecording
@@ -34,8 +36,8 @@
               showAutoImprove ? 'rounded-bl-md rounded-br-none' : 'rounded-bl-md rounded-br-md',
             ]"
           >
-            <i :class="isRequestingMicrophone ? 'fa-solid fa-spinner animate-spin' : (isRecording ? 'fa-solid fa-stop mr-1' : 'fa-solid fa-microphone mr-1')"></i>
-            {{ isRecording ? 'Stop recording' : (showAutoImprove ? 'Record' : (isRequestingMicrophone ? 'Requesting access…' : 'Record speech to text')) }}
+            <i :class="recordingState === 'starting' || recordingState === 'stopping' ? 'fa-solid fa-spinner animate-spin mr-1' : (isRecording ? 'fa-solid fa-stop mr-1' : 'fa-solid fa-microphone mr-1')"></i>
+            {{ recordingState === 'starting' ? (hasStartedRecording ? 'Please wait' : 'Cancel recording') : (recordingState === 'stopping' ? 'Stopping…' : (isRecording ? 'Stop recording' : (showAutoImprove ? 'Record' : 'Record speech to text'))) }}
           </button>
           <div v-if="showAutoImprove" class="relative border-l border-zinc-300 dark:border-zinc-600">
             <button
@@ -80,9 +82,15 @@
         <p v-if="clarityError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
           {{ clarityError }}
         </p>
+        <p v-if="speechActive" class="mt-2 text-xs text-zinc-600 dark:text-zinc-300" role="status" aria-live="polite">
+          {{ recordingState === 'starting' ? (hasStartedRecording ? 'Resuming recording… Please wait.' : 'Starting microphone… Allow access if prompted, or cancel.') : (recordingState === 'stopping' ? 'Finishing transcription…' : 'Listening…') }}
+        </p>
         <p v-if="speechError" class="text-xs text-red-600 dark:text-red-400" role="status">
-            {{ speechError }}
-          </p>
+          {{ speechError }}
+        </p>
+        <p v-if="speechError" class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          If recording is unavailable, tap the text box and use your keyboard’s microphone for dictation.
+        </p>
         <p v-if="errors.details" class="text-xs text-red-500 mt-1 flex items-center gap-1">
           <i class="fa-solid fa-circle-exclamation"></i>
           {{ errors.details }}
@@ -784,7 +792,7 @@ export default {
 </script>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onActivated, onBeforeUnmount, watch, inject, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, onActivated, onDeactivated, onBeforeUnmount, watch, inject, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   kCard,
@@ -811,6 +819,7 @@ import {
   generateSuggestionSummary,
 } from '../services/api';
 import { resizeImage } from '../services/image';
+import { createSpeechRecorder } from '../services/speechRecognition';
 import { isDark } from '../services/theme';
 import {
   loadGoogleMaps,
@@ -836,10 +845,12 @@ const autoImproveMenu = ref(null);
 const isAutoImproveOpen = ref(false);
 const isAutoImproveOpensUp = ref(false);
 const autoImproveMenuMaxHeight = ref(null);
-const isRecording = ref(false);
+const recordingState = ref('idle');
+const hasStartedRecording = ref(false);
+const speechActive = computed(() => recordingState.value !== 'idle');
+const isRecording = computed(() => recordingState.value === 'listening');
 const hasEnoughDetailsWords = computed(() => (draft.details || '').trim().split(/\s+/).filter(Boolean).length >= 3);
-const showAutoImprove = computed(() => hasEnoughDetailsWords.value && !isRecording.value);
-const isRequestingMicrophone = ref(false);
+const showAutoImprove = computed(() => hasEnoughDetailsWords.value && !speechActive.value);
 const speechError = ref('');
 const isGrammarLoading = ref(false);
 const grammarError = ref('');
@@ -847,8 +858,25 @@ const isClarityLoading = ref(false);
 const clarityError = ref('');
 const proposedRewrite = ref('');
 const isRewriteModalOpen = ref(false);
-let speechRecognition = null;
-let recordingBaseDetails = '';
+const speechRecorder = createSpeechRecorder({
+  onState: (state) => {
+    recordingState.value = state;
+    if (state === 'listening') hasStartedRecording.value = true;
+    else if (state === 'idle') hasStartedRecording.value = false;
+  },
+  onError: (error) => { speechError.value = error; },
+  onDiagnostic: (entry) => console.debug('[speech-recognition]', entry),
+  onText: (text) => {
+    draft.details = text;
+    persistDraft();
+    nextTick(() => {
+      resizeDetailsInput();
+      if (!areSpeechTargetsVisible()) {
+        recordButton.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
+      }
+    });
+  },
+});
 
 const errors = reactive({
   details: '',
@@ -1041,87 +1069,17 @@ watch(isAutoImproveOpen, (isOpen) => {
   }
 });
 
-async function toggleSpeechRecognition() {
-  if (isRecording.value) {
-    speechRecognition?.stop();
+function toggleSpeechRecognition() {
+  if (speechActive.value) {
+    speechRecorder.stop();
     return;
   }
-
   isAutoImproveOpen.value = false;
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    speechError.value = 'Speech-to-text is not supported by this browser.';
-    return;
-  }
-  if (!navigator.mediaDevices?.getUserMedia) {
-    speechError.value = 'Microphone access requires a secure connection and a supported browser.';
-    return;
-  }
+  speechRecorder.start(draft.details || '');
+}
 
-  speechError.value = '';
-  isRequestingMicrophone.value = true;
-  let microphoneStream;
-  try {
-    microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (error) {
-    const messages = {
-      NotAllowedError: 'Microphone access is blocked. Allow microphone access for this site in your browser settings, then try again.',
-      NotFoundError: 'No microphone was found. Connect or enable a microphone, then try again.',
-      NotReadableError: 'The microphone is unavailable. Check that it is connected and not being used by another app.',
-    };
-    speechError.value = messages[error.name] || 'Could not access the microphone. Check your browser permissions and try again.';
-    isRequestingMicrophone.value = false;
-    return;
-  } finally {
-    microphoneStream?.getTracks().forEach((track) => track.stop());
-  }
-  isRequestingMicrophone.value = false;
-
-  if (draft.step !== 1) return;
-
-  recordingBaseDetails = draft.details || '';
-  speechRecognition = new SpeechRecognition();
-  speechRecognition.lang = 'en-US';
-  speechRecognition.continuous = true;
-  speechRecognition.interimResults = true;
-  speechRecognition.onresult = (event) => {
-    const transcript = Array.from(event.results)
-      .map((result) => result[0].transcript)
-      .join('');
-    const separator = recordingBaseDetails && !/\s$/.test(recordingBaseDetails) ? '\n' : '';
-    draft.details = `${recordingBaseDetails}${separator}${transcript}`;
-    persistDraft();
-    nextTick(() => {
-      resizeDetailsInput();
-      if (!areSpeechTargetsVisible()) {
-        recordButton.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
-      }
-    });
-  };
-  speechRecognition.onerror = (event) => {
-    const messages = {
-      'not-allowed': 'Microphone access is blocked. Allow microphone access for this site in your browser settings, then try again.',
-      'service-not-allowed': 'Speech recognition is unavailable in this browser.',
-      'audio-capture': 'No microphone was found. Connect or enable a microphone, then try again.',
-      network: 'Speech recognition could not connect. Check your internet connection, then try again.',
-      'no-speech': 'No speech was detected. Try speaking closer to your microphone.',
-      'language-not-supported': 'English (US) speech recognition is not supported by this browser.',
-    };
-    speechError.value = messages[event.error] || 'Speech recognition failed. Please try again.';
-    isRecording.value = false;
-  };
-  speechRecognition.onend = () => {
-    isRecording.value = false;
-    speechRecognition = null;
-  };
-
-  try {
-    speechRecognition.start();
-    isRecording.value = true;
-  } catch {
-    speechError.value = 'Could not start speech recognition. Please try again.';
-    speechRecognition = null;
-  }
+function cancelHiddenRecording() {
+  if (document.hidden) speechRecorder.cancel();
 }
 
 watch(hasEnoughDetailsWords, (hasEnoughWords) => {
@@ -1130,11 +1088,23 @@ watch(hasEnoughDetailsWords, (hasEnoughWords) => {
 
 watch(() => draft.step, (step) => {
   if (step === 1) nextTick(resizeDetailsInput);
-  else if (isRecording.value) speechRecognition?.stop();
+  else speechRecorder.cancel();
 }, { immediate: true });
 
+onActivated(() => {
+  document.addEventListener('visibilitychange', cancelHiddenRecording);
+  window.addEventListener('pagehide', speechRecorder.cancel);
+});
+
+function deactivateSpeechRecorder() {
+  speechRecorder.cancel();
+  document.removeEventListener('visibilitychange', cancelHiddenRecording);
+  window.removeEventListener('pagehide', speechRecorder.cancel);
+}
+
+onDeactivated(deactivateSpeechRecorder);
 onBeforeUnmount(() => {
-  speechRecognition?.stop();
+  deactivateSpeechRecorder();
   window.removeEventListener('scroll', updateAutoImproveMenuPosition, true);
   window.removeEventListener('resize', updateAutoImproveMenuPosition);
 });
