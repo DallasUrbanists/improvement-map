@@ -1,0 +1,575 @@
+{
+  "original": {
+    "name": "Downtown PID",
+    "adminLevel": 10,
+    "osmId": 6573464,
+    "osmType": "relation",
+    "boundary": "administrative",
+    "source": "https://www.openstreetmap.org/relation/6573464",
+    "center": {
+      "lat": 32.78145881782909,
+      "lon": -96.7994967769097
+    },
+    "fixture": "src/data/test-location-osm.json",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "verification": {
+      "method": "Overpass is_in administrative-area enumeration plus local Turf 7.4.0 booleanPointInPolygon on assembled relation multipolygons",
+      "contains": true,
+      "strictInterior": true,
+      "selection": "Smallest geodesic polygon area among containing administrative relations with admin_level >= 8; also highest admin_level among all returned containing administrative areas.",
+      "retrievedAt": "2026-10-13T06:28:10.150Z",
+      "discoverySource": "https://overpass-api.de/api/interpreter",
+      "discoveryQuery": "[out:json][timeout:45];is_in(32.78145881782909,-96.7994967769097)->.a;area.a[\"boundary\"=\"administrative\"];out tags;",
+      "discoveryOsmTimestamp": "2026-10-13T06:23:50Z",
+      "discoveryAreasTimestamp": "2026-10-11T17:41:06Z",
+      "containingAdministrativeAreas": [
+        {
+          "osmId": 114690,
+          "name": "Texas",
+          "adminLevel": 4
+        },
+        {
+          "osmId": 148838,
+          "name": "United States",
+          "adminLevel": 2
+        },
+        {
+          "osmId": 1837698,
+          "name": "Dallas County",
+          "adminLevel": 6
+        },
+        {
+          "osmId": 6571629,
+          "name": "Dallas",
+          "adminLevel": 8
+        },
+        {
+          "osmId": 6573464,
+          "name": "Downtown PID",
+          "adminLevel": 10
+        }
+      ],
+      "geometrySource": "https://overpass.private.coffee/api/interpreter",
+      "geometryQuery": "[out:json][timeout:25];rel(id:253769,6571629,6573464,6573473,15705677);out meta geom;",
+      "geometryOsmTimestamp": "2026-06-01T08:52:28Z",
+      "geometrySnapshotCaveat": "Geometry provider reports an older 2026-06-01 snapshot; independent containment agrees with 2026-10-13 discovery. This does not prove unchanged current geometry or completeness beyond the Overpass generated-area index.",
+      "relationVersion": 6,
+      "relationTimestamp": "2023-10-12T15:39:54Z",
+      "areaSquareMeters": 4199141,
+      "outerRings": 1,
+      "innerRings": 0,
+      "geometrySha256": "683381845f6611b2da6f8567f79ce622f9fadc292ea5dd789751c4d17ba56059",
+      "geometryHashEncoding": "SHA-256 of JSON.stringify(relation.members.filter(m => m.type === \"way\").map(m => ({ref:m.ref,role:m.role,geometry:m.geometry}))) in returned member order; geometry points are {lat,lon}.",
+      "assembly": "Join way coordinates by exact matching endpoints (reverse when required); empty way role treated as outer; require closed rings; assign inner rings to enclosing outer rings; exclude label nodes; no bounding-box or nearest-feature inference.",
+      "containingPolygonCandidates": [
+        {
+          "osmId": 6573464,
+          "areaSquareMeters": 4199141
+        },
+        {
+          "osmId": 6571629,
+          "areaSquareMeters": 1001030239
+        }
+      ]
+    }
+  },
+  "west-end": {
+    "name": "West End Historic District",
+    "adminLevel": 14,
+    "osmId": 15705677,
+    "osmType": "relation",
+    "boundary": "administrative",
+    "source": "https://www.openstreetmap.org/relation/15705677",
+    "center": {
+      "lat": 32.780017580621774,
+      "lon": -96.80887918446064
+    },
+    "fixture": "src/data/additional-test-locations-osm.json",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "verification": {
+      "method": "Overpass is_in administrative-area enumeration plus local Turf 7.4.0 booleanPointInPolygon on assembled relation multipolygons",
+      "contains": true,
+      "strictInterior": true,
+      "selection": "Smallest geodesic polygon area among containing administrative relations with admin_level >= 8; also highest admin_level among all returned containing administrative areas.",
+      "retrievedAt": "2026-10-13T06:28:10.151Z",
+      "discoverySource": "https://overpass-api.de/api/interpreter",
+      "discoveryQuery": "[out:json][timeout:45];is_in(32.780017580621774,-96.80887918446064)->.a;area.a[\"boundary\"=\"administrative\"];out tags;",
+      "discoveryOsmTimestamp": "2026-10-13T06:23:50Z",
+      "discoveryAreasTimestamp": "2026-10-11T17:41:06Z",
+      "containingAdministrativeAreas": [
+        {
+          "osmId": 114690,
+          "name": "Texas",
+          "adminLevel": 4
+        },
+        {
+          "osmId": 148838,
+          "name": "United States",
+          "adminLevel": 2
+        },
+        {
+          "osmId": 1837698,
+          "name": "Dallas County",
+          "adminLevel": 6
+        },
+        {
+          "osmId": 6571629,
+          "name": "Dallas",
+          "adminLevel": 8
+        },
+        {
+          "osmId": 6573464,
+          "name": "Downtown PID",
+          "adminLevel": 10
+        },
+        {
+          "osmId": 15705677,
+          "name": "West End Historic District",
+          "adminLevel": 14
+        }
+      ],
+      "geometrySource": "https://overpass.private.coffee/api/interpreter",
+      "geometryQuery": "[out:json][timeout:25];rel(id:253769,6571629,6573464,6573473,15705677);out meta geom;",
+      "geometryOsmTimestamp": "2026-06-01T08:52:28Z",
+      "geometrySnapshotCaveat": "Geometry provider reports an older 2026-06-01 snapshot; independent containment agrees with 2026-10-13 discovery. This does not prove unchanged current geometry or completeness beyond the Overpass generated-area index.",
+      "relationVersion": 3,
+      "relationTimestamp": "2025-08-25T00:17:02Z",
+      "areaSquareMeters": 246695,
+      "outerRings": 1,
+      "innerRings": 0,
+      "geometrySha256": "f69b24819638c94f926356254b3f57d65675d8123aaff46797850e2f443d3f00",
+      "geometryHashEncoding": "SHA-256 of JSON.stringify(relation.members.filter(m => m.type === \"way\").map(m => ({ref:m.ref,role:m.role,geometry:m.geometry}))) in returned member order; geometry points are {lat,lon}.",
+      "assembly": "Join way coordinates by exact matching endpoints (reverse when required); empty way role treated as outer; require closed rings; assign inner rings to enclosing outer rings; exclude label nodes; no bounding-box or nearest-feature inference.",
+      "containingPolygonCandidates": [
+        {
+          "osmId": 15705677,
+          "areaSquareMeters": 246695
+        },
+        {
+          "osmId": 6573464,
+          "areaSquareMeters": 4199141
+        },
+        {
+          "osmId": 6571629,
+          "areaSquareMeters": 1001030239
+        }
+      ]
+    }
+  },
+  "victory": {
+    "name": "Dallas",
+    "adminLevel": 8,
+    "osmId": 6571629,
+    "osmType": "relation",
+    "boundary": "administrative",
+    "source": "https://www.openstreetmap.org/relation/6571629",
+    "center": {
+      "lat": 32.79031836911971,
+      "lon": -96.81145872166579
+    },
+    "fixture": "src/data/additional-test-locations-osm.json",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "verification": {
+      "method": "Overpass is_in administrative-area enumeration plus local Turf 7.4.0 booleanPointInPolygon on assembled relation multipolygons",
+      "contains": true,
+      "strictInterior": true,
+      "selection": "Smallest geodesic polygon area among containing administrative relations with admin_level >= 8; also highest admin_level among all returned containing administrative areas.",
+      "retrievedAt": "2026-10-13T06:28:10.152Z",
+      "discoverySource": "https://overpass-api.de/api/interpreter",
+      "discoveryQuery": "[out:json][timeout:45];is_in(32.79031836911971,-96.81145872166579)->.a;area.a[\"boundary\"=\"administrative\"];out tags;",
+      "discoveryOsmTimestamp": "2026-10-13T06:23:50Z",
+      "discoveryAreasTimestamp": "2026-10-11T17:41:06Z",
+      "containingAdministrativeAreas": [
+        {
+          "osmId": 114690,
+          "name": "Texas",
+          "adminLevel": 4
+        },
+        {
+          "osmId": 148838,
+          "name": "United States",
+          "adminLevel": 2
+        },
+        {
+          "osmId": 1837698,
+          "name": "Dallas County",
+          "adminLevel": 6
+        },
+        {
+          "osmId": 6571629,
+          "name": "Dallas",
+          "adminLevel": 8
+        }
+      ],
+      "geometrySource": "https://overpass.private.coffee/api/interpreter",
+      "geometryQuery": "[out:json][timeout:25];rel(id:253769,6571629,6573464,6573473,15705677);out meta geom;",
+      "geometryOsmTimestamp": "2026-06-01T08:52:28Z",
+      "geometrySnapshotCaveat": "Geometry provider reports an older 2026-06-01 snapshot; independent containment agrees with 2026-10-13 discovery. This does not prove unchanged current geometry or completeness beyond the Overpass generated-area index.",
+      "relationVersion": 60,
+      "relationTimestamp": "2026-05-17T21:18:43Z",
+      "areaSquareMeters": 1001030239,
+      "outerRings": 2,
+      "innerRings": 2,
+      "geometrySha256": "3ba3906c6c9345ae8a6d92af541efb6e97e056ee30a8aefbfeb7ca38de9d28a3",
+      "geometryHashEncoding": "SHA-256 of JSON.stringify(relation.members.filter(m => m.type === \"way\").map(m => ({ref:m.ref,role:m.role,geometry:m.geometry}))) in returned member order; geometry points are {lat,lon}.",
+      "assembly": "Join way coordinates by exact matching endpoints (reverse when required); empty way role treated as outer; require closed rings; assign inner rings to enclosing outer rings; exclude label nodes; no bounding-box or nearest-feature inference.",
+      "containingPolygonCandidates": [
+        {
+          "osmId": 6571629,
+          "areaSquareMeters": 1001030239
+        }
+      ]
+    }
+  },
+  "uptown": {
+    "name": "Uptown PID",
+    "adminLevel": 10,
+    "osmId": 6573473,
+    "osmType": "relation",
+    "boundary": "administrative",
+    "source": "https://www.openstreetmap.org/relation/6573473",
+    "center": {
+      "lat": 32.797646133410474,
+      "lon": -96.80142278473127
+    },
+    "fixture": "src/data/additional-test-locations-osm.json",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "verification": {
+      "method": "Overpass is_in administrative-area enumeration plus local Turf 7.4.0 booleanPointInPolygon on assembled relation multipolygons",
+      "contains": true,
+      "strictInterior": true,
+      "selection": "Smallest geodesic polygon area among containing administrative relations with admin_level >= 8; also highest admin_level among all returned containing administrative areas.",
+      "retrievedAt": "2026-10-13T06:28:10.155Z",
+      "discoverySource": "https://overpass-api.de/api/interpreter",
+      "discoveryQuery": "[out:json][timeout:45];is_in(32.797646133410474,-96.80142278473127)->.a;area.a[\"boundary\"=\"administrative\"];out tags;",
+      "discoveryOsmTimestamp": "2026-10-13T06:23:50Z",
+      "discoveryAreasTimestamp": "2026-10-11T17:41:06Z",
+      "containingAdministrativeAreas": [
+        {
+          "osmId": 114690,
+          "name": "Texas",
+          "adminLevel": 4
+        },
+        {
+          "osmId": 148838,
+          "name": "United States",
+          "adminLevel": 2
+        },
+        {
+          "osmId": 1837698,
+          "name": "Dallas County",
+          "adminLevel": 6
+        },
+        {
+          "osmId": 6571629,
+          "name": "Dallas",
+          "adminLevel": 8
+        },
+        {
+          "osmId": 6573473,
+          "name": "Uptown PID",
+          "adminLevel": 10
+        }
+      ],
+      "geometrySource": "https://overpass.private.coffee/api/interpreter",
+      "geometryQuery": "[out:json][timeout:25];rel(id:253769,6571629,6573464,6573473,15705677);out meta geom;",
+      "geometryOsmTimestamp": "2026-06-01T08:52:28Z",
+      "geometrySnapshotCaveat": "Geometry provider reports an older 2026-06-01 snapshot; independent containment agrees with 2026-10-13 discovery. This does not prove unchanged current geometry or completeness beyond the Overpass generated-area index.",
+      "relationVersion": 27,
+      "relationTimestamp": "2025-06-30T17:14:16Z",
+      "areaSquareMeters": 2305339,
+      "outerRings": 1,
+      "innerRings": 0,
+      "geometrySha256": "46b6eef6505da22fb428d1e767d82a94b367c36e2c1b0c948ba545e6c16d3774",
+      "geometryHashEncoding": "SHA-256 of JSON.stringify(relation.members.filter(m => m.type === \"way\").map(m => ({ref:m.ref,role:m.role,geometry:m.geometry}))) in returned member order; geometry points are {lat,lon}.",
+      "assembly": "Join way coordinates by exact matching endpoints (reverse when required); empty way role treated as outer; require closed rings; assign inner rings to enclosing outer rings; exclude label nodes; no bounding-box or nearest-feature inference.",
+      "containingPolygonCandidates": [
+        {
+          "osmId": 6573473,
+          "areaSquareMeters": 2305339
+        },
+        {
+          "osmId": 6571629,
+          "areaSquareMeters": 1001030239
+        }
+      ]
+    }
+  },
+  "cityplace": {
+    "name": "Uptown PID",
+    "adminLevel": 10,
+    "osmId": 6573473,
+    "osmType": "relation",
+    "boundary": "administrative",
+    "source": "https://www.openstreetmap.org/relation/6573473",
+    "center": {
+      "lat": 32.80595531491456,
+      "lon": -96.79461026102173
+    },
+    "fixture": "src/data/additional-test-locations-osm.json",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "verification": {
+      "method": "Overpass is_in administrative-area enumeration plus local Turf 7.4.0 booleanPointInPolygon on assembled relation multipolygons",
+      "contains": true,
+      "strictInterior": true,
+      "selection": "Smallest geodesic polygon area among containing administrative relations with admin_level >= 8; also highest admin_level among all returned containing administrative areas.",
+      "retrievedAt": "2026-10-13T06:28:10.156Z",
+      "discoverySource": "https://overpass-api.de/api/interpreter",
+      "discoveryQuery": "[out:json][timeout:45];is_in(32.80595531491456,-96.79461026102173)->.a;area.a[\"boundary\"=\"administrative\"];out tags;",
+      "discoveryOsmTimestamp": "2026-10-13T06:23:50Z",
+      "discoveryAreasTimestamp": "2026-10-11T17:41:06Z",
+      "containingAdministrativeAreas": [
+        {
+          "osmId": 114690,
+          "name": "Texas",
+          "adminLevel": 4
+        },
+        {
+          "osmId": 148838,
+          "name": "United States",
+          "adminLevel": 2
+        },
+        {
+          "osmId": 1837698,
+          "name": "Dallas County",
+          "adminLevel": 6
+        },
+        {
+          "osmId": 6571629,
+          "name": "Dallas",
+          "adminLevel": 8
+        },
+        {
+          "osmId": 6573473,
+          "name": "Uptown PID",
+          "adminLevel": 10
+        }
+      ],
+      "geometrySource": "https://overpass.private.coffee/api/interpreter",
+      "geometryQuery": "[out:json][timeout:25];rel(id:253769,6571629,6573464,6573473,15705677);out meta geom;",
+      "geometryOsmTimestamp": "2026-06-01T08:52:28Z",
+      "geometrySnapshotCaveat": "Geometry provider reports an older 2026-06-01 snapshot; independent containment agrees with 2026-10-13 discovery. This does not prove unchanged current geometry or completeness beyond the Overpass generated-area index.",
+      "relationVersion": 27,
+      "relationTimestamp": "2025-06-30T17:14:16Z",
+      "areaSquareMeters": 2305339,
+      "outerRings": 1,
+      "innerRings": 0,
+      "geometrySha256": "46b6eef6505da22fb428d1e767d82a94b367c36e2c1b0c948ba545e6c16d3774",
+      "geometryHashEncoding": "SHA-256 of JSON.stringify(relation.members.filter(m => m.type === \"way\").map(m => ({ref:m.ref,role:m.role,geometry:m.geometry}))) in returned member order; geometry points are {lat,lon}.",
+      "assembly": "Join way coordinates by exact matching endpoints (reverse when required); empty way role treated as outer; require closed rings; assign inner rings to enclosing outer rings; exclude label nodes; no bounding-box or nearest-feature inference.",
+      "containingPolygonCandidates": [
+        {
+          "osmId": 6573473,
+          "areaSquareMeters": 2305339
+        },
+        {
+          "osmId": 6571629,
+          "areaSquareMeters": 1001030239
+        }
+      ]
+    }
+  },
+  "medical-district": {
+    "name": "Dallas",
+    "adminLevel": 8,
+    "osmId": 6571629,
+    "osmType": "relation",
+    "boundary": "administrative",
+    "source": "https://www.openstreetmap.org/relation/6571629",
+    "center": {
+      "lat": 32.806472820267075,
+      "lon": -96.83042844171591
+    },
+    "fixture": "src/data/additional-test-locations-osm.json",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "verification": {
+      "method": "Overpass is_in administrative-area enumeration plus local Turf 7.4.0 booleanPointInPolygon on assembled relation multipolygons",
+      "contains": true,
+      "strictInterior": true,
+      "selection": "Smallest geodesic polygon area among containing administrative relations with admin_level >= 8; also highest admin_level among all returned containing administrative areas.",
+      "retrievedAt": "2026-10-13T06:28:10.157Z",
+      "discoverySource": "https://overpass-api.de/api/interpreter",
+      "discoveryQuery": "[out:json][timeout:45];is_in(32.806472820267075,-96.83042844171591)->.a;area.a[\"boundary\"=\"administrative\"];out tags;",
+      "discoveryOsmTimestamp": "2026-10-13T06:23:50Z",
+      "discoveryAreasTimestamp": "2026-10-11T17:41:06Z",
+      "containingAdministrativeAreas": [
+        {
+          "osmId": 114690,
+          "name": "Texas",
+          "adminLevel": 4
+        },
+        {
+          "osmId": 148838,
+          "name": "United States",
+          "adminLevel": 2
+        },
+        {
+          "osmId": 1837698,
+          "name": "Dallas County",
+          "adminLevel": 6
+        },
+        {
+          "osmId": 6571629,
+          "name": "Dallas",
+          "adminLevel": 8
+        }
+      ],
+      "geometrySource": "https://overpass.private.coffee/api/interpreter",
+      "geometryQuery": "[out:json][timeout:25];rel(id:253769,6571629,6573464,6573473,15705677);out meta geom;",
+      "geometryOsmTimestamp": "2026-06-01T08:52:28Z",
+      "geometrySnapshotCaveat": "Geometry provider reports an older 2026-06-01 snapshot; independent containment agrees with 2026-10-13 discovery. This does not prove unchanged current geometry or completeness beyond the Overpass generated-area index.",
+      "relationVersion": 60,
+      "relationTimestamp": "2026-05-17T21:18:43Z",
+      "areaSquareMeters": 1001030239,
+      "outerRings": 2,
+      "innerRings": 2,
+      "geometrySha256": "3ba3906c6c9345ae8a6d92af541efb6e97e056ee30a8aefbfeb7ca38de9d28a3",
+      "geometryHashEncoding": "SHA-256 of JSON.stringify(relation.members.filter(m => m.type === \"way\").map(m => ({ref:m.ref,role:m.role,geometry:m.geometry}))) in returned member order; geometry points are {lat,lon}.",
+      "assembly": "Join way coordinates by exact matching endpoints (reverse when required); empty way role treated as outer; require closed rings; assign inner rings to enclosing outer rings; exclude label nodes; no bounding-box or nearest-feature inference.",
+      "containingPolygonCandidates": [
+        {
+          "osmId": 6571629,
+          "areaSquareMeters": 1001030239
+        }
+      ]
+    }
+  },
+  "bachman": {
+    "name": "Dallas",
+    "adminLevel": 8,
+    "osmId": 6571629,
+    "osmType": "relation",
+    "boundary": "administrative",
+    "source": "https://www.openstreetmap.org/relation/6571629",
+    "center": {
+      "lat": 32.85352890117053,
+      "lon": -96.8787510771719
+    },
+    "fixture": "src/data/additional-test-locations-osm.json",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "verification": {
+      "method": "Overpass is_in administrative-area enumeration plus local Turf 7.4.0 booleanPointInPolygon on assembled relation multipolygons",
+      "contains": true,
+      "strictInterior": true,
+      "selection": "Smallest geodesic polygon area among containing administrative relations with admin_level >= 8; also highest admin_level among all returned containing administrative areas.",
+      "retrievedAt": "2026-10-13T06:28:10.157Z",
+      "discoverySource": "https://overpass-api.de/api/interpreter",
+      "discoveryQuery": "[out:json][timeout:45];is_in(32.85352890117053,-96.8787510771719)->.a;area.a[\"boundary\"=\"administrative\"];out tags;",
+      "discoveryOsmTimestamp": "2026-10-13T06:23:50Z",
+      "discoveryAreasTimestamp": "2026-10-11T17:41:06Z",
+      "containingAdministrativeAreas": [
+        {
+          "osmId": 114690,
+          "name": "Texas",
+          "adminLevel": 4
+        },
+        {
+          "osmId": 148838,
+          "name": "United States",
+          "adminLevel": 2
+        },
+        {
+          "osmId": 1837698,
+          "name": "Dallas County",
+          "adminLevel": 6
+        },
+        {
+          "osmId": 6571629,
+          "name": "Dallas",
+          "adminLevel": 8
+        }
+      ],
+      "geometrySource": "https://overpass.private.coffee/api/interpreter",
+      "geometryQuery": "[out:json][timeout:25];rel(id:253769,6571629,6573464,6573473,15705677);out meta geom;",
+      "geometryOsmTimestamp": "2026-06-01T08:52:28Z",
+      "geometrySnapshotCaveat": "Geometry provider reports an older 2026-06-01 snapshot; independent containment agrees with 2026-10-13 discovery. This does not prove unchanged current geometry or completeness beyond the Overpass generated-area index.",
+      "relationVersion": 60,
+      "relationTimestamp": "2026-05-17T21:18:43Z",
+      "areaSquareMeters": 1001030239,
+      "outerRings": 2,
+      "innerRings": 2,
+      "geometrySha256": "3ba3906c6c9345ae8a6d92af541efb6e97e056ee30a8aefbfeb7ca38de9d28a3",
+      "geometryHashEncoding": "SHA-256 of JSON.stringify(relation.members.filter(m => m.type === \"way\").map(m => ({ref:m.ref,role:m.role,geometry:m.geometry}))) in returned member order; geometry points are {lat,lon}.",
+      "assembly": "Join way coordinates by exact matching endpoints (reverse when required); empty way role treated as outer; require closed rings; assign inner rings to enclosing outer rings; exclude label nodes; no bounding-box or nearest-feature inference.",
+      "containingPolygonCandidates": [
+        {
+          "osmId": 6571629,
+          "areaSquareMeters": 1001030239
+        }
+      ]
+    }
+  },
+  "carrollton": {
+    "name": "Lewisville",
+    "adminLevel": 8,
+    "osmId": 253769,
+    "osmType": "relation",
+    "boundary": "administrative",
+    "source": "https://www.openstreetmap.org/relation/253769",
+    "center": {
+      "lat": 33.01065228733186,
+      "lon": -96.95918249975571
+    },
+    "fixture": "src/data/additional-test-locations-osm.json",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "verification": {
+      "method": "Overpass is_in administrative-area enumeration plus local Turf 7.4.0 booleanPointInPolygon on assembled relation multipolygons",
+      "contains": true,
+      "strictInterior": true,
+      "selection": "Smallest geodesic polygon area among containing administrative relations with admin_level >= 8; also highest admin_level among all returned containing administrative areas.",
+      "retrievedAt": "2026-10-13T06:28:10.157Z",
+      "discoverySource": "https://overpass-api.de/api/interpreter",
+      "discoveryQuery": "[out:json][timeout:45];is_in(33.01065228733186,-96.95918249975571)->.a;area.a[\"boundary\"=\"administrative\"];out tags;",
+      "discoveryOsmTimestamp": "2026-10-13T06:23:50Z",
+      "discoveryAreasTimestamp": "2026-10-11T17:41:06Z",
+      "containingAdministrativeAreas": [
+        {
+          "osmId": 114690,
+          "name": "Texas",
+          "adminLevel": 4
+        },
+        {
+          "osmId": 148838,
+          "name": "United States",
+          "adminLevel": 2
+        },
+        {
+          "osmId": 253769,
+          "name": "Lewisville",
+          "adminLevel": 8
+        },
+        {
+          "osmId": 1837621,
+          "name": "Denton County",
+          "adminLevel": 6
+        }
+      ],
+      "geometrySource": "https://overpass.private.coffee/api/interpreter",
+      "geometryQuery": "[out:json][timeout:25];rel(id:253769,6571629,6573464,6573473,15705677);out meta geom;",
+      "geometryOsmTimestamp": "2026-06-01T08:52:28Z",
+      "geometrySnapshotCaveat": "Geometry provider reports an older 2026-06-01 snapshot; independent containment agrees with 2026-10-13 discovery. This does not prove unchanged current geometry or completeness beyond the Overpass generated-area index.",
+      "relationVersion": 29,
+      "relationTimestamp": "2026-01-12T15:26:03Z",
+      "areaSquareMeters": 120745781,
+      "outerRings": 1,
+      "innerRings": 0,
+      "geometrySha256": "92e2c9f5a9cb1ebf35b53e615329286f1fe349413304f3fbbc7ba87cb56c5ba0",
+      "geometryHashEncoding": "SHA-256 of JSON.stringify(relation.members.filter(m => m.type === \"way\").map(m => ({ref:m.ref,role:m.role,geometry:m.geometry}))) in returned member order; geometry points are {lat,lon}.",
+      "assembly": "Join way coordinates by exact matching endpoints (reverse when required); empty way role treated as outer; require closed rings; assign inner rings to enclosing outer rings; exclude label nodes; no bounding-box or nearest-feature inference.",
+      "containingPolygonCandidates": [
+        {
+          "osmId": 253769,
+          "areaSquareMeters": 120745781
+        }
+      ]
+    }
+  }
+}

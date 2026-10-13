@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1000" height="1000" viewBox="0 0 1000 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Amtrak wordmark on a square transparent canvas</title>
+  <desc id="desc">Square SVG canvas preserving the official horizontal Amtrak wordmark proportions. Artwork is referenced from Wikimedia Commons.</desc>
+  <image x="40" y="400" width="920" height="200"
+         preserveAspectRatio="xMidYMid meet" href="https://upload.wikimedia.org/wikipedia/commons/e/eb/Amtrak_logo.svg" xlink:href="https://upload.wikimedia.org/wikipedia/commons/e/eb/Amtrak_logo.svg" />
+</svg>

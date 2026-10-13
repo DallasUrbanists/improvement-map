@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1000" height="1000" viewBox="0 0 1000 1000"
+     role="img" aria-labelledby="title desc">
+  <title id="title">Trinity Metro full wordmark in white on a navy square</title>
+  <desc id="desc">The original Trinity Metro horizontal wordmark, preserved at its natural aspect ratio, recolored white, and centered on a solid navy-blue square field.</desc>
+  <defs>
+    <filter id="wordmark-white" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="
+        0 0 0 0 1
+        0 0 0 0 1
+        0 0 0 0 1
+        0 0 0 1 0" />
+    </filter>
+  </defs>
+  <rect width="1000" height="1000" fill="#232855" />
+  <image x="50" y="395" width="900" height="210"
+         preserveAspectRatio="xMidYMid meet"
+         filter="url(#wordmark-white)"
+         href="https://upload.wikimedia.org/wikipedia/commons/4/43/Logo_Trinity_Metro_full.svg"
+         xlink:href="https://upload.wikimedia.org/wikipedia/commons/4/43/Logo_Trinity_Metro_full.svg" />
+</svg>

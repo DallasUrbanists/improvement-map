@@ -24,6 +24,12 @@ const routes = [
     meta: { title: 'View Suggestion | Improvement Map' }
   },
   {
+    path: '/test',
+    name: 'TestDiagram',
+    component: () => import('../views/TestDiagramView.vue'),
+    meta: { title: 'Location Diagram Test | Improvement Map' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1000" height="1000" viewBox="0 0 1000 1000" role="img" aria-labelledby="title desc">
+  <title id="title">STAR Transit logo on a square transparent canvas</title>
+  <desc id="desc">Square SVG canvas preserving the official STAR Transit wordmark proportions. Source artwork is a PNG hosted on Wikimedia Commons and is referenced externally.</desc>
+  <image x="40" y="400" width="920" height="200"
+         preserveAspectRatio="xMidYMid meet" href="https://commons.wikimedia.org/wiki/Special:FilePath/STAR_Transit_Logo.png" xlink:href="https://commons.wikimedia.org/wiki/Special:FilePath/STAR_Transit_Logo.png" />
+</svg>
