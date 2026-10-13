@@ -219,8 +219,54 @@ test('photo step uses sticky segmented controls and a bounded swipe viewer', asy
   }));
   expect(toastStyle.position).toBe('fixed');
   expect(toastStyle.top).toBe('16px');
+  await toast.dispatchEvent('pointerdown', { pointerId: 1, clientX: 120, clientY: 100 });
+  await toast.dispatchEvent('pointerup', { pointerId: 1, clientX: 40, clientY: 100 });
+  await expect(toast).toHaveCount(0);
   expect((await controls.boundingBox()).y).toBe(controlsTop);
   await expect(page.getByText('3 / 3')).toBeVisible();
+});
+
+test('description and review steps use sticky segmented navigation', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({
+      step: 3,
+      details: 'This improvement would make the crossing safer.',
+    }));
+  });
+  await page.goto('/submit');
+
+  const detailsLayout = await page.locator('#input-details').evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    minHeight: getComputedStyle(element).minHeight,
+    flexGrow: getComputedStyle(element).flexGrow,
+    parentDisplay: getComputedStyle(element.parentElement).display,
+  }));
+  expect(detailsLayout.minHeight).toBe('160px');
+  expect(detailsLayout.flexGrow).toBe('1');
+  expect(detailsLayout.parentDisplay).toBe('flex');
+  expect(detailsLayout.height).toBeGreaterThan(160);
+
+  const details = page.locator('#input-details');
+  await details.fill('A longer description '.repeat(300));
+  await expect.poll(() => details.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(detailsLayout.height);
+  const expandedLayout = await details.evaluate((element) => ({
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+  }));
+  expect(expandedLayout.scrollHeight).toBeLessThanOrEqual(expandedLayout.clientHeight);
+
+  const descriptionNavigation = page.getByTestId('step-three-navigation');
+  await expect(descriptionNavigation).toBeVisible();
+  await expect(descriptionNavigation).toHaveClass(/sticky/);
+  await expect(descriptionNavigation.locator('.k-segmented')).toHaveClass(/border/);
+  await descriptionNavigation.getByRole('button').nth(1).click();
+
+  await expect(page.getByRole('heading', { name: 'Review submission' })).toBeVisible();
+  const reviewNavigation = page.getByTestId('step-four-navigation');
+  await expect(reviewNavigation).toBeVisible();
+  await expect(reviewNavigation).toHaveClass(/sticky/);
+  await expect(reviewNavigation.locator('.k-segmented')).toHaveClass(/border/);
+  await expect(reviewNavigation.getByRole('button').nth(1)).toContainText('Submit');
 });
 
 test('auto improve menu appears only after three words and leaves options inactive', async ({ page }) => {
@@ -541,6 +587,10 @@ test('speech-to-text recording appends recognized words to the idea', async ({ p
 
 test('speech-to-text explains when microphone permission is blocked', async ({ page }) => {
   await page.addInitScript(() => {
+    localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({
+      step: 3,
+      details: 'Test microphone recording permissions.',
+    }));
     class MockSpeechRecognition {
       start() {
         this.onerror?.({ error: 'not-allowed' });
@@ -554,9 +604,23 @@ test('speech-to-text explains when microphone permission is blocked', async ({ p
 
   await page.goto('/submit');
   await page.getByRole('button', { name: 'Record' }).click();
-  await expect(page.getByRole('status')).toHaveText(
+  const microphoneToast = page.getByTestId('microphone-error-toast');
+  await expect(microphoneToast).toBeVisible();
+  await expect(page.locator('#input-details')).toHaveAttribute(
+    'placeholder',
+    'If recording is unavailable, tap the text box and use your keyboard’s microphone for dictation.',
+  );
+  await expect(microphoneToast).toHaveText(
     'Microphone access is blocked. Allow microphone access for this site in your browser settings, then try again.',
   );
+  const toastPosition = await microphoneToast.evaluate((element) => ({
+    position: getComputedStyle(element).position,
+    top: getComputedStyle(element).top,
+  }));
+  expect(toastPosition).toEqual({ position: 'fixed', top: '16px' });
+  await microphoneToast.dispatchEvent('pointerdown', { pointerId: 2, clientX: 120, clientY: 100 });
+  await microphoneToast.dispatchEvent('pointerup', { pointerId: 2, clientX: 120, clientY: 20 });
+  await expect(microphoneToast).toHaveCount(0);
 });
 
 test.describe('Browse Mode - Active Tab and Map View Persistence', () => {

@@ -2,12 +2,13 @@
   <div class="flex flex-col h-full">
 
     <!-- ================= STEP 3: DESCRIBE ================= -->
-    <div v-if="draft.step === 3" class="space-y-5 p-6 flex-grow min-h-0 overflow-y-auto">
+    <div v-if="draft.step === 3" class="flex flex-grow min-h-0 flex-col">
+      <div class="flex flex-grow min-h-0 flex-col gap-5 overflow-y-auto p-6">
       <div>
         <h2 class="text-2xl font-bold">Describe your idea</h2>
       </div>
 
-      <div>
+      <div class="flex min-h-0 flex-grow flex-col">
         <textarea
           id="input-details"
           ref="detailsInput"
@@ -16,8 +17,8 @@
           :disabled="isGrammarLoading || isClarityLoading"
           :readonly="speechActive"
           rows="5"
-          placeholder=""
-          class="block w-full resize-none overflow-hidden px-4 py-3 rounded rounded-b-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none mb-0"
+          :placeholder="hasEncounteredBlockedMicrophone ? 'If recording is unavailable, tap the text box and use your keyboard’s microphone for dictation.' : ''"
+          class="block min-h-40 w-full flex-grow flex-shrink-0 resize-none overflow-hidden px-4 py-3 rounded rounded-b-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none mb-0"
           required
         ></textarea>
         <div class="relative flex items-stretch rounded-b border border-t-0 border-zinc-300 dark:border-zinc-700">
@@ -85,11 +86,8 @@
         <p v-if="speechActive" class="mt-2 text-xs text-zinc-600 dark:text-zinc-300" role="status" aria-live="polite">
           {{ recordingState === 'starting' ? (hasStartedRecording ? 'Resuming recording… Please wait.' : 'Starting microphone… Allow access if prompted, or cancel.') : (recordingState === 'stopping' ? 'Finishing transcription…' : 'Listening…') }}
         </p>
-        <p v-if="speechError" class="text-xs text-red-600 dark:text-red-400" role="status">
+        <p v-if="speechError && !isMicrophoneAccessBlocked" class="text-xs text-red-600 dark:text-red-400" role="status">
           {{ speechError }}
-        </p>
-        <p v-if="speechError" class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          If recording is unavailable, tap the text box and use your keyboard’s microphone for dictation.
         </p>
         <p v-if="errors.details" class="text-xs text-red-500 mt-1 flex items-center gap-1">
           <i class="fa-solid fa-circle-exclamation"></i>
@@ -97,29 +95,46 @@
         </p>
       </div>
 
-      <div ref="stepThreeNextContainer" class="pt-4 flex items-center justify-between gap-3">
-        <k-button
-          type="button"
-          @click="prevStep"
-          :outline="true"
-          large
-          class="font-bold text-base px-8"
-        >
-          <i class="fa-solid fa-arrow-left mr-2"></i>
-          Back
-        </k-button>
-
-        <k-button
-          type="button"
-          @click="validateAndNextStep3"
-          :disabled="isGrammarLoading || isClarityLoading"
-          large
-          class="font-bold px-8"
-        >
-          <span>Next</span>
-          <i class="fa-solid fa-arrow-right ml-2"></i>
-        </k-button>
       </div>
+
+      <div ref="stepThreeNextContainer" data-testid="step-three-navigation" class="sticky bottom-0 z-30 flex-shrink-0 border-t border-zinc-200 bg-white/95 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+        <k-segmented :raised="!isDark" :outline="isDark" class="w-full" aria-label="Description step navigation">
+          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="prevStep">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back
+          </k-segmented-button>
+          <k-segmented-button
+            type="button"
+            :disabled="isGrammarLoading || isClarityLoading"
+            class="flex-1 justify-center gap-2 font-bold"
+            @click="validateAndNextStep3"
+          >
+            Next
+            <i class="fa-solid fa-arrow-right"></i>
+          </k-segmented-button>
+        </k-segmented>
+      </div>
+
+      <k-toast
+        v-if="isMicrophoneAccessBlocked && !isMicrophoneToastDismissed"
+        data-testid="microphone-error-toast"
+        :opened="true"
+        position="center"
+        :style="{ top: '1rem', bottom: 'auto', touchAction: 'none' }"
+        role="status"
+        aria-live="polite"
+        @pointerdown="startToastSwipe"
+        @pointerup="dismissToastOnSwipe($event, 'microphone')"
+        @pointercancel="cancelToastSwipe"
+      >
+        <div class="flex items-center gap-2 text-sm">
+          <i class="fa-solid fa-microphone-slash text-red-500" aria-hidden="true"></i>
+          <span>{{ speechError }}</span>
+          <button type="button" class="ml-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white" aria-label="Dismiss notification" @click="isMicrophoneToastDismissed = true">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+      </k-toast>
     </div>
 
     <!-- ================= STEP 1: LOCATE ================= -->
@@ -461,24 +476,31 @@
     </div>
 
     <k-toast
-      v-if="isProcessingPhotos"
+      v-if="isProcessingPhotos && !isPhotoToastDismissed"
       data-testid="photo-processing-toast"
       :opened="true"
       position="center"
-      :style="{ top: '1rem', bottom: 'auto' }"
+      :style="{ top: '1rem', bottom: 'auto', touchAction: 'none' }"
       role="status"
       aria-live="polite"
+      @pointerdown="startToastSwipe"
+      @pointerup="dismissToastOnSwipe($event, 'photo')"
+      @pointercancel="cancelToastSwipe"
     >
       <div class="flex items-center gap-2 text-sm">
         <k-preloader class="h-4 w-4" />
         <span>Compressing & optimizing image(s)...</span>
+        <button type="button" class="ml-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white" aria-label="Dismiss notification" @click="isPhotoToastDismissed = true">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
       </div>
     </k-toast>
 
     <!-- ================= STEP 4: REVIEW & SUBMIT ================= -->
-    <div v-else-if="draft.step === 4" class="p-6 space-y-6 flex-grow min-h-0 overflow-y-auto">
+    <div v-else-if="draft.step === 4" class="flex flex-grow min-h-0 flex-col">
+      <div class="flex-grow min-h-0 space-y-6 overflow-y-auto p-6">
       <div>
-        <h2 class="text-2xl font-bold mb-1">Review Your Submission</h2>
+        <h2 class="text-2xl font-bold mb-1">Review submission</h2>
         <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
           Verify your suggestion details before publishing.
         </p>
@@ -508,12 +530,6 @@
         </div>
         <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
           {{ draft.details || '(No details provided)' }}
-        </p>
-        <p v-if="draft.location?.description" class="text-xs text-zinc-500 mt-1">
-          <span class="font-semibold text-zinc-600 dark:text-zinc-400">Note:</span> {{ draft.location.description }}
-        </p>
-        <p v-if="draft.location?.latitude" class="text-[11px] text-zinc-400 font-mono mt-1">
-          {{ Number(draft.location.latitude).toFixed(5) }}, {{ Number(draft.location.longitude).toFixed(5) }}
         </p>
       </k-card>
           
@@ -631,28 +647,19 @@
         </div>
       </div>
 
-      <!-- Submit Final Action -->
-      <div class="pt-4 flex items-center justify-between gap-3">
-        <k-button
-          type="button"
-          @click="prevStep"
-          :outline="true"
-          large
-          class="font-bold text-base px-8 py-3.5 shadow-lg"
-        >
-          <i class="fa-solid fa-arrow-left mr-2"></i>
-          Back
-        </k-button>
+      </div>
 
-        <k-button
-          type="button"
-          @click="submitFinalSuggestion"
-          large
-          class="font-bold text-base px-8 py-3.5 shadow-lg"
-        >
-          <i class="fa-solid fa-paper-plane mr-2"></i>
-          Submit
-        </k-button>
+      <div data-testid="step-four-navigation" class="sticky bottom-0 z-30 flex-shrink-0 border-t border-zinc-200 bg-white/95 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
+        <k-segmented :raised="!isDark" :outline="isDark" class="w-full" aria-label="Review step navigation">
+          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="prevStep">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back
+          </k-segmented-button>
+          <k-segmented-button type="button" class="flex-1 justify-center gap-2 font-bold" @click="submitFinalSuggestion">
+            Submit
+            <i class="fa-solid fa-paper-plane"></i>
+          </k-segmented-button>
+        </k-segmented>
       </div>
     </div>
 
@@ -858,6 +865,39 @@ const isRecording = computed(() => recordingState.value === 'listening');
 const hasEnoughDetailsWords = computed(() => (draft.details || '').trim().split(/\s+/).filter(Boolean).length >= 3);
 const showAutoImprove = computed(() => hasEnoughDetailsWords.value && !speechActive.value);
 const speechError = ref('');
+const hasEncounteredBlockedMicrophone = ref(false);
+const isMicrophoneToastDismissed = ref(false);
+const isMicrophoneAccessBlocked = computed(() => speechError.value.startsWith('Microphone access is blocked.'));
+watch(isMicrophoneAccessBlocked, (isBlocked) => {
+  if (isBlocked) {
+    hasEncounteredBlockedMicrophone.value = true;
+    isMicrophoneToastDismissed.value = false;
+  }
+});
+let toastPointerStart = null;
+
+function startToastSwipe(event) {
+  toastPointerStart = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+  };
+}
+
+function cancelToastSwipe() {
+  toastPointerStart = null;
+}
+
+function dismissToastOnSwipe(event, toastType) {
+  if (!toastPointerStart || toastPointerStart.pointerId !== event.pointerId) return;
+  const deltaX = event.clientX - toastPointerStart.x;
+  const deltaY = event.clientY - toastPointerStart.y;
+  toastPointerStart = null;
+
+  if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 60) return;
+  if (toastType === 'microphone') isMicrophoneToastDismissed.value = true;
+  if (toastType === 'photo') isPhotoToastDismissed.value = true;
+}
 const isGrammarLoading = ref(false);
 const grammarError = ref('');
 const isClarityLoading = ref(false);
@@ -934,6 +974,7 @@ const photoViewerStyle = {
   scrollPaddingInline: '1.5rem',
 };
 const isProcessingPhotos = ref(false);
+const isPhotoToastDismissed = ref(false);
 const photoError = ref('');
 
 // Step 4 Submission Progress Overlay State
@@ -1490,6 +1531,7 @@ async function handleFilesSelected(event) {
   if (files.length === 0) return;
 
   photoError.value = '';
+  isPhotoToastDismissed.value = false;
   draft.photos = draft.photos || [];
   const currentCount = draft.photos.length;
   const remainingSlots = 10 - currentCount;
