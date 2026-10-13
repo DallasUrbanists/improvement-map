@@ -341,81 +341,16 @@
           </button>
         </div>
 
-        <div v-if="draft.photos?.length" class="space-y-2">
-          <div
-            ref="photoViewer"
-            data-testid="photo-swipe-viewer"
-            class="hide-scrollbar -mx-6 flex min-h-0 w-[calc(100%+3rem)] snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain px-6 touch-pan-x"
-            :style="photoViewerStyle"
-            aria-label="Attached photos; swipe horizontally to browse"
-            @scroll.passive="updateActivePhotoIndex"
-          >
-            <div
-              v-for="(photo, index) in draft.photos"
-              :key="photo.id || index"
-              class="relative flex h-full w-[calc(100vw-3rem)] flex-none snap-start flex-col"
-            >
-              <div class="relative min-h-0 w-full flex-grow overflow-hidden rounded-t-lg border border-zinc-200 bg-zinc-900 dark:border-zinc-700">
-                <img
-                  :src="photo.dataUrl || photo.url"
-                  :alt="photo.caption || `Photo ${index + 1}`"
-                  class="h-full w-full object-contain"
-                />
-                <button
-                  type="button"
-                  @click="removePhoto(index)"
-                  class="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition hover:bg-red-500 active:scale-90"
-                  :aria-label="`Remove photo ${index + 1}`"
-                >
-                  <i class="fa-solid fa-trash-can text-xs"></i>
-                </button>
-              </div>
-
-              <input
-                type="text"
-                v-model="photo.caption"
-                @input="persistDraft"
-                placeholder="Add photo caption (optional)..."
-                :aria-label="`Caption for photo ${index + 1}`"
-                class="w-full flex-shrink-0 rounded-b-lg rounded-t-none border border-t-0 border-zinc-200 bg-zinc-100 px-3 py-2 text-xs text-black placeholder-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
-              />
-            </div>
-          </div>
-
-          <div v-if="draft.photos.length > 1" class="flex items-center justify-center gap-3 text-xs text-zinc-500" aria-label="Photo navigation">
-            <button
-              type="button"
-              @click="scrollToPhoto(activePhotoIndex - 1)"
-              :disabled="activePhotoIndex === 0"
-              aria-label="Previous photo"
-              class="px-1 py-1 text-zinc-700 disabled:opacity-40 dark:text-zinc-200"
-            >
-              <i class="fa-solid fa-chevron-left"></i>
-            </button>
-            <div class="flex items-center justify-center gap-2">
-              <button
-                v-for="(_, index) in draft.photos"
-                :key="index"
-                type="button"
-                @click="scrollToPhoto(index)"
-                :aria-label="`Show photo ${index + 1}`"
-                :aria-current="activePhotoIndex === index ? 'true' : undefined"
-                class="h-2 w-2 rounded-full transition-colors"
-                :class="activePhotoIndex === index ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-600'"
-              ></button>
-              <span class="ml-1">{{ activePhotoIndex + 1 }} / {{ draft.photos.length }}</span>
-            </div>
-            <button
-              type="button"
-              @click="scrollToPhoto(activePhotoIndex + 1)"
-              :disabled="activePhotoIndex === draft.photos.length - 1"
-              aria-label="Next photo"
-              class="px-1 py-1 text-zinc-700 disabled:opacity-40 dark:text-zinc-200"
-            >
-              <i class="fa-solid fa-chevron-right"></i>
-            </button>
-          </div>
-        </div>
+        <PhotoSlider
+          v-if="draft.photos?.length"
+          ref="photoSlider"
+          v-model:active-index="activePhotoIndex"
+          :photos="draft.photos"
+          editable
+          edge-to-edge
+          @remove="removePhoto"
+          @caption-change="updatePhotoCaption"
+        />
         <p v-else class="text-sm text-zinc-500 dark:text-zinc-400">
           Photos are optional. Add images to show the location or conditions.
         </p>
@@ -528,46 +463,7 @@
             Edit
           </k-button>
         </div>
-        <div class="relative overflow-hidden border-y border-zinc-200 dark:border-zinc-700">
-          <div class="relative flex items-center border-b border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
-            <input
-              type="text"
-              :value="draft.location?.address || 'Dallas, TX'"
-              readonly
-              aria-label="Selected location address"
-              class="min-w-0 flex-1 bg-transparent text-sm text-zinc-800 outline-none dark:text-zinc-100"
-            />
-            <button
-              type="button"
-              @click="centerReviewMap"
-              title="Center map on selected location"
-              aria-label="Center map on selected location"
-              class="ml-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            ><i class="fa-solid fa-crosshairs" aria-hidden="true"></i></button>
-          </div>
-          <div class="relative aspect-square bg-zinc-100 dark:bg-zinc-800" aria-label="Map preview of selected location">
-            <div ref="reviewMapContainer" class="absolute inset-0"></div>
-            <div class="absolute left-2 top-2 z-20 rounded-xl border border-zinc-300 bg-white/95 p-0.5 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
-              <k-segmented :raised="!isDark" :outline="isDark" class="w-auto" aria-label="Review map view">
-                <k-segmented-button :active="reviewMapType === 'roadmap'" @click="setReviewMapType('roadmap')" small class="justify-center px-2.5 py-1 text-xs font-bold">Streets</k-segmented-button>
-                <k-segmented-button :active="reviewMapType === 'hybrid'" @click="setReviewMapType('hybrid')" small class="justify-center px-2.5 py-1 text-xs font-bold">Satellite</k-segmented-button>
-              </k-segmented>
-            </div>
-            <div class="pointer-events-none absolute inset-0 z-10 overflow-hidden" aria-hidden="true">
-              <svg ref="reviewCrosshair" :style="reviewCrosshairStyle" class="absolute h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 drop-shadow" viewBox="0 0 50 50">
-                <circle cx="25" cy="25" r="17" :fill="pinButtonColor" />
-                <g transform="translate(25 25)" fill="none" :stroke="crosshairStrokeColor" stroke-width="3">
-                  <circle r="9" />
-                  <path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" />
-                  <circle r="2" :fill="crosshairStrokeColor" stroke="none" />
-                </g>
-              </svg>
-            </div>
-          </div>
-          <p class="border-t border-zinc-200 px-3 py-2 text-[11px] font-mono text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-            {{ Number(draft.location?.latitude ?? 32.7767).toFixed(5) }}, {{ Number(draft.location?.longitude ?? -96.797).toFixed(5) }}
-          </p>
-        </div>
+        <LocationMapPreview :location="draft.location" />
         <p v-if="draft.location?.description" class="px-4 py-3 text-xs text-zinc-500">
           <span class="font-semibold text-zinc-600 dark:text-zinc-400">Note:</span> {{ draft.location.description }}
         </p>
@@ -596,21 +492,7 @@
           </k-button>
         </div>
 
-        <div v-if="draft.photos && draft.photos.length > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-          <button
-            v-for="(ph, idx) in draft.photos"
-            :key="idx"
-            type="button"
-            @click="openPhotoLightbox(idx)"
-            :aria-label="`Preview photo ${idx + 1}${ph.caption ? `: ${ph.caption}` : ''}`"
-            class="relative rounded-lg overflow-hidden h-20 bg-zinc-800 border border-zinc-700 text-left"
-          >
-            <img :src="ph.dataUrl || ph.url" class="w-full h-full object-cover" alt="" />
-            <span v-if="ph.caption" class="absolute bottom-0 inset-x-0 bg-black/70 text-[10px] text-white p-1 truncate">
-              {{ ph.caption }}
-            </span>
-          </button>
-        </div>
+        <PhotoGrid v-if="draft.photos?.length" :photos="draft.photos" @preview="openPhotoLightbox" />
         <p v-else class="text-xs text-zinc-500">No photos attached.</p>
       </k-card>
 
@@ -727,7 +609,7 @@
             <i class="fa-solid fa-arrow-left"></i>
             Back
           </k-segmented-button>
-          <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-primary font-bold text-zinc-900 hover:bg-amber-500" @click="submitFinalSuggestion">
+          <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-primary c-black font-bold text-zinc-900 dark:text-zinc-900 hover:bg-amber-500" @click="submitFinalSuggestion">
             Submit
             <i class="fa-solid fa-paper-plane"></i>
           </k-segmented-button>
@@ -917,6 +799,9 @@ import {
 import { resizeImage } from '../services/image';
 import { createSpeechRecorder } from '../services/speechRecognition';
 import { isDark } from '../services/theme';
+import LocationMapPreview from '../components/LocationMapPreview.vue';
+import PhotoGrid from '../components/PhotoGrid.vue';
+import PhotoSlider from '../components/PhotoSlider.vue';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
 import {
   loadGoogleMaps,
@@ -1050,21 +935,11 @@ let isSubmitViewActive = false;
 // Step 2 Photo state
 const fileInput = ref(null);
 const cameraInput = ref(null);
-const photoViewer = ref(null);
+const photoSlider = ref(null);
 const activePhotoIndex = ref(0);
-const reviewMapContainer = ref(null);
-const reviewCrosshair = ref(null);
-const reviewCrosshairStyle = ref({ left: '50%', top: '50%' });
-const reviewMapType = ref('roadmap');
-let reviewMapInstance = null;
 const isPhotoLightboxOpen = ref(false);
 const lightboxPhotoIndex = ref(0);
 let lightboxPointerStart = null;
-const photoViewerStyle = {
-  height: 'min(50vh, 28rem)',
-  maxHeight: 'calc(100dvh - 17rem)',
-  scrollPaddingInline: '1.5rem',
-};
 const isProcessingPhotos = ref(false);
 const isPhotoToastDismissed = ref(false);
 const photoError = ref('');
@@ -1271,7 +1146,6 @@ watch(() => draft.step, (step) => {
   if (step === 3) nextTick(resizeDetailsInput);
   else speechRecorder.cancel();
   if (step === 1) nextTick(updatePinAndContinuePosition);
-  if (step === 4) nextTick(initReviewMap);
 }, { immediate: true });
 
 onActivated(() => {
@@ -1596,59 +1470,6 @@ function openCameraPicker() {
   cameraInput.value?.click();
 }
 
-function photoScrollAdvance(viewer) {
-  const firstSlide = viewer.firstElementChild;
-  if (!firstSlide) return viewer.clientWidth;
-  const gap = Number.parseFloat(window.getComputedStyle(viewer).columnGap) || 0;
-  return firstSlide.getBoundingClientRect().width + gap;
-}
-
-async function initReviewMap() {
-  const container = reviewMapContainer.value;
-  if (!container || draft.step !== 4 || !hasGoogleMapsKey) return;
-  const maps = await loadGoogleMaps();
-  if (!maps || container !== reviewMapContainer.value || draft.step !== 4) return;
-  const position = {
-    lat: Number(draft.location?.latitude ?? 32.7767),
-    lng: Number(draft.location?.longitude ?? -96.797),
-  };
-  const reviewMap = new maps.Map(container, {
-    center: position,
-    zoom: 16,
-    mapTypeId: reviewMapType.value === 'hybrid' ? maps.MapTypeId.HYBRID : maps.MapTypeId.ROADMAP,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-    zoomControl: true,
-    gestureHandling: 'cooperative',
-    clickableIcons: false,
-    styles: getMapStyles(isDark.value, 'roadmap'),
-  });
-  reviewMapInstance = reviewMap;
-  const crosshairOverlay = new maps.OverlayView();
-  crosshairOverlay.onAdd = () => {};
-  crosshairOverlay.draw = () => {
-    const point = crosshairOverlay.getProjection()?.fromLatLngToContainerPixel(position);
-    if (!point) return;
-    reviewCrosshairStyle.value = { left: `${point.x}px`, top: `${point.y}px` };
-  };
-  crosshairOverlay.onRemove = () => {};
-  crosshairOverlay.setMap(reviewMap);
-}
-
-function setReviewMapType(type) {
-  reviewMapType.value = type;
-  reviewMapInstance?.setMapTypeId(type);
-}
-
-function centerReviewMap() {
-  if (!reviewMapInstance) return;
-  reviewMapInstance.panTo({
-    lat: Number(draft.location?.latitude ?? 32.7767),
-    lng: Number(draft.location?.longitude ?? -96.797),
-  });
-}
-
 function openPhotoLightbox(index) {
   lightboxPhotoIndex.value = index;
   isPhotoLightboxOpen.value = true;
@@ -1678,20 +1499,9 @@ function finishLightboxSwipe(event) {
   if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) navigateLightbox(dx < 0 ? 1 : -1);
 }
 
-function updateActivePhotoIndex() {
-  const viewer = photoViewer.value;
-  if (!viewer || viewer.clientWidth === 0) return;
-  activePhotoIndex.value = Math.min(
-    draft.photos.length - 1,
-    Math.round(viewer.scrollLeft / photoScrollAdvance(viewer)),
-  );
-}
-
-function scrollToPhoto(index) {
-  const viewer = photoViewer.value;
-  if (!viewer) return;
-  const targetIndex = Math.max(0, Math.min(index, draft.photos.length - 1));
-  viewer.scrollTo({ left: targetIndex * photoScrollAdvance(viewer), behavior: 'smooth' });
+function updatePhotoCaption(index, caption) {
+  draft.photos[index].caption = caption;
+  persistDraft();
 }
 
 async function handleFilesSelected(event) {
@@ -1725,7 +1535,7 @@ async function handleFilesSelected(event) {
       });
       await nextTick();
       activePhotoIndex.value = draft.photos.length - 1;
-      scrollToPhoto(activePhotoIndex.value);
+      photoSlider.value?.scrollToPhoto(activePhotoIndex.value);
     }
     persistDraft();
   } catch (err) {
@@ -1747,14 +1557,7 @@ function removePhoto(index) {
   }
 
   persistDraft();
-  nextTick(() => {
-    if (photoViewer.value) {
-      photoViewer.value.scrollTo({
-        left: activePhotoIndex.value * photoScrollAdvance(photoViewer.value),
-        behavior: 'auto',
-      });
-    }
-  });
+  nextTick(() => photoSlider.value?.scrollToPhoto(activePhotoIndex.value, 'auto'));
 }
 
 // ---------------- STEP 4 & SUBMIT LOGIC ---------------- //

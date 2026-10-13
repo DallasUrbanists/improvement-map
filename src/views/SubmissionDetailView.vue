@@ -1,23 +1,22 @@
 <template>
   <div class="h-full min-h-0 overflow-y-auto">
-    <!-- Back button with Konsta Button -->
-    <div class="m-4">
-      <k-button
-        type="button"
-        @click="goBack"
-        :outline="true"
-        small
-        inline
-        class="inline-flex items-center gap-2 text-sm font-semibold"
-      >
-        <i class="fa-solid fa-arrow-left mr-1"></i>
-        <span>Back</span>
-      </k-button>
-    </div>
+    <k-navbar
+      v-if="suggestion"
+      medium
+      transparent
+      :title="suggestion.content?.summary || 'Civic Suggestion'"
+      title-class="max-w-[calc(100vw-7rem)] overflow-hidden text-ellipsis"
+      title-medium-font-size-ios="text-2xl whitespace-normal break-words !h-auto py-2"
+      title-medium-font-size-material="text-2xl whitespace-normal break-words !h-auto py-2"
+    >
+      <template #left>
+        <k-navbar-back-link :show-text="false" @click="goBack" />
+      </template>
+    </k-navbar>
 
     <!-- Loading state with Konsta Card & Preloader -->
     <k-card
-      v-if="isLoading"
+      v-else-if="isLoading"
       :outline="true"
       :content-wrap="false"
       class="animate-pulse p-8 space-y-4 m-0"
@@ -51,88 +50,39 @@
     </k-card>
 
     <!-- Suggestion Details View with Konsta Card -->
-    <div v-else-if="suggestion" class="space-y-6">
+    <div v-if="suggestion" class="space-y-6">
       <div
         :content-wrap="false"
-        class="p-4 space-y-6 m-0"
+        class="space-y-6 m-0"
       >
-        <!-- Title and Subtitle -->
-        <div>
-          <!-- <div class="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-            Civic Improvement Suggestion
-          </div> -->
-          <h1 class="text-2xl sm:text-3xl font-bold text-black dark:text-white">
-            {{ suggestion.content?.summary || 'Civic Suggestion' }}
-          </h1>
+        <LocationMapPreview :location="suggestion.location" class="mb-2" />
 
-          <div class="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
-            <div class="flex items-center gap-1.5">
-              <i class="fa-solid fa-user-circle"></i>
-              <span class="font-medium text-black dark:text-white">
-                {{ suggestion.author?.name || 'Anonymous Contributor' }}
-              </span>
-            </div>
-            <span>•</span>
-            <div class="flex items-center gap-1.5">
-              <i class="fa-solid fa-calendar"></i>
-              <span>{{ formattedDate }}</span>
-            </div>
+        <!-- Title and Subtitle -->
+        <div class="flex flex-wrap items-center gap-2 sm:text-sm text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 px-4 py-2">
+          <div class="flex items-center gap-1.5">
+            <i class="fa-solid fa-calendar"></i>
+            <span>{{ formattedDate }}</span>
           </div>
+          <span>•</span>
+          <div class="flex items-center gap-1.5">
+            <i class="fa-solid fa-user-circle"></i>
+            <span class="font-medium text-black dark:text-white">
+              {{ suggestion.author?.name || 'Anonymous Contributor' }}
+            </span>
+          </div>
+          <!-- Description Details -->
+          <p>
+            {{ suggestion.content?.details || 'No detailed description provided.' }}
+          </p>
         </div>
 
-        <!-- Description Details -->
-        <p class="">
-          {{ suggestion.content?.details || 'No detailed description provided.' }}
-        </p>
-
-        <!-- Location Information with Konsta Card -->
-          <div class="text-sm font-semibold text-black dark:text-white">
-            {{ suggestion.location?.address || 'Dallas, TX' }}
-          </div>
-
-          <p v-if="suggestion.location?.description" class="text-xs text-zinc-500">
-            <span class="font-semibold text-zinc-600 dark:text-zinc-400">Location Notes:</span>
-            {{ suggestion.location.description }}
-          </p>
-
-          <div v-if="suggestion.location?.latitude" class="flex items-center gap-4 text-xs text-zinc-500 font-mono">
-            <span>Coordinates: {{ Number(suggestion.location.latitude).toFixed(5) }}, {{ Number(suggestion.location.longitude).toFixed(5) }}</span>
-            <k-link
-              :href="`https://www.google.com/maps/search/?api=1&query=${suggestion.location.latitude},${suggestion.location.longitude}`"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 font-semibold"
-            >
-              <span>Google Maps</span>
-              <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-            </k-link>
-          </div>
-
-        <!-- Photos Section (up to 10 photos) with Konsta Card -->
-        <div v-if="photosList.length > 0" class="space-y-3">
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <k-card
-              v-for="(photo, index) in photosList"
-              :key="index"
-              :outline="true"
-              :content-wrap="false"
-              class="rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-900 shadow-sm group !m-0"
-            >
-              <div class="h-60 sm:h-72 w-full bg-zinc-950 overflow-hidden relative">
-                <img
-                  :src="photo.url || photo.dataUrl"
-                  :alt="photo.caption || 'Submission Photo'"
-                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
-                  @click="openLightbox(photo.url || photo.dataUrl)"
-                />
-              </div>
-              <div v-if="photo.caption" class="p-3 bg-zinc-900/90 text-xs text-zinc-300 border-t border-zinc-800">
-                <i class="fa-solid fa-quote-left text-[10px] mr-1.5 text-zinc-400"></i>
-                {{ photo.caption }}
-              </div>
-            </k-card>
-          </div>
+        <div v-if="photosList.length" class="space-y-3 px-4 pb-4">
+          <k-segmented v-if="photosList.length > 1" raised rounded class="w-auto" aria-label="Photo display">
+            <k-segmented-button small rounded :colors="photoDisplayButtonColors" :active="photoView === 'grid'" @click="photoView = 'grid'">Photo grid</k-segmented-button>
+            <k-segmented-button small rounded :colors="photoDisplayButtonColors" :active="photoView === 'slides'" @click="photoView = 'slides'">Slides</k-segmented-button>
+          </k-segmented>
+          <PhotoGrid v-if="photosList.length > 1 && photoView === 'grid'" :photos="photosList" @preview="previewPhoto" />
+          <PhotoSlider v-else v-model:active-index="activePhotoIndex" :photos="photosList" @preview="previewPhoto" />
         </div>
       </div>
     </div>
@@ -159,8 +109,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { kButton, kBadge, kCard, kLink, kPreloader } from 'konsta/vue';
+import { kButton, kCard, kNavbar, kNavbarBackLink, kPreloader, kSegmented, kSegmentedButton } from 'konsta/vue';
 import { getSuggestionById } from '../services/api';
+import LocationMapPreview from '../components/LocationMapPreview.vue';
+import PhotoGrid from '../components/PhotoGrid.vue';
+import PhotoSlider from '../components/PhotoSlider.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -169,6 +122,12 @@ const suggestion = ref(null);
 const isLoading = ref(true);
 const errorMessage = ref('');
 const lightboxUrl = ref('');
+const photoDisplayButtonColors = {
+  clearBgIos: 'bg-ios-light-surface dark:bg-ios-dark-surface',
+  clearBgMaterial: 'bg-md-light-surface-2 dark:bg-md-dark-surface-2',
+};
+const photoView = ref('grid');
+const activePhotoIndex = ref(0);
 
 const photosList = computed(() => {
   return suggestion.value?.content?.photos || suggestion.value?.photos || [];
@@ -177,21 +136,30 @@ const photosList = computed(() => {
 const formattedDate = computed(() => {
   const dt = suggestion.value?.createdAt || suggestion.value?.timestamp;
   if (!dt) return 'Recently';
-  try {
-    return new Date(dt).toLocaleString(undefined, {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
+
+  const date = new Date(dt);
+  if (Number.isNaN(date.getTime())) return 'Recently';
+
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString(undefined, {
       hour: 'numeric',
       minute: '2-digit',
-    });
-  } catch {
-    return 'Recently';
+      hour12: true,
+    }).toLowerCase();
   }
+
+  const options = {
+    month: 'long',
+    day: 'numeric',
+    ...(date.getFullYear() !== now.getFullYear() && { year: 'numeric' }),
+  };
+  return date.toLocaleDateString(undefined, options);
 });
 
-function openLightbox(url) {
-  lightboxUrl.value = url;
+function previewPhoto(index) {
+  const photo = photosList.value[index];
+  lightboxUrl.value = photo.dataUrl || photo.url;
 }
 
 function goBack() {

@@ -142,18 +142,14 @@
                 {{ item.content?.summary || 'Public Improvement' }}
               </h3>
               <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
-                <span>
+                <span v-if="activeSort === 1">
                   <i class="fa-solid fa-clock text-zinc-400"></i>
                   {{ formatCreationDate(item.creationDate) }}
                 </span>
-                <span>
+                <span v-if="activeSort === 2">
                   <i class="fa-solid fa-location-dot text-zinc-400"></i>
                   {{ item._formattedDistance }},
                   {{ formatBrowseAddress(item.location.address) }}
-                </span>
-                <span>
-                  <i class="fa-solid fa-user text-zinc-400"></i>
-                  {{ item.author?.name || 'Anonymous' }}
                 </span>
               </div>
             </div>
