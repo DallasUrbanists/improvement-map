@@ -134,7 +134,7 @@ const photosList = computed(() => {
 });
 
 const formattedDate = computed(() => {
-  const dt = suggestion.value?.createdAt || suggestion.value?.timestamp;
+  const dt = suggestion.value?.creationDate;
   if (!dt) return 'Recently';
 
   const date = new Date(dt);
