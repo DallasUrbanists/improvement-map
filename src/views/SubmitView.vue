@@ -446,7 +446,7 @@
         <input
           ref="fileInput"
           type="file"
-          accept="image/*"
+          accept="image/*,.svg"
           multiple
           class="hidden"
           :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
@@ -844,11 +844,11 @@
             type="button"
             large
             :rounded="true"
-            @click="handleGoHome"
+            @click="handleEditDetails"
             class="w-full font-bold shadow-lg"
           >
-            <i class="fa-solid fa-map-location-dot mr-2"></i>
-            Go to Browse
+            <i class="fa-solid fa-pen-to-square mr-2"></i>
+            Edit details
           </k-button>
 
           <k-button
@@ -860,7 +860,19 @@
             class="w-full text-sm"
           >
             <i class="fa-solid fa-rotate-right mr-2"></i>
-            Try Again
+            Retry submission
+          </k-button>
+
+          <k-button
+            v-if="submissionStatus === 'failed'"
+            type="button"
+            :outline="true"
+            :rounded="true"
+            @click="handleGoHome"
+            class="w-full text-sm"
+          >
+            <i class="fa-solid fa-map-location-dot mr-2"></i>
+            Go to browse
           </k-button>
         </div>
       </k-card>
@@ -1910,6 +1922,11 @@ function handleViewSuggestion(id) {
   } else {
     router.push('/browse');
   }
+}
+
+function handleEditDetails() {
+  setSubmitting(false);
+  showSubmissionOverlay.value = false;
 }
 
 function handleGoHome() {
