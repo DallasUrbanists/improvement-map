@@ -91,7 +91,7 @@
       v-show="activeTab === 'list'"
       ref="listContainerEl"
       @scroll="onListScroll"
-      class="dark:bg-slate-700 flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 w-full mx-auto scrollable"
+      class="flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 w-full mx-auto scrollable"
     >
       <div class="mb-4">
         <h2 class="text-xl sm:text-2xl font-bold">Submissions</h2>
