@@ -1,5 +1,5 @@
 <template>
-  <div class="flex-grow flex flex-col overflow-hidden">
+  <div class="relative flex-grow flex flex-col overflow-hidden">
 
     <!-- TAB 1: MAP VIEW (Google Maps SDK) -->
     <div v-show="activeTab === 'map'" class="flex-grow relative">
@@ -35,7 +35,7 @@
 
       <!-- "Center on my location" button -->
       <div
-        class="absolute bottom-8 left-2 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
+        class="absolute bottom-20 left-2 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-lg p-0.5">
         <k-segmented :raised="true" class="w-auto">
           <k-segmented-button @click="onCenterOnLocationClick"
             class="text-xs font-bold px-3 py-1"
@@ -91,7 +91,7 @@
       v-show="activeTab === 'list'"
       ref="listContainerEl"
       @scroll="onListScroll"
-      class="dark:bg-slate-700 flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 w-full mx-auto scrollable"
+      class="dark:bg-slate-700 flex-grow overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 w-full mx-auto scrollable"
     >
       <div class="mb-4">
         <h2 class="text-xl sm:text-2xl font-bold">Submissions</h2>
@@ -172,29 +172,37 @@
       </k-card>
     </div>
 
-    <!-- Bottom Tabbar -->
-    <k-tabbar
-      :labels="true"
-      class="w-full sticky bottom-0 z-30"
+    <div
+      class="absolute left-3 z-30 flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 p-0.5 transition-all duration-300 ease-in-out"
+      :class="activeTab === 'list' ? 'right-3 bottom-3 shadow-md' : 'right-16 bottom-8 shadow-lg'"
     >
-      <k-tabbar-link
-        label="Streets"
-        :active="activeTab === 'map' && currentMapType === 'roadmap'"
-        @click="selectTab('streets')"
-      ></k-tabbar-link>
-
-      <k-tabbar-link
-        label="Satellite"
-        :active="activeTab === 'map' && currentMapType === 'hybrid'"
-        @click="selectTab('satellite')"
-      ></k-tabbar-link>
-
-      <k-tabbar-link
-        label="List"
-        :active="activeTab === 'list'"
-        @click="selectTab('list')"
-      ></k-tabbar-link>
-    </k-tabbar>
+      <k-segmented :raised="true" class="w-full" aria-label="Browse view options">
+        <k-segmented-button
+          :active="activeTab === 'map' && currentMapType === 'roadmap'"
+          @click="selectTab('streets')"
+          small
+          class="flex-1 justify-center text-xs font-bold px-2.5 py-1"
+        >
+          Streets
+        </k-segmented-button>
+        <k-segmented-button
+          :active="activeTab === 'map' && currentMapType === 'hybrid'"
+          @click="selectTab('satellite')"
+          small
+          class="flex-1 justify-center text-xs font-bold px-2.5 py-1"
+        >
+          Satellite
+        </k-segmented-button>
+        <k-segmented-button
+          :active="activeTab === 'list'"
+          @click="selectTab('list')"
+          small
+          class="flex-1 justify-center text-xs font-bold px-2.5 py-1"
+        >
+          List
+        </k-segmented-button>
+      </k-segmented>
+    </div>
     
   </div>
 </template>
@@ -214,8 +222,6 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 import {
-  kTabbar,
-  kTabbarLink,
   kSegmented,
   kSegmentedButton,
   kButton,
