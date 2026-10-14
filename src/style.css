@@ -29,18 +29,18 @@ html {
 
 body {
   @apply antialiased font-sans transition-colors duration-200;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
+  background-repeat: repeat;
+  background-size: auto;
   background-attachment: fixed;
 }
 
 .dark body {
-  background-image: url('/dark-theme-bg.svg');
+  background-image: url('/5-dots.png');
+  background-size: 200px;
 }
 
 .light body {
-  background-image: url('/light-theme-bg.svg');
+  background-image: url('/45degreee_fabric.webp');
 }
 
 .scrollable {
