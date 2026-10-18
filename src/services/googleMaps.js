@@ -169,6 +169,12 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
     mapThemeBindings.set(map, binding);
     binding.listeners = [map.addListener('zoom_changed', refresh), map.addListener('maptypeid_changed', refresh)];
     binding.layer = createNeighborhoodLabelLayer(map, window.google.maps, refresh);
+    // Load the catalog once, and share the overlay across theme/map-type updates.
+    Promise.all([import('./googleMapsRailOverlay'), import('./railCatalog')])
+      .then(([{ createGoogleMapsRailOverlay }, { railCatalog }]) => {
+        if (!binding.disposed) binding.railLayer = createGoogleMapsRailOverlay(map, window.google.maps, railCatalog);
+      })
+      .catch((error) => console.warn('Rail overlay could not be loaded:', error));
   }
   binding.isDarkTheme = isDarkTheme;
   binding.refresh();
@@ -185,6 +191,8 @@ export function disposeMapTheme(map) {
   }
   const binding = mapThemeBindings.get(map);
   if (!binding) return;
+  binding.disposed = true;
+  binding.railLayer?.dispose();
   binding.listeners.forEach(listener => listener.remove());
   binding.layer?.dispose();
   mapThemeBindings.delete(map);

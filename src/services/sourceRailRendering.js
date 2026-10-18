@@ -14,12 +14,12 @@ const escapeXml = (value) => String(value).replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
 })[c]);
 
-function chainsFromSource(catalog, center, halfExtent, project, screen) {
+function chainsFromSource(catalog, center, halfExtent, project, screen, sourceSegments) {
   const nodes = new Map();
   const edges = [];
   // Use the catalog's six-decimal node identity; keep a deterministic original
   // coordinate for each node rather than averaging or snapping nearby tracks.
-  for (const segment of railSegmentsInBounds(catalog, center, halfExtent)) {
+  for (const segment of sourceSegments || railSegmentsInBounds(catalog, center, halfExtent)) {
     const keys = [...segment.keys].sort();
     const ends = segment.geometry.map((point) => {
       const id = nodeKey(point);
@@ -161,10 +161,70 @@ function connectLane(points, anchors) {
   return { path: markup, points: result };
 }
 
+function alignStationVariants(segments, scale) {
+  const ranks = ['DART:GREEN', 'DART:ORANGE', 'DART:RED', 'DART:BLUE'];
+  const endpointKey = (line, point) => `${line}:${point.x.toFixed(5)},${point.y.toFixed(5)}`;
+  const movedEnds = new Map();
+  const originalEnds = new Map(segments.map((segment) => [segment, [segment.points[0], segment.points.at(-1)]]));
+  for (const segment of segments) {
+    const references = segment.line === 'DART:ORANGE' ? ['DART:GREEN', 'DART:RED']
+      : segment.line === 'DART:BLUE' ? ['DART:RED'] : [];
+    for (const line of references) {
+      const candidates = segments.filter((other) => other.line === line);
+      const matches = segment.sourcePoints.map((point) => {
+        let best;
+        for (const reference of candidates) for (let i = 1; i < reference.sourcePoints.length; i++) {
+          const a = reference.sourcePoints[i - 1]; const b = reference.sourcePoints[i];
+          const dx = b.x - a.x; const dy = b.y - a.y;
+          const t = dx || dy ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy))) : 0;
+          const gap = distance(point, interpolate(a, b, t));
+          if (!best || gap < best.gap) best = { reference, i, t, gap };
+        }
+        return best;
+      });
+      // Only reconcile a whole nearby variant. Already shared geometry and
+      // genuinely diverging routes retain their original lanes and junctions.
+      if (!matches.every((match) => match && match.gap <= 35 * scale)
+        || matches.every((match) => match.gap < 0.001 * scale)) continue;
+      const alternatives = new Map(candidates.map((reference) => [reference,
+        offsetPolyline(reference.sourcePoints, reference.offset
+          + (ranks.indexOf(segment.line) - ranks.indexOf(line)) * 5.5 * reference.orderDirection)]));
+      const points = [];
+      for (let j = 0; j < matches.length; j++) {
+        const match = matches[j]; const previous = matches[j - 1];
+        const lane = alternatives.get(match.reference);
+        if (previous?.reference === match.reference) {
+          const from = previous.i - 1 + previous.t; const to = match.i - 1 + match.t;
+          if (to >= from) for (let k = Math.floor(from) + 1; k < to; k++) points.push(lane[k]);
+          else for (let k = Math.ceil(from) - 1; k > to; k--) points.push(lane[k]);
+        }
+        points.push(interpolate(lane[match.i - 1], lane[match.i], match.t));
+      }
+      for (const end of [0, 1]) movedEnds.set(endpointKey(segment.line, end ? segment.points.at(-1) : segment.points[0]),
+        end ? points.at(-1) : points[0]);
+      segment.points = points;
+      segment.path = `M${points.map(xy).join(' L')}`;
+      break;
+    }
+  }
+  // Reconnect adjacent sections of the same service after a variant moves.
+  for (const segment of segments) {
+    const anchors = [0, 1].map((end) => {
+      const point = end ? segment.points.at(-1) : segment.points[0];
+      const target = movedEnds.get(endpointKey(segment.line, originalEnds.get(segment)[end]));
+      return target ? { point: target, tangent: end ? unit(point, segment.points.at(-2)) : unit(point, segment.points[1]) } : null;
+    });
+    if (anchors.some(Boolean)) {
+      const adjusted = connectLane(segment.points, anchors);
+      segment.points = adjusted.points; segment.path = adjusted.path;
+    }
+  }
+}
+
 /** Preserve source centerlines and reconcile service lanes at shared graph nodes. */
-export function renderSourceTransit(catalog, center, halfExtent, project, screen, scale, { width = 480, height = 480 } = {}) {
+export function renderSourceTransit(catalog, center, halfExtent, project, screen, scale, { width = 480, height = 480, sourceSegments = null, clip = true } = {}) {
   const lines = new Map((catalog?.lines || []).map((line) => [line.id, line]));
-  const chains = consolidateVariants(chainsFromSource(catalog, center, halfExtent + 40 / scale, project, screen), scale);
+  const chains = consolidateVariants(chainsFromSource(catalog, center, halfExtent + 40 / scale, project, screen, sourceSegments), scale);
   const junctions = arrangeRailJunctions(chains, scale, true);
   const nodes = new Map();
   for (const chain of chains) for (const end of [0, 1]) {
@@ -175,19 +235,37 @@ export function renderSourceTransit(catalog, center, halfExtent, project, screen
   // Carry the junction's lane order through every connected section with the
   // same services. Otherwise a small route variant could reset a trunk's order.
   const ordered = new Set();
-  const direction = (chain, end) => end ? unit(chain.points.at(-2), chain.points.at(-1))
-    : unit(chain.points[0], chain.points[1]);
-  const seeds = [...junctions.flatMap(({ trunk, branches }) => [trunk, ...branches.map((branch) => branch.chain)]), ...chains];
+  const dartTrunkOrder = ['DART:GREEN', 'DART:ORANGE', 'DART:RED', 'DART:BLUE'];
+  const isDartTrunk = (chain) => chain.keys.length === dartTrunkOrder.length
+    && dartTrunkOrder.every((key) => chain.keys.includes(key));
+  // Source chains run west-to-east: negative offsets are north of the trunk.
+  // Seed this corridor before junction-derived ordering, then carry its service
+  // order into each subset branch before creating lanes and endpoint anchors.
+  const dartTrunks = chains.filter(isDartTrunk);
+  for (const chain of dartTrunks) chain.keys = [...dartTrunkOrder];
+  const seeds = [...dartTrunks, ...junctions.flatMap(({ trunk, branches }) => [trunk, ...branches.map((branch) => branch.chain)]), ...chains];
   for (const seed of seeds) {
     if (ordered.has(seed)) continue;
+    const carryBranchOrder = isDartTrunk(seed);
+    seed.orderDirection = 1;
     ordered.add(seed);
     const queue = [seed];
     for (let i = 0; i < queue.length; i++) {
       const chain = queue[i];
       for (const end of [0, 1]) for (const next of nodes.get(chain.nodes[end])) {
-        if (ordered.has(next.chain) || next.chain.signature !== chain.signature) continue;
-        const a = direction(chain, end); const b = direction(next.chain, next.end);
-        next.chain.keys = a.x * b.x + a.y * b.y >= 0 ? [...chain.keys] : [...chain.keys].reverse();
+        const dartContinuation = carryBranchOrder && next.chain.keys.every((key) => dartTrunkOrder.includes(key))
+          && next.chain.keys.some((key) => chain.keys.includes(key));
+        if (ordered.has(next.chain) || (next.chain.signature !== chain.signature && !dartContinuation)) continue;
+        // Endpoint topology determines traversal direction. Comparing tangents
+        // incorrectly reverses the lanes when a connected corridor bends >90°.
+        const sameDirection = end !== next.end;
+        next.chain.orderDirection = chain.orderDirection * (sameDirection ? 1 : -1);
+        if (carryBranchOrder) {
+          const keys = dartTrunkOrder.filter((key) => next.chain.keys.includes(key));
+          next.chain.keys = next.chain.orderDirection > 0 ? keys : keys.reverse();
+        } else {
+          next.chain.keys = sameDirection ? [...chain.keys] : [...chain.keys].reverse();
+        }
         ordered.add(next.chain); queue.push(next.chain);
       }
     }
@@ -223,11 +301,13 @@ export function renderSourceTransit(catalog, center, halfExtent, project, screen
   for (const chain of chains) for (const [key, lane] of lanes.get(chain)) {
     if (!lines.has(key)) continue;
     const adjusted = connectLane(lane, anchors.get(chain).get(key));
-    if (!intersects(adjusted.points)) continue;
+    if (clip && !intersects(adjusted.points)) continue;
     visible.add(key);
-    segments.push({ line: key, points: adjusted.points, sourcePoints: chain.points });
-    paths.push(`<path data-transit-line="${escapeXml(key)}" d="${adjusted.path}" stroke="${lines.get(key).color}"/>`);
+    segments.push({ line: key, points: adjusted.points, sourcePoints: chain.points, path: adjusted.path,
+      offset: (chain.keys.indexOf(key) - (chain.keys.length - 1) / 2) * 5.5, orderDirection: chain.orderDirection || 1 });
   }
+  alignStationVariants(segments, scale);
+  for (const segment of segments) paths.push(`<path data-transit-line="${escapeXml(segment.line)}" d="${segment.path}" stroke="${lines.get(segment.line).color}"/>`);
   return { paths, segments, lines: [...visible].sort().map((key) => lines.get(key)),
     junctions: junctions.map(({ trunk, branches }) => ({ trunkOrder: trunk.keys,
       branchOrders: branches.map((branch) => branch.chain.keys) })) };

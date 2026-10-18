@@ -80,6 +80,11 @@ async function initializeMap() {
     zoomControlOptions: { position: maps.ControlPosition.TOP_RIGHT },
     gestureHandling: 'cooperative',
     clickableIcons: false,
+    heading: 0,
+    tilt: 0,
+    rotateControl: false,
+    headingInteractionEnabled: false,
+    tiltInteractionEnabled: false,
     styles: getMapStyles(isDark.value, mapType.value, 16),
   });
 

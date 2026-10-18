@@ -13,7 +13,7 @@
           <circle r="9" /><path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" /><circle r="2" fill="white" stroke="none" />
         </g>
       </svg>
-      <div v-if="submissionCoordinates" ref="coordinateLabel" class="crosshair-coordinate-label" :class="{ 'is-left': coordinateLabelOnLeft, 'is-moving': isSubmitLocate && isPinMoving }" :style="coordinateLabelStyle">
+      <div v-if="isSubmit && submissionCoordinates" ref="coordinateLabel" class="crosshair-coordinate-label" :class="{ 'is-left': coordinateLabelOnLeft, 'is-moving': isSubmitLocate && isPinMoving }" :style="coordinateLabelStyle">
         <button type="button" class="map-ui map-ui-button" :aria-label="`Copy latitude and longitude: ${submissionCoordinates}`" @click.stop="copySubmissionCoordinates">{{ submissionCoordinates }}</button>
         <span v-if="coordinateCopyMessage" class="map-ui crosshair-copy-tooltip" role="status">{{ coordinateCopyMessage }}</span>
       </div>
@@ -360,6 +360,11 @@ async function initGoogleMap() {
       mapTypeControl: false,
       gestureHandling: 'greedy',
       clickableIcons: false,
+      heading: 0,
+      tilt: 0,
+      rotateControl: false,
+      headingInteractionEnabled: false,
+      tiltInteractionEnabled: false,
     });
 
     insetMapZoomControls(map, googleMaps);
