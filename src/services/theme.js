@@ -4,7 +4,8 @@ import { getStoredTheme, setStoredTheme } from './storage';
 const THEME_OPTIONS = new Set(['light', 'dark', 'system']);
 const SYSTEM_THEME_QUERY = '(prefers-color-scheme: dark)';
 
-export const selectedTheme = ref(getStoredTheme());
+const storedTheme = getStoredTheme();
+export const selectedTheme = ref(THEME_OPTIONS.has(storedTheme) ? storedTheme : 'system');
 export const isDark = ref(resolveIsDark(selectedTheme.value));
 
 let systemThemeMediaQuery = null;
@@ -34,8 +35,7 @@ function onSystemThemeChange() {
 
 export function initTheme() {
   const saved = getStoredTheme();
-  selectedTheme.value = THEME_OPTIONS.has(saved) ? saved : 'dark';
-  setStoredTheme(selectedTheme.value);
+  selectedTheme.value = THEME_OPTIONS.has(saved) ? saved : 'system';
 
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function' && !systemThemeMediaQuery) {
     systemThemeMediaQuery = window.matchMedia(SYSTEM_THEME_QUERY);
@@ -50,7 +50,7 @@ export function initTheme() {
 }
 
 export function applyTheme(theme) {
-  if (!THEME_OPTIONS.has(theme)) return;
+  if (theme !== 'light' && theme !== 'dark') return;
   selectedTheme.value = theme;
   setStoredTheme(theme);
   applyResolvedTheme(theme);

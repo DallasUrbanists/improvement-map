@@ -27,11 +27,11 @@ test('suggestion photos switch between read-only grid and slides', async ({ page
   await page.getByAltText('Full size').click();
 
   const slidesButton = page.getByRole('button', { name: 'Slides', exact: true });
-  await page.getByRole('link', { name: 'Menu', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Light theme', exact: true }).click();
   const lightBackground = await slidesButton.evaluate((element) => getComputedStyle(element).backgroundColor);
   expect(lightBackground).not.toBe('rgba(0, 0, 0, 0)');
-  await page.getByRole('link', { name: 'Menu', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Dark theme', exact: true }).click();
   await expect.poll(() => slidesButton.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(lightBackground);
   expect(await slidesButton.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');

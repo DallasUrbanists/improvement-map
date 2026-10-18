@@ -1,11 +1,11 @@
 <template>
-  <div class="space-y-2">
+  <div class="space-y-2" :class="{ 'photo-slider-fill': fillAvailable }">
     <div
       ref="photoViewer"
       data-testid="photo-swipe-viewer"
       class="hide-scrollbar flex min-h-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain touch-pan-x"
       :class="edgeToEdge ? '-mx-6 w-[calc(100%+3rem)] px-6' : 'w-full'"
-      :style="{ ...viewerStyle, scrollPaddingInline: edgeToEdge ? '1.5rem' : '0' }"
+      :style="{ ...(fillAvailable ? {} : viewerStyle), scrollPaddingInline: edgeToEdge ? '1.5rem' : '0' }"
       aria-label="Photos; swipe horizontally to browse"
       @scroll.passive="updateActivePhotoIndex"
     >
@@ -26,10 +26,10 @@
             v-if="editable"
             type="button"
             @click="$emit('remove', index)"
-            class="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition hover:bg-red-500 active:scale-90"
+            class="photo-remove-button map-ui-button"
             :aria-label="`Remove photo ${index + 1}`"
           >
-            <i class="fa-solid fa-trash-can text-xs"></i>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
         <input
@@ -77,6 +77,7 @@ const props = defineProps({
   photos: { type: Array, default: () => [] },
   editable: { type: Boolean, default: false },
   edgeToEdge: { type: Boolean, default: false },
+  fillAvailable: { type: Boolean, default: false },
   activeIndex: { type: Number, default: 0 },
 });
 const emit = defineEmits(['update:activeIndex', 'remove', 'caption-change', 'preview']);

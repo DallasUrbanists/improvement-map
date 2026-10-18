@@ -96,26 +96,31 @@ test.describe('Improvement Map - PWA and Navigation', () => {
   expect(await scroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
 });
 
-test('theme menu supports light, dark, and system themes', async ({ page }) => {
+test('theme follows system until a manual choice, then remembers that choice', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
 
   const htmlElement = page.locator('html');
-  const menuButton = page.locator('#theme-menu-btn');
+  const menuButton = page.getByRole('button', { name: 'Menu', exact: true });
+  await expect(htmlElement).toHaveClass(/dark/);
+
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(htmlElement).toHaveClass(/light/);
+  await page.emulateMedia({ colorScheme: 'dark' });
   await expect(htmlElement).toHaveClass(/dark/);
 
   await menuButton.click();
+  await expect(page.getByRole('menuitemradio', { name: 'System theme' })).toHaveCount(0);
   await page.getByRole('menuitemradio', { name: 'Light theme' }).click();
   await expect(htmlElement).toHaveClass(/light/);
 
   await page.reload();
   await expect(htmlElement).toHaveClass(/light/);
 
-  await menuButton.click();
-  await page.getByRole('menuitemradio', { name: 'System theme' }).click();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('improvement_map_theme'))).toBe('system');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('improvement_map_theme'))).toBe('light');
 
   await page.emulateMedia({ colorScheme: 'dark' });
-  await expect(htmlElement).toHaveClass(/dark/);
+  await expect(htmlElement).toHaveClass(/light/);
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(htmlElement).toHaveClass(/light/);
 
@@ -123,6 +128,9 @@ test('theme menu supports light, dark, and system themes', async ({ page }) => {
   await expect(htmlElement).toHaveClass(/light/);
   await menuButton.click();
   await page.getByRole('menuitemradio', { name: 'Dark theme' }).click();
+  await expect(htmlElement).toHaveClass(/dark/);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.reload();
   await expect(htmlElement).toHaveClass(/dark/);
 });
 

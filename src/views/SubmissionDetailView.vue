@@ -1,22 +1,8 @@
 <template>
-  <div class="h-full min-h-0 overflow-x-hidden overflow-y-auto">
-    <k-navbar
-      v-if="suggestion"
-      medium
-      transparent
-      :title="suggestion.content?.summary || 'Civic Suggestion'"
-      title-class="max-w-[calc(100vw-7rem)] overflow-hidden text-ellipsis"
-      title-medium-font-size-ios="text-2xl whitespace-normal break-words !h-auto py-2"
-      title-medium-font-size-material="text-2xl whitespace-normal break-words !h-auto py-2"
-    >
-      <template #left>
-        <k-navbar-back-link :show-text="false" @click="goBack" />
-      </template>
-    </k-navbar>
-
+  <MapTray class="submission-detail-tray" :title="suggestion?.content?.summary || 'Submission details'" @close="goBack">
     <!-- Loading state with Konsta Card & Preloader -->
     <k-card
-      v-else-if="isLoading"
+      v-if="isLoading"
       :outline="true"
       :content-wrap="false"
       class="animate-pulse p-8 space-y-4 m-0"
@@ -36,7 +22,7 @@
       :content-wrap="false"
       class="text-center py-12 m-0"
     >
-      <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-3"></i>
+      <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-3" aria-hidden="true"></i>
       <h2 class="text-xl font-bold mb-2">Suggestion Not Found</h2>
       <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">{{ errorMessage }}</p>
       <k-button
@@ -50,45 +36,33 @@
     </k-card>
 
     <!-- Suggestion Details View with Konsta Card -->
-    <div v-if="suggestion" class="space-y-6">
+    <div v-if="suggestion" class="detail-body-sections">
       <div
         :content-wrap="false"
-        class="space-y-6 m-0"
+        class="detail-body-sections"
       >
-        <LocationMapPreview :location="suggestion.location" class="mb-2" />
 
         <!-- Title and Subtitle -->
-        <div class="flex flex-wrap items-center gap-2 sm:text-sm text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 px-4 py-2">
-          <div class="flex items-center gap-1.5">
-            <i class="fa-solid fa-calendar"></i>
-            <span>{{ formattedDate }}</span>
-          </div>
-          <span>•</span>
-          <div class="flex items-center gap-1.5">
-            <i class="fa-solid fa-user-circle"></i>
-            <span class="font-medium text-black dark:text-white">
-              {{ suggestion.author?.name || 'Anonymous Contributor' }}
-            </span>
-          </div>
+        <div class="text-sm whitespace-pre-wrap break-words px-4 py-2">
           <!-- Description Details -->
           <p>
             {{ suggestion.content?.details || 'No detailed description provided.' }}
           </p>
         </div>
 
-        <details v-if="photosList.length" open class="mx-4 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <details v-if="photosList.length" open class="detail-accordion">
           <summary class="cursor-pointer px-4 py-3 font-bold">Photos ({{ photosList.length }})</summary>
-          <div class="space-y-3 px-4 pb-4">
-            <k-segmented v-if="photosList.length > 1" raised rounded class="w-auto" aria-label="Photo display">
-              <k-segmented-button small rounded :colors="photoDisplayButtonColors" :active="photoView === 'grid'" @click="photoView = 'grid'">Photo grid</k-segmented-button>
-              <k-segmented-button small rounded :colors="photoDisplayButtonColors" :active="photoView === 'slides'" @click="photoView = 'slides'">Slides</k-segmented-button>
-            </k-segmented>
-            <PhotoGrid v-if="photosList.length > 1 && photoView === 'grid'" :photos="photosList" @preview="previewPhoto" />
-            <PhotoSlider v-else v-model:active-index="activePhotoIndex" :photos="photosList" @preview="previewPhoto" />
+          <div class="px-6 pb-6">
+            <div class="review-photo-row">
+              <button v-for="(photo, index) in photosList" :key="photo.id || index" type="button" class="review-photo-thumbnail" :aria-label="`Open photo ${index + 1}${photo.caption ? ': ' + photo.caption : ''}`" @click="previewPhoto(index)">
+                <img :src="photo.dataUrl || photo.url" :alt="photo.caption || `Photo ${index + 1}`" />
+                <span v-if="photo.caption" class="review-photo-caption">{{ photo.caption }}</span>
+              </button>
+            </div>
           </div>
         </details>
 
-        <details @toggle="handleBoundariesToggle" class="mx-4 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <details @toggle="handleBoundariesToggle" class="detail-accordion">
           <summary class="cursor-pointer px-4 py-3 font-bold">Neighborhoods &amp; Districts</summary>
           <div class="w-full min-w-0 max-w-full overflow-x-auto pb-4">
             <div v-if="boundariesLoading" role="status" aria-live="polite" class="flex items-center gap-2 px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
@@ -127,7 +101,7 @@
           </div>
         </details>
 
-        <details @toggle="handleRepresentativesToggle" class="mx-4 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <details @toggle="handleRepresentativesToggle" class="detail-accordion">
           <summary class="cursor-pointer px-4 py-3 font-bold">Representatives</summary>
           <div class="w-full min-w-0 max-w-full overflow-x-auto pb-4">
             <div v-if="representativesLoading" role="status" aria-live="polite" class="flex items-center gap-2 px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
@@ -180,7 +154,7 @@
           </div>
         </details>
 
-        <details @toggle="handleRecommendedActionsToggle" class="mx-4 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <details @toggle="handleRecommendedActionsToggle" class="detail-accordion">
           <summary class="cursor-pointer px-4 py-3 font-bold">Recommended Actions</summary>
           <div class="px-4 pb-4">
             <div v-if="recommendedActionsLoading" role="status" aria-live="polite" class="flex items-center gap-2 py-3 text-sm text-zinc-500 dark:text-zinc-400">
@@ -215,36 +189,39 @@
     </div>
 
     <!-- Image Lightbox Modal -->
-    <div
+    <Teleport to="body">    <div
       v-if="lightboxUrl"
       class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
+      role="dialog" aria-modal="true" aria-label="Photo preview"
       @click="lightboxUrl = ''"
     >
       <div class="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center">
         <button
           @click="lightboxUrl = ''"
+          aria-label="Close photo preview"
           class="absolute -top-12 right-0 text-white text-2xl p-2 hover:text-zinc-300"
         >
-          <i class="fa-solid fa-xmark"></i>
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
         </button>
         <img :src="lightboxUrl" class="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" alt="Full size" />
       </div>
     </div>
-  </div>
+    </Teleport>
+  </MapTray>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, inject, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { kBlock, kButton, kCard, kNavbar, kNavbarBackLink, kPreloader, kSegmented, kSegmentedButton, kTable, kTableBody, kTableCell, kTableHead, kTableRow } from 'konsta/vue';
+import { kBlock, kButton, kCard, kNavbar, kNavbarBackLink, kPreloader, kTable, kTableBody, kTableCell, kTableHead, kTableRow } from 'konsta/vue';
 import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries, getSuggestionRecommendedActions } from '../services/api';
-import LocationMapPreview from '../components/LocationMapPreview.vue';
-import PhotoGrid from '../components/PhotoGrid.vue';
-import PhotoSlider from '../components/PhotoSlider.vue';
+import MapTray from '../components/MapTray.vue';
+import { mapWorkspaceKey } from '../services/mapWorkspace';
 import { applySubmissionShareMetadata } from '../services/submissionShareMetadata';
 
 const route = useRoute();
 const router = useRouter();
+const workspace = inject(mapWorkspaceKey);
 
 const suggestion = ref(null);
 const isLoading = ref(true);
@@ -256,12 +233,6 @@ const representativesLoaded = ref(false);
 const representativesError = ref('');
 let representativesRequestVersion = 0;
 let suggestionRequestVersion = 0;
-const photoDisplayButtonColors = {
-  clearBgIos: 'bg-ios-light-surface dark:bg-ios-dark-surface',
-  clearBgMaterial: 'bg-md-light-surface-2 dark:bg-md-dark-surface-2',
-};
-const photoView = ref('grid');
-const activePhotoIndex = ref(0);
 const boundaries = ref([]);
 const boundariesLoading = ref(false);
 const boundariesLoaded = ref(false);
@@ -437,13 +408,18 @@ async function loadRepresentatives() {
   }
 }
 
-function goBack() {
-  if (window.history.length > 2) {
-    router.back();
-  } else {
-    router.push('/browse');
-  }
-}
+function goBack() { workspace.closeTray(); }
+const dismissLightbox = () => {
+  if (!lightboxUrl.value) return false;
+  lightboxUrl.value = '';
+  return true;
+};
+workspace.dismissDetail = dismissLightbox;
+onBeforeUnmount(() => {
+  if (workspace.dismissDetail === dismissLightbox) workspace.dismissDetail = null;
+  workspace.setDetailLocation(null);
+});
+watch([suggestion, formattedDate], ([item, date]) => workspace.setDetailLocation(item?.location || null, item ? `${date} · ${item.author?.name || 'Anonymous Contributor'}` : ''));
 
 watch(() => route.params.id, async (id) => {
   const requestVersion = ++suggestionRequestVersion;

@@ -1,14 +1,24 @@
 <template>
-  <div class="flex flex-col h-full">
+  <div class="submission-view">
+    <Transition :name="stepTransition" appear @before-leave="freezeLeavingStep">
+    <component ref="submissionStage" :is="draft.step === 1 ? 'div' : MapTray" :key="draft.step" class="submission-stage"
+      :class="{ 'submission-content-tray': draft.step === 3 || draft.step === 4 }"
+      v-bind="draft.step > 1 ? { title: currentStepTitle, scrollable: false, animate: false } : {}" @close="workspace.closeTray">
+    <template v-if="draft.step === 3" #header>
+      <h1>{{ currentStepTitle }}</h1>
+      <div class="description-feedback" aria-live="polite">
+        <p v-if="isGrammarLoading" role="status">Fixing grammar and spelling…</p>
+        <p v-if="speechActive" role="status">
+          {{ recordingState === 'starting' ? (hasStartedRecording ? 'Resuming recording… Please wait.' : 'Starting microphone… Allow access if prompted, or cancel.') : (recordingState === 'stopping' ? 'Finishing transcription…' : 'Listening…') }}
+        </p>
+        <p v-if="grammarError" class="description-error" role="alert">{{ grammarError }}</p>
+        <p v-if="clarityError" class="description-error" role="alert">{{ clarityError }}</p>
+        <p v-if="errors.details" class="description-error" role="alert">{{ errors.details }}</p>
+      </div>
+    </template>
 
     <!-- ================= STEP 3: DESCRIBE ================= -->
     <div v-if="draft.step === 3" class="flex flex-grow min-h-0 flex-col">
-      <div class="flex flex-grow min-h-0 flex-col gap-5 overflow-y-auto p-6">
-      <div>
-        <h2 class="text-2xl font-bold">Describe your idea</h2>
-      </div>
-
-      <div class="flex min-h-0 flex-grow flex-col">
         <textarea
           id="input-details"
           ref="detailsInput"
@@ -16,12 +26,21 @@
           @input="onDetailsInput"
           :disabled="isGrammarLoading || isClarityLoading"
           :readonly="speechActive"
-          rows="5"
-          :placeholder="hasEncounteredBlockedMicrophone ? 'If recording is unavailable, tap the text box and use your keyboard’s microphone for dictation.' : ''"
-          class="block min-h-40 w-full flex-grow flex-shrink-0 resize-none overflow-hidden px-4 py-3 rounded rounded-b-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none mb-0"
+          rows="2"
+          aria-label="Describe your idea"
+          placeholder="Start writing your idea here..."
+          class="description-textarea"
           required
         ></textarea>
-        <div class="relative flex items-stretch rounded-b border border-t-0 border-zinc-300 dark:border-zinc-700">
+      <footer class="description-footer">
+        <div class="description-text-toolbar">
+          <div class="description-record-control">
+            <div v-if="speechError && !isMicrophoneAccessBlocked" class="map-ui description-speech-tooltip" role="status">
+              <span>{{ speechError }}</span>
+              <button type="button" class="map-ui-button" aria-label="Dismiss speech error" @click="speechError = ''">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+              </button>
+            </div>
           <button
             ref="recordButton"
             type="button"
@@ -29,19 +48,16 @@
             :aria-pressed="speechActive"
             :aria-busy="recordingState === 'starting' || recordingState === 'stopping'"
             :disabled="recordingState === 'stopping' || isGrammarLoading || isClarityLoading"
-            class="flex-1 gap-2 rounded-t-none px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus:ring-offset-zinc-900 cursor-pointer"
-            :class="[
-              isRecording
-                            ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 animate-pulse shadow-lg shadow-red-500/70'
-                            : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 focus:ring-zinc-500 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700',
-              showAutoImprove ? 'rounded-bl-md rounded-br-none' : 'rounded-bl-md rounded-br-md',
-            ]"
+            class="map-ui-button"
+            :class="{ 'is-recording': isRecording }"
           >
-            <i :class="recordingState === 'starting' || recordingState === 'stopping' ? 'fa-solid fa-spinner animate-spin mr-1' : (isRecording ? 'fa-solid fa-stop mr-1' : 'fa-solid fa-microphone mr-1')"></i>
+            <i :class="recordingState === 'starting' || recordingState === 'stopping' ? 'fa-solid fa-spinner animate-spin mr-1' : (isRecording ? 'fa-solid fa-stop mr-1' : 'fa-solid fa-microphone mr-1')" aria-hidden="true"></i>
             {{ recordingState === 'starting' ? (hasStartedRecording ? 'Please wait' : 'Cancel recording') : (recordingState === 'stopping' ? 'Stopping…' : (isRecording ? 'Stop recording' : (showAutoImprove ? 'Record' : 'Record speech to text'))) }}
           </button>
-          <div v-if="showAutoImprove" class="relative border-l border-zinc-300 dark:border-zinc-600">
+          </div>
+          <div v-if="showAutoImprove" class="description-improve-control">
             <button
+              id="auto-improve-trigger"
               ref="autoImproveButton"
               type="button"
               @click="toggleAutoImproveMenu"
@@ -49,73 +65,55 @@
               aria-haspopup="menu"
               aria-controls="auto-improve-menu"
               :disabled="isGrammarLoading || isClarityLoading"
-              class="h-full cursor-pointer disabled:cursor-wait disabled:opacity-70 rounded-br-md bg-zinc-100 px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-zinc-500 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+              class="map-ui-button h-full"
             >
-              <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>
+              <i class="fa-solid fa-wand-magic-sparkles mr-1" aria-hidden="true"></i>
               Auto improve
-              <i class="fa-solid fa-chevron-down ml-1 text-xs"></i>
+              <i class="fa-solid fa-chevron-down ml-1 text-xs" aria-hidden="true"></i>
             </button>
-            <div
-              v-if="isAutoImproveOpen"
-              id="auto-improve-menu"
-              ref="autoImproveMenu"
-              role="menu"
-              :style="{ maxHeight: autoImproveMenuMaxHeight === null ? undefined : `${autoImproveMenuMaxHeight}px` }"
-              :class="isAutoImproveOpensUp ? 'absolute right-0 bottom-full z-30 mb-1' : 'absolute right-0 top-full z-30 mt-1'"
-              class="min-w-56 max-h-48 overflow-y-auto rounded border border-zinc-300 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+            <k-popover
+              :opened="isAutoImproveOpen"
+              target="#auto-improve-trigger"
+              :angle="false"
+              @backdropclick="isAutoImproveOpen = false"
+              class="map-ui map-menu-popover description-improve-menu min-w-56"
             >
-              <button type="button" role="menuitem" @click="handleFixGrammarAndSpelling" class="w-full px-4 py-2.5 text-left text-sm text-zinc-800 hover:bg-zinc-100 disabled:cursor-wait disabled:opacity-70 dark:text-zinc-200 dark:hover:bg-zinc-800">
+            <div
+              id="auto-improve-menu"
+              role="menu"
+              class="p-1"
+            >
+              <button type="button" role="menuitem" @click="handleFixGrammarAndSpelling" class="map-ui-button w-full justify-between">
                 Fix grammar and spelling
               </button>
-              <button type="button" role="menuitem" @click="handleImproveClarity" class="w-full px-4 py-2.5 text-left text-sm text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800">
+              <button type="button" role="menuitem" @click="handleImproveClarity" class="map-ui-button w-full justify-between">
                 Improve clarity and structure
               </button>
             </div>
+            </k-popover>
           </div>
         </div>
-        <p v-if="isGrammarLoading" class="mt-2 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300" role="status" aria-live="polite">
-          <i class="fa-solid fa-spinner animate-spin"></i>
-          Fixing grammar and spelling…
-        </p>
-        <p v-if="grammarError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
-          {{ grammarError }}
-        </p>
-        <p v-if="clarityError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
-          {{ clarityError }}
-        </p>
-        <p v-if="speechActive" class="mt-2 text-xs text-zinc-600 dark:text-zinc-300" role="status" aria-live="polite">
-          {{ recordingState === 'starting' ? (hasStartedRecording ? 'Resuming recording… Please wait.' : 'Starting microphone… Allow access if prompted, or cancel.') : (recordingState === 'stopping' ? 'Finishing transcription…' : 'Listening…') }}
-        </p>
-        <p v-if="speechError && !isMicrophoneAccessBlocked" class="text-xs text-red-600 dark:text-red-400" role="status">
-          {{ speechError }}
-        </p>
-        <p v-if="errors.details" class="text-xs text-red-500 mt-1 flex items-center gap-1">
-          <i class="fa-solid fa-circle-exclamation"></i>
-          {{ errors.details }}
-        </p>
-      </div>
 
-      </div>
-
-      <div ref="stepThreeNextContainer" data-testid="step-three-navigation" class="sticky bottom-0 z-30 flex-shrink-0 border-t border-zinc-200 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700">
-        <k-segmented :raised="!isDark" :outline="isDark" class="w-full" aria-label="Description step navigation">
-                  <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900" @click="prevStep">
-            <i class="fa-solid fa-arrow-left"></i>
+      <div ref="stepThreeNextContainer" data-testid="step-three-navigation" class="submission-navigation">
+        <div class="submission-button-row" role="group" aria-label="Description step navigation">
+                  <button type="button" class="map-ui-button" @click="prevStep">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             Back
-          </k-segmented-button>
-          <k-segmented-button
+          </button>
+          <button
             type="button"
-            :disabled="isGrammarLoading || isClarityLoading"
-            class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900"
+            :disabled="!hasEnoughDetailsWords || isGrammarLoading || isClarityLoading"
+            class="map-ui-button"
             @click="validateAndNextStep3"
           >
             Next
-            <i class="fa-solid fa-arrow-right"></i>
-          </k-segmented-button>
-        </k-segmented>
+            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
+      </footer>
 
-      <k-toast
+      <Teleport to="body"><k-toast
         v-if="isMicrophoneAccessBlocked && !isMicrophoneToastDismissed"
         data-testid="microphone-error-toast"
         :opened="true"
@@ -134,135 +132,29 @@
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
-      </k-toast>
+      </k-toast></Teleport>
     </div>
 
     <!-- ================= STEP 1: LOCATE ================= -->
-    <div v-else-if="draft.step === 1" class="flex-grow flex flex-col">
+    <div v-if="draft.step === 1" class="flex-grow flex flex-col">
       <div ref="submitMapFrame" data-testid="submit-map-frame" class="relative flex-grow overflow-hidden">
-        <div class="absolute inset-0">
-          <div ref="mapContainerEl" class="w-full h-full"></div>
-          <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center" aria-hidden="true">
-            <svg ref="pinCrosshair" data-testid="suggestion-location-crosshair" class="h-[50px] w-[50px] drop-shadow" viewBox="0 0 50 50">
-              <circle cx="25" cy="25" r="17" :fill="pinButtonColor" />
-              <g transform="translate(25 25)" fill="none" :stroke="crosshairStrokeColor" stroke-width="3">
-                <circle r="9" />
-                <path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" />
-                <circle r="2" :fill="crosshairStrokeColor" stroke="none" />
-              </g>
-            </svg>
-          </div>
-
-          <div
-            v-if="!hasGoogleMapsKey || googleMapsAuthError"
-            class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-900/95 text-zinc-300 z-20 backdrop-blur-sm"
-          >
-            <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-500 mb-3"></i>
-            <h4 class="text-base font-bold text-white mb-1">Google Maps Setup Required</h4>
-            <p class="text-xs text-zinc-300 max-w-sm mb-4 leading-relaxed">
-              {{ googleMapsAuthError || 'Set VITE_GOOGLE_MAPS_API_KEY in your .env file and restart Vite (npm run dev).' }}
-            </p>
-            <div class="text-[11px] text-zinc-400 bg-zinc-800/80 p-3 rounded-xl border border-zinc-700 text-left max-w-sm">
-              <div class="font-semibold text-zinc-200 mb-1">Required in Google Cloud Console:</div>
-              <ul class="list-disc list-inside space-y-0.5">
-                <li><strong>Maps JavaScript API</strong> enabled</li>
-                <li><strong>Places API</strong> enabled</li>
-                <li><strong>Geocoding API</strong> enabled</li>
-                <li>Billing account linked to GCP project</li>
-              </ul>
-            </div>
-          </div>
-
-          <div
-            v-else-if="!isMapReady"
-            class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 z-10"
-          >
-            <k-preloader class="w-8 h-8 mb-2" />
-            <span class="text-xs font-semibold">Loading Map...</span>
-          </div>
-        </div>
-
-        <div class="absolute top-3 left-3 right-3 sm:right-auto sm:w-96 z-30 flex flex-col">
-          <div class="relative flex items-center rounded-xl border border-zinc-300 bg-white/95 shadow-xl backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
-            <span class="pl-3 pr-2 text-zinc-400"><i class="fa-solid fa-magnifying-glass"></i></span>
-            <input
-              ref="mapSearchInput"
-              type="text"
-              v-model="mapSearchQuery"
-              @focus="onMapSearchFocus"
-              @blur="onMapSearchBlur"
-              @input="onSearchInput"
-              placeholder="Search address or neighborhood..."
-              aria-label="Search or edit suggestion location"
-              class="w-full bg-transparent py-2.5 pr-8 text-xs text-black placeholder-zinc-400 focus:outline-none dark:text-white sm:text-sm"
-            />
-            <button
-              v-if="mapSearchQuery"
-              @pointerdown.prevent
-              @click="clearMapSearch"
-              class="p-2 text-zinc-400 hover:text-black dark:hover:text-white"
-              type="button"
-              aria-label="Clear search"
-            >
-              <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
-            <span v-if="isSearching" class="pr-3 text-zinc-400"><i class="fa-solid fa-spinner animate-spin text-sm"></i></span>
-          </div>
-
-          <div v-if="mapSearchResults.length > 0" class="mt-1 max-h-56 divide-y divide-zinc-200 overflow-y-auto rounded-xl border border-zinc-300 bg-white shadow-2xl dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
-            <button
-              v-for="item in mapSearchResults"
-              :key="item.id"
-              type="button"
-              @pointerdown.prevent
-              @click="selectAddress(item)"
-              class="flex w-full items-start gap-2 px-3.5 py-2.5 text-left text-xs text-black transition-colors hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800 sm:text-sm"
-            >
-              <i class="fa-solid fa-location-dot mt-0.5 flex-shrink-0 text-zinc-500"></i>
-              <span class="line-clamp-2">{{ item.displayName }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div ref="centerOnLocationButton" data-testid="center-on-location-control" class="absolute bottom-20 left-2 z-30 flex items-center rounded-xl border border-zinc-300 bg-white/95 p-0.5 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
-          <k-segmented :raised="!isDark" :outline="isDark" class="w-auto">
-            <k-segmented-button
-              @click="requestGpsLocation"
-              class="px-3 py-1 text-xs font-bold"
-              title="Center on my location"
-              aria-label="Center on my location"
-            >
-              <i class="fa-solid fa-crosshairs" :class="{ 'animate-spin': isLocating }"></i>
-            </k-segmented-button>
-          </k-segmented>
-        </div>
-
-        <div class="absolute bottom-8 left-3 right-16 z-30 flex items-center rounded-xl border border-zinc-300 bg-white/95 p-0.5 shadow-lg backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/95">
-          <k-segmented :raised="!isDark" :outline="isDark" class="w-full" aria-label="Suggestion map options">
-            <k-segmented-button :active="currentMapType === 'roadmap'" @click="setMapType('roadmap')" small class="flex-1 justify-center px-2.5 py-1 text-xs font-bold">
-              Streets
-            </k-segmented-button>
-            <k-segmented-button :active="currentMapType === 'hybrid'" @click="setMapType('hybrid')" small class="flex-1 justify-center px-2.5 py-1 text-xs font-bold">
-              Satellite
-            </k-segmented-button>
-          </k-segmented>
-        </div>
-
-        <k-button
+        <button
           type="button"
           data-testid="pin-and-continue"
           @click="nextStep"
-          small
+          :class="{ 'is-visible': workspace.pinContinueReady.value }"
+          :disabled="!workspace.pinContinueReady.value"
+          :aria-hidden="!workspace.pinContinueReady.value"
+          :tabindex="workspace.pinContinueReady.value ? 0 : -1"
           :style="pinButtonStyle"
-          :outline="true"
-          class="pointer-events-auto absolute left-1/2 z-30 w-auto -translate-x-1/2 -translate-y-1/2 whitespace-nowrap px-4 font-bold shadow-lg hover:brightness-110"
+          class="map-ui map-ui-button pin-continue-button pointer-events-auto absolute left-1/2 z-30 w-auto -translate-x-1/2 -translate-y-1/2 whitespace-nowrap"
         >
           Set pin and continue
-        </k-button>
+        </button>
       </div>
 
       <!-- Describe Location Modal Dialog -->
-      <div
+      <Teleport to="body"><div
         v-if="isDescModalOpen"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
         @click.self="discardDescModal"
@@ -274,7 +166,7 @@
         >
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-lg font-bold flex items-center gap-2">
-              <i class="fa-solid fa-comment-dots"></i>
+              <i class="fa-solid fa-comment-dots" aria-hidden="true"></i>
               Describe Location
             </h3>
             <button
@@ -283,7 +175,7 @@
               class="text-zinc-400 hover:text-black dark:hover:text-white p-1"
               aria-label="Close"
             >
-              <i class="fa-solid fa-xmark text-base"></i>
+              <i class="fa-solid fa-xmark text-base" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -321,23 +213,19 @@
             </k-button>
           </div>
         </k-card>
-      </div>
+      </div></Teleport>
     </div>
 
     <!-- ================= STEP 2: PHOTO ================= -->
-    <div v-else-if="draft.step === 2" class="flex flex-grow min-h-0 flex-col">
-      <div class="flex-grow min-h-0 space-y-5 overflow-y-auto p-6">
-        <div>
-          <h2 class="text-2xl font-bold mb-1">Attach photos</h2>
-        </div>
-
+    <div v-if="draft.step === 2" class="flex flex-grow min-h-0 flex-col">
+      <div class="submission-photo-body" :class="{ 'is-empty': !draft.photos?.length }">
         <div v-if="photoError" class="flex items-center justify-between rounded bg-red-100 p-3 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-400">
           <div class="flex items-center gap-2">
-            <i class="fa-solid fa-circle-exclamation"></i>
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
             <span>{{ photoError }}</span>
           </div>
           <button type="button" @click="photoError = ''" class="text-red-500 hover:text-black dark:hover:text-white" aria-label="Dismiss photo error">
-            <i class="fa-solid fa-xmark"></i>
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -348,35 +236,39 @@
           :photos="draft.photos"
           editable
           edge-to-edge
+          fill-available
           @remove="removePhoto"
           @caption-change="updatePhotoCaption"
         />
         <p v-else class="text-sm text-zinc-500 dark:text-zinc-400">
           Photos are optional. Add images to show the location or conditions.
         </p>
-      </div>
-
-      <div data-testid="photo-step-controls" class="sticky bottom-0 z-30 flex-shrink-0 space-y-2 border-t border-zinc-200 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700">
-        <k-segmented data-testid="photo-action-segment" :raised="!isDark" :outline="isDark" class="w-full" aria-label="Add photos">
-          <k-segmented-button
+        <div data-testid="photo-action-segment" class="submission-photo-actions submission-button-row" role="group" aria-label="Add photos">
+          <div v-if="showPhotoLimitTooltip" class="map-ui photo-limit-tooltip" role="status">
+            <span>Max 4 photos reached</span>
+            <button type="button" class="map-ui-button" aria-label="Dismiss photo limit" @click="showPhotoLimitTooltip = false"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+          </div>
+          <button
             type="button"
-            :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-            class="flex-1 justify-center gap-2 bg-white text-sm font-bold dark:bg-zinc-900"
+            :disabled="isProcessingPhotos"
+            :aria-disabled="(draft.photos || []).length >= 4"
+            class="map-ui-button"
             @click="openFilePicker"
           >
-            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
             Upload photos
-          </k-segmented-button>
-          <k-segmented-button
+          </button>
+          <button
             type="button"
-            :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
-            class="flex-1 justify-center gap-2 bg-white text-sm font-bold dark:bg-zinc-900"
+            :disabled="isProcessingPhotos"
+            :aria-disabled="(draft.photos || []).length >= 4"
+            class="map-ui-button"
             @click="openCameraPicker"
           >
-            <i class="fa-solid fa-camera"></i>
+            <i class="fa-solid fa-camera" aria-hidden="true"></i>
             Take photo
-          </k-segmented-button>
-        </k-segmented>
+          </button>
+        </div>
 
         <input
           ref="fileInput"
@@ -384,7 +276,7 @@
           accept="image/*,.svg"
           multiple
           class="hidden"
-          :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
+          :disabled="(draft.photos || []).length >= 4 || isProcessingPhotos"
           @change="handleFilesSelected"
         />
         <input
@@ -393,24 +285,27 @@
           accept="image/*"
           capture="environment"
           class="hidden"
-          :disabled="(draft.photos || []).length >= 10 || isProcessingPhotos"
+          :disabled="(draft.photos || []).length >= 4 || isProcessingPhotos"
           @change="handleFilesSelected"
         />
 
-        <k-segmented data-testid="photo-navigation-segment" :raised="!isDark" :outline="isDark" class="w-full" aria-label="Photo step navigation">
-                  <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900" @click="prevStep">
-            <i class="fa-solid fa-arrow-left"></i>
+      </div>
+
+      <div data-testid="photo-step-controls" class="submission-navigation">
+        <div data-testid="photo-navigation-segment" class="submission-button-row" role="group" aria-label="Photo step navigation">
+                  <button type="button" class="map-ui-button" @click="prevStep">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             Back
-          </k-segmented-button>
-          <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900" @click="nextStep">
-            Next
-            <i class="fa-solid fa-arrow-right"></i>
-          </k-segmented-button>
-        </k-segmented>
+          </button>
+          <button type="button" class="map-ui-button" @click="nextStep">
+            {{ draft.photos?.length ? 'Next' : 'Skip photos' }}
+            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
     </div>
 
-    <k-toast
+    <Teleport to="body"><k-toast
       v-if="isProcessingPhotos && !isPhotoToastDismissed"
       data-testid="photo-processing-toast"
       :opened="true"
@@ -429,101 +324,44 @@
           <i class="fa-solid fa-xmark" aria-hidden="true"></i>
         </button>
       </div>
-    </k-toast>
+    </k-toast></Teleport>
 
     <!-- ================= STEP 4: REVIEW & SUBMIT ================= -->
-    <div v-else-if="draft.step === 4" class="flex flex-grow min-h-0 flex-col">
-      <div class="flex-grow min-h-0 space-y-6 overflow-y-auto p-6">
-      <div>
-        <h2 class="text-2xl font-bold mb-1">Review submission</h2>
-        <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-          Verify your suggestion details before publishing.
-        </p>
-      </div>
-
-      <!-- Review Section: Location -->
-      <k-card
-        :outline="true"
-        :content-wrap="false"
-        class="p-0 rounded !mx-0"
-      >
-        <div class="flex flex-row justify-stretch items-center px-4 pt-4 pb-2 w-auto">
-          <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
-            <i class="fa-solid fa-location-dot"></i>
-            Location
-          </h3>
-          <k-button
-            type="button"
-            @click="goToStep(1)"
-            :clear="true"
-            small
-            class="text-xs font-bold w-auto"
-          >
-            <i class="fa-solid fa-pen-to-square mr-1"></i>
-            Edit
-          </k-button>
+    <div v-if="draft.step === 4" class="flex flex-grow min-h-0 flex-col review-stage">
+      <div class="review-body">
+      <section class="review-body-section review-description-section" aria-label="Description">
+        <button type="button" class="map-ui-button review-description-edit" aria-label="Edit description" @click="goToStep(3)"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Edit</button>
+        <div class="review-description-scroll" tabindex="0">
+        <p class="whitespace-pre-wrap break-words text-sm">{{ draft.details }}</p>
         </div>
-        <LocationMapPreview :location="draft.location" />
-        <p v-if="draft.location?.description" class="px-4 py-3 text-xs text-zinc-500">
-          <span class="font-semibold text-zinc-600 dark:text-zinc-400">Note:</span> {{ draft.location.description }}
-        </p>
-      </k-card>
+      </section>
 
       <!-- Review Section: Photos -->
-      <k-card
-        :outline="true"
-        :content-wrap="false"
-        class="p-4 rounded !mx-0"
-      >
-        <div class="flex flex-row justify-stretch items-center mb-2 w-auto">
-          <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
-            <i class="fa-solid fa-camera"></i>
+      <section class="review-body-section review-photos-section" aria-label="Photos">
+          <h3 class="font-bold mb-4 pr-16">
+            <i class="fa-solid fa-camera" aria-hidden="true"></i>
             Photos ({{ (draft.photos || []).length }})
           </h3>
-          <k-button
+          <button
             type="button"
             @click="goToStep(2)"
-            :clear="true"
-            small
-            class="text-xs font-bold w-auto"
+            aria-label="Edit photos"
+            class="map-ui-button review-photos-edit"
           >
-            <i class="fa-solid fa-pen-to-square mr-1"></i>
+            <i class="fa-solid fa-pen-to-square mr-1" aria-hidden="true"></i>
             Edit
-          </k-button>
-        </div>
+          </button>
 
-        <PhotoGrid v-if="draft.photos?.length" :photos="draft.photos" @preview="openPhotoLightbox" />
+        <div v-if="draft.photos?.length" class="review-photo-row">
+          <button v-for="(photo, index) in draft.photos" :key="photo.id || index" type="button" class="review-photo-thumbnail" :aria-label="`Open photo ${index + 1}${photo.caption ? ': ' + photo.caption : ''}`" @click="openPhotoLightbox(index)">
+            <img :src="photo.dataUrl || photo.url" :alt="photo.caption || `Photo ${index + 1}`" />
+            <span v-if="photo.caption" class="review-photo-caption">{{ photo.caption }}</span>
+          </button>
+        </div>
         <p v-else class="text-xs text-zinc-500">No photos attached.</p>
-      </k-card>
+      </section>
 
-      <!-- Review Section: Description -->
-      <k-card
-        :outline="true"
-        :content-wrap="false"
-        class="p-4 rounded !mx-0"
-      >
-        <div class="flex flex-row justify-stretch items-center mb-2 w-auto">
-          <h3 class="font-bold uppercase whitespace-nowrap flex-grow w-auto">
-            <i class="fa-solid fa-lightbulb"></i>
-            DESCRIPTION
-          </h3>
-          <k-button
-            type="button"
-            @click="goToStep(3)"
-            :clear="true"
-            small
-            class="text-xs font-bold w-auto"
-          >
-            <i class="fa-solid fa-pen-to-square mr-1"></i>
-            Edit
-          </k-button>
-        </div>
-        <p class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-          {{ draft.details || '(No details provided)' }}
-        </p>
-      </k-card>
-
-      <div
+      <Teleport to="body"><div
         v-if="isPhotoLightboxOpen"
         class="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/95 p-4"
         role="dialog"
@@ -538,10 +376,10 @@
         tabindex="0"
       >
         <button type="button" @click="closePhotoLightbox" aria-label="Close photo preview" class="absolute right-4 top-4 z-10 rounded-full bg-black/60 p-3 text-white">
-          <i class="fa-solid fa-xmark"></i>
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
         </button>
         <button v-if="draft.photos.length > 1" type="button" @click.stop="navigateLightbox(-1)" aria-label="Previous photo" class="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-3 text-white">
-          <i class="fa-solid fa-chevron-left"></i>
+          <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
         </button>
         <img
           v-if="draft.photos[lightboxPhotoIndex]"
@@ -551,19 +389,19 @@
           draggable="false"
         />
         <button v-if="draft.photos.length > 1" type="button" @click.stop="navigateLightbox(1)" aria-label="Next photo" class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-3 text-white">
-          <i class="fa-solid fa-chevron-right"></i>
+          <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
         </button>
         <div class="mt-4 max-w-xl text-center text-sm text-white">
           <p>{{ draft.photos[lightboxPhotoIndex]?.caption || 'No caption' }}</p>
           <p v-if="draft.photos.length > 1" class="mt-2 text-xs text-white/70">{{ lightboxPhotoIndex + 1 }} / {{ draft.photos.length }}</p>
         </div>
-      </div>
+      </div></Teleport>
 
       <!-- Author Name & Email (Required) -->
-      <div class="pt-2 border-zinc-200 dark:border-zinc-800 space-y-4">
+      <section class="review-body-section space-y-4" aria-label="Your information">
         <div>
           <label for="input-author-name" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
-            <span>Your name <span class="text-red-500">*</span></span>
+            <span>Your display name <span class="text-red-500">*</span></span>
             <span class="text-xs font-normal text-zinc-400">{{ (draft.author?.name || '').length }}/70</span>
           </label>
           <input
@@ -577,7 +415,7 @@
             required
           />
           <p v-if="errors.authorName" class="text-xs text-red-500 mt-1 flex items-center gap-1">
-            <i class="fa-solid fa-circle-exclamation"></i>
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
             {{ errors.authorName }}
           </p>
         </div>
@@ -595,29 +433,29 @@
             required
           />
           <p v-if="errors.authorEmail" class="text-xs text-red-500 mt-1 flex items-center gap-1">
-            <i class="fa-solid fa-circle-exclamation"></i>
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
             {{ errors.authorEmail }}
           </p>
         </div>
-      </div>
+      </section>
 
       </div>
 
-      <div data-testid="step-four-navigation" class="sticky bottom-0 z-30 flex-shrink-0 border-t border-zinc-200 p-3 shadow-lg backdrop-blur-md dark:border-zinc-700">
-        <k-segmented :raised="!isDark" :outline="isDark" class="w-full" aria-label="Review step navigation">
-                  <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-white font-bold dark:bg-zinc-900" @click="prevStep">
-            <i class="fa-solid fa-arrow-left"></i>
+      <div data-testid="step-four-navigation" class="submission-navigation">
+        <div class="submission-button-row" role="group" aria-label="Review step navigation">
+                  <button type="button" class="map-ui-button" @click="prevStep">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             Back
-          </k-segmented-button>
-          <k-segmented-button type="button" class="flex-1 justify-center gap-2 bg-primary c-black font-bold text-zinc-900 dark:text-zinc-900 hover:bg-amber-500" @click="submitFinalSuggestion">
+          </button>
+          <button type="button" class="map-ui-button submission-publish-button" @click="submitFinalSuggestion">
             Submit
-            <i class="fa-solid fa-paper-plane"></i>
-          </k-segmented-button>
-        </k-segmented>
+            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
     </div>
 
-    <div
+    <Teleport to="body"><div
       v-if="isClarityLoading"
       class="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
       role="status"
@@ -631,9 +469,9 @@
           <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Please wait while we prepare a suggested rewrite.</p>
         </div>
       </div>
-    </div>
+    </div></Teleport>
 
-    <div
+    <Teleport to="body"><div
       v-if="isRewriteModalOpen"
       class="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
       role="dialog"
@@ -656,109 +494,100 @@
           </k-button>
         </div>
       </div>
-    </div>
+    </div></Teleport>
 
     <!-- SUBMISSION PROGRESS / STATUS MODAL OVERLAY -->
-    <div
+    <Teleport to="body"><div
       v-if="showSubmissionOverlay"
-      class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center select-none"
+      class="submission-status-overlay fixed inset-0 z-50 flex flex-col items-center justify-center p-4 text-center"
     >
-      <k-card
-        :outline="true"
-        :content-wrap="false"
-        class="max-w-md w-full p-6 sm:p-8 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 shadow-2xl flex flex-col items-center m-0"
+      <section
+        class="map-ui submission-status-panel max-w-md w-full p-6 sm:p-8 flex flex-col items-center"
+        aria-labelledby="submission-status-title"
+        :aria-busy="submissionStatus === 'submitting'"
       >
         <!-- Status Icon -->
         <div class="mb-6">
           <div v-if="submissionStatus === 'submitting'" class="flex items-center justify-center w-20 h-20">
-            <k-preloader class="w-16 h-16" />
+            <i class="fa-solid fa-spinner fa-spin text-5xl" aria-hidden="true"></i>
           </div>
 
           <div
             v-else-if="submissionStatus === 'success'"
-            class="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-2 border-emerald-500 flex items-center justify-center text-4xl"
+            class="submission-status-icon w-20 h-20 rounded-full flex items-center justify-center text-4xl"
           >
-            <i class="fa-solid fa-check"></i>
+            <i class="fa-solid fa-check" aria-hidden="true"></i>
           </div>
 
           <div
             v-else-if="submissionStatus === 'failed'"
-            class="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-2 border-red-500 flex items-center justify-center text-4xl"
+            class="submission-status-icon is-error w-20 h-20 rounded-full flex items-center justify-center text-4xl"
           >
-            <i class="fa-solid fa-triangle-exclamation"></i>
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
           </div>
         </div>
 
         <!-- Status Title -->
-        <h2 class="text-2xl font-bold mb-2">
+        <h2 id="submission-status-title" class="text-2xl font-bold mb-2">
           {{ submissionStatus === 'success' ? 'Submission complete!' : (submissionStatus === 'failed' ? 'Submission Failed' : 'Submitting Your Idea...') }}
         </h2>
 
         <!-- Dynamic Progress Description Text -->
-        <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6 px-2 min-h-[40px] flex items-center justify-center">
+        <p v-if="submissionStatus !== 'success'" class="submission-status-message text-sm mb-6 px-2 min-h-[40px] flex items-center justify-center" role="status">
           {{ dynamicProgressMessage }}
         </p>
 
         <!-- Progress Bar -->
-        <div v-if="submissionStatus === 'submitting' || submissionStatus === 'success'" class="w-full mb-6">
-          <k-progressbar
-            :progress="submissionProgress / 100"
-            class="w-full h-3 rounded-full overflow-hidden"
-          />
+        <div v-if="submissionStatus === 'submitting'" class="w-full mb-6">
+          <progress :value="submissionProgress" max="100" aria-label="Submission progress" class="submission-status-progress" />
         </div>
 
         <!-- Action Buttons -->
-        <div class="w-full flex flex-col gap-3">
-          <k-button
+        <div class="submission-status-actions w-full flex flex-col gap-3" :class="{ 'mt-4': submissionStatus === 'success' }">
+          <button
             v-if="submissionStatus === 'success'"
             type="button"
-            large
-            :rounded="true"
-            @click="handleViewSuggestion(createdSuggestionId)"
-            class="w-full font-bold shadow-lg"
+            @click="isSubmissionPreview ? closeSubmissionPreview() : handleViewSuggestion(createdSuggestionId)"
+            class="map-ui-button is-primary"
           >
-            <i class="fa-solid fa-eye mr-2"></i>
-            View suggestion
-          </k-button>
+            <i :class="isSubmissionPreview ? 'fa-solid fa-arrow-left mr-2' : 'fa-solid fa-eye mr-2'" aria-hidden="true"></i>
+            {{ isSubmissionPreview ? 'Back to submission' : 'View suggestion' }}
+          </button>
 
-          <k-button
+          <button
             v-if="submissionStatus === 'failed'"
             type="button"
-            large
-            :rounded="true"
             @click="handleEditDetails"
-            class="w-full font-bold shadow-lg"
+            class="map-ui-button is-primary"
           >
-            <i class="fa-solid fa-pen-to-square mr-2"></i>
+            <i class="fa-solid fa-pen-to-square mr-2" aria-hidden="true"></i>
             Edit details
-          </k-button>
+          </button>
 
-          <k-button
+          <button
             v-if="submissionStatus === 'failed'"
             type="button"
-            :outline="true"
-            :rounded="true"
             @click="submitFinalSuggestion"
-            class="w-full text-sm"
+            class="map-ui-button"
           >
-            <i class="fa-solid fa-rotate-right mr-2"></i>
+            <i class="fa-solid fa-rotate-right mr-2" aria-hidden="true"></i>
             Retry submission
-          </k-button>
+          </button>
 
-          <k-button
+          <button
             v-if="submissionStatus === 'failed'"
             type="button"
-            :outline="true"
-            :rounded="true"
             @click="handleGoHome"
-            class="w-full text-sm"
+            class="map-ui-button"
           >
-            <i class="fa-solid fa-map-location-dot mr-2"></i>
+            <i class="fa-solid fa-map-location-dot mr-2" aria-hidden="true"></i>
             Go to browse
-          </k-button>
+          </button>
         </div>
-      </k-card>
-    </div>
+      </section>
+    </div></Teleport>
+    </component>
+    </Transition>
   </div>
 </template>
 
@@ -774,10 +603,10 @@ import { useRouter } from 'vue-router';
 import {
   kCard,
   kButton,
-  kProgressbar,
   kPreloader,
   kBadge,
   kToast,
+  kPopover,
   kSegmented,
   kSegmentedButton,
 } from 'konsta/vue';
@@ -799,34 +628,30 @@ import {
 import { resizeImage } from '../services/image';
 import { createSpeechRecorder } from '../services/speechRecognition';
 import { isDark } from '../services/theme';
-import LocationMapPreview from '../components/LocationMapPreview.vue';
-import PhotoGrid from '../components/PhotoGrid.vue';
+import MapTray from '../components/MapTray.vue';
+import { mapWorkspaceKey } from '../services/mapWorkspace';
 import PhotoSlider from '../components/PhotoSlider.vue';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
-import {
-  loadGoogleMaps,
-  hasGoogleMapsKey,
-  googleMapsAuthError,
-  searchAddressWithGoogle,
-  resolveGooglePlace,
-  reverseGeocodeWithGoogle,
-  getMapStyles,
-  updateMapTheme,
-} from '../services/googleMaps';
+import { reverseGeocodeWithGoogle } from '../services/googleMaps';
 
 const router = useRouter();
+const workspace = inject(mapWorkspaceKey);
 const setSubmitting = inject('setSubmitting', () => {});
 
 // Draft reactive state
 const draft = reactive(loadWizardDraft());
 const detailsInput = ref(null);
+const submissionStage = ref(null);
+const stepTransition = ref('map-tray');
+let trayHeightAnimation = null;
+function freezeLeavingStep(element) {
+  if (element.classList.contains('map-tray')) element.style.height = `${element.getBoundingClientRect().height}px`;
+  element.inert = true;
+}
 const stepThreeNextContainer = ref(null);
 const recordButton = ref(null);
 const autoImproveButton = ref(null);
-const autoImproveMenu = ref(null);
 const isAutoImproveOpen = ref(false);
-const isAutoImproveOpensUp = ref(false);
-const autoImproveMenuMaxHeight = ref(null);
 const recordingState = ref('idle');
 const hasStartedRecording = ref(false);
 const speechActive = computed(() => recordingState.value !== 'idle');
@@ -900,27 +725,13 @@ const errors = reactive({
 });
 
 // Step 1 Map & Location state
-const mapContainerEl = ref(null);
 const submitMapFrame = ref(null);
-const pinCrosshair = ref(null);
-const centerOnLocationButton = ref(null);
-const pinAndContinueTop = ref('50%');
+const pinAndContinueTop = ref('calc(75% - 36px)');
 const isMapReady = ref(false);
 const isLocating = ref(false);
-const currentMapType = ref('roadmap');
-const pinButtonColor = computed(() => (isDark.value ? '#60a5fa' : '#1e3a8a'));
-const crosshairStrokeColor = '#ffffff';
 const pinButtonStyle = computed(() => ({
   top: pinAndContinueTop.value,
-  backgroundColor: pinButtonColor.value,
-  color: isDark.value ? '#0f172a' : '#ffffff',
 }));
-const mapSearchQuery = ref('');
-const mapSearchInput = ref(null);
-const isMapSearchEditing = ref(false);
-const mapSearchResults = ref([]);
-const isSearching = ref(false);
-let searchDebounce = null;
 
 const isDescModalOpen = ref(false);
 const tempDescription = ref('');
@@ -937,6 +748,8 @@ const fileInput = ref(null);
 const cameraInput = ref(null);
 const photoSlider = ref(null);
 const activePhotoIndex = ref(0);
+const showPhotoLimitTooltip = ref(false);
+watch(() => draft.photos?.length, () => { showPhotoLimitTooltip.value = false; });
 const isPhotoLightboxOpen = ref(false);
 const lightboxPhotoIndex = ref(0);
 let lightboxPointerStart = null;
@@ -951,48 +764,73 @@ const submissionProgress = ref(0);
 const dynamicProgressMessage = ref('');
 const createdSuggestionId = ref('');
 const submissionErrorMessage = ref('');
+const isSubmissionPreview = ref(false);
+const submissionPreviewTimers = [];
+const SUBMISSION_PREVIEW_DURATION_MS = 6000;
+
+function closeSubmissionPreview() {
+  if (!isSubmissionPreview.value) return;
+  submissionPreviewTimers.splice(0).forEach(clearTimeout);
+  isSubmissionPreview.value = false;
+  showSubmissionOverlay.value = false;
+  setSubmitting(false);
+}
+
+function handleSubmissionPreviewShortcut(event) {
+  if (!import.meta.env.DEV || !isSubmitViewActive || event.repeat || event.isComposing
+    || !event.ctrlKey || !event.altKey || event.key !== 'Enter') return;
+  event.preventDefault();
+  if (showSubmissionOverlay.value) return;
+  isSubmissionPreview.value = true;
+  showSubmissionOverlay.value = true;
+  setSubmitting(true);
+  submissionStatus.value = 'submitting';
+  submissionProgress.value = 10;
+  dynamicProgressMessage.value = 'Preparing suggestion data...';
+  const stages = [
+    [0.25, 35, 'Preparing location diagram...'],
+    [0.5, 65, 'Uploading photos...'],
+    [0.75, 85, 'Saving your suggestion...'],
+    [1, 100, ''],
+  ];
+  for (const [fraction, progress, message] of stages) {
+    submissionPreviewTimers.push(setTimeout(() => {
+      if (!isSubmissionPreview.value) return;
+      submissionProgress.value = progress;
+      dynamicProgressMessage.value = message;
+      if (progress === 100) submissionStatus.value = 'success';
+    }, SUBMISSION_PREVIEW_DURATION_MS * fraction));
+  }
+}
 
 const currentStepTitle = computed(() => {
   switch (draft.step) {
     case 1:
       return 'Locate';
     case 2:
-      return 'Photo';
+      return 'Attach photos';
     case 3:
-      return 'Describe';
+      return 'Describe your idea';
     case 4:
-      return 'Review & Submit';
+      return 'Review submission';
     default:
       return '';
   }
 });
 
-const displayAddress = computed(() => {
-  if (draft.location?.address) return draft.location.address;
-  if (draft.location?.latitude) {
-    return `${Number(draft.location.latitude).toFixed(4)}, ${Number(draft.location.longitude).toFixed(4)}`;
-  }
-  return '';
-});
-
 function updatePinAndContinuePosition() {
   const frame = submitMapFrame.value;
-  const crosshair = pinCrosshair.value;
-  const locationControl = centerOnLocationButton.value;
-  if (!frame || !crosshair || !locationControl) return;
+  const locationControl = document.querySelector('.map-workspace .map-toolbar');
+  if (!frame || !locationControl) return;
 
   const frameBounds = frame.getBoundingClientRect();
-  const crosshairBounds = crosshair.getBoundingClientRect();
   const locationButton = locationControl.querySelector('button, a') || locationControl;
   const locationButtonTop = locationButton.getBoundingClientRect().top;
-  const crosshairCenter = crosshairBounds.top + crosshairBounds.height / 2;
-  const midpoint = (crosshairCenter + locationButtonTop) / 2;
+  const mapCenter = frameBounds.top + frameBounds.height / 2;
+  const midpoint = (mapCenter + locationButtonTop) / 2;
   pinAndContinueTop.value = `${midpoint - frameBounds.top}px`;
 }
 
-watch(displayAddress, (address) => {
-  if (!isMapSearchEditing.value) mapSearchQuery.value = address;
-}, { immediate: true });
 
 function persistDraft() {
   if (draft.author) {
@@ -1001,12 +839,27 @@ function persistDraft() {
   saveWizardDraft(draft);
 }
 
-function resizeDetailsInput() {
+function resizeDetailsInput(animate = true) {
   if (!detailsInput.value) return;
-  detailsInput.value.style.height = 'auto';
-  const styles = window.getComputedStyle(detailsInput.value);
-  const borders = parseFloat(styles.borderTopWidth) + parseFloat(styles.borderBottomWidth);
-  detailsInput.value.style.height = `${detailsInput.value.scrollHeight + borders}px`;
+  const textarea = detailsInput.value;
+  const scrollTop = textarea.scrollTop;
+  const currentHeight = textarea.getBoundingClientRect().height;
+  // Measure the content without animating the temporary measurement height.
+  textarea.style.transition = 'none';
+  textarea.style.height = '0px';
+  const contentHeight = textarea.scrollHeight;
+  if (animate === false) {
+    textarea.style.height = `${contentHeight}px`;
+    void textarea.offsetHeight;
+    textarea.style.transition = '';
+    textarea.scrollTop = scrollTop;
+    return;
+  }
+  textarea.style.height = `${currentHeight}px`;
+  void textarea.offsetHeight;
+  textarea.style.transition = '';
+  textarea.style.height = `${contentHeight}px`;
+  textarea.scrollTop = scrollTop;
 }
 
 function areSpeechTargetsVisible() {
@@ -1038,10 +891,6 @@ function onDetailsInput() {
 
 function toggleAutoImproveMenu() {
   isAutoImproveOpen.value = !isAutoImproveOpen.value;
-  if (isAutoImproveOpen.value) {
-    isAutoImproveOpensUp.value = false;
-    autoImproveMenuMaxHeight.value = null;
-  }
 }
 
 async function handleFixGrammarAndSpelling() {
@@ -1095,36 +944,6 @@ async function applyRewrite() {
   stepThreeNextContainer.value?.scrollIntoView({ block: 'end', behavior: 'auto' });
 }
 
-function updateAutoImproveMenuPosition() {
-  if (!autoImproveButton.value || !autoImproveMenu.value) return;
-
-  const buttonBounds = autoImproveButton.value.getBoundingClientRect();
-  const scrollContainer = autoImproveButton.value.closest('.overflow-y-auto');
-  const scrollBounds = scrollContainer?.getBoundingClientRect();
-  const visualViewport = window.visualViewport;
-  const viewportTop = visualViewport?.offsetTop ?? 0;
-  const viewportBottom = viewportTop + (visualViewport?.height ?? window.innerHeight);
-  const visibleTop = Math.max(viewportTop, scrollBounds?.top ?? viewportTop);
-  const visibleBottom = Math.min(viewportBottom, scrollBounds?.bottom ?? viewportBottom);
-  const spaceAbove = Math.max(0, buttonBounds.top - visibleTop);
-  const spaceBelow = Math.max(0, visibleBottom - buttonBounds.bottom);
-  const opensUp = spaceBelow < autoImproveMenu.value.scrollHeight + 8 && spaceAbove > spaceBelow;
-
-  isAutoImproveOpensUp.value = opensUp;
-  autoImproveMenuMaxHeight.value = Math.max(0, (opensUp ? spaceAbove : spaceBelow) - 8);
-}
-
-watch(isAutoImproveOpen, (isOpen) => {
-  if (isOpen) {
-    window.addEventListener('scroll', updateAutoImproveMenuPosition, true);
-    window.addEventListener('resize', updateAutoImproveMenuPosition);
-    nextTick(updateAutoImproveMenuPosition);
-  } else {
-    window.removeEventListener('scroll', updateAutoImproveMenuPosition, true);
-    window.removeEventListener('resize', updateAutoImproveMenuPosition);
-  }
-});
-
 function toggleSpeechRecognition() {
   if (speechActive.value) {
     speechRecorder.stop();
@@ -1142,18 +961,50 @@ watch(hasEnoughDetailsWords, (hasEnoughWords) => {
   if (!hasEnoughWords) isAutoImproveOpen.value = false;
 });
 
-watch(() => draft.step, (step) => {
-  if (step === 3) nextTick(resizeDetailsInput);
+function focusDescriptionInput() {
+  nextTick(() => {
+    if (isSubmitViewActive && draft.step === 3) detailsInput.value?.focus({ preventScroll: true });
+  });
+}
+
+watch(() => draft.step, (step, previousStep) => {
+  if (previousStep != null) stepTransition.value = step > previousStep ? 'submit-step-forward' : 'submit-step-back';
+  const changingContentTray = [3, 4].includes(step) && [3, 4].includes(previousStep);
+  const previousHeight = changingContentTray ? submissionStage.value?.element?.getBoundingClientRect().height : null;
+  trayHeightAnimation?.cancel();
+  trayHeightAnimation = null;
+  isAutoImproveOpen.value = false;
+  if (step === 3) { nextTick(() => resizeDetailsInput(!changingContentTray)); focusDescriptionInput(); }
   else speechRecorder.cancel();
-  if (step === 1) nextTick(updatePinAndContinuePosition);
+  if (changingContentTray && previousHeight != null) nextTick(() => {
+    const tray = submissionStage.value?.element;
+    if (!tray || draft.step !== step || !isSubmitViewActive || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const nextHeight = tray.getBoundingClientRect().height;
+    const animation = tray.animate(
+      [{ height: `${previousHeight}px` }, { height: `${nextHeight}px` }],
+      { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' },
+    );
+    trayHeightAnimation = animation;
+    animation.finished.then(() => {
+      if (trayHeightAnimation === animation) trayHeightAnimation = null;
+    }).catch(() => {});
+  });
+  if (step === 1) nextTick(() => { updatePinAndContinuePosition(); if (isSubmitViewActive) initMap(); });
+  else { removeMapLocationListeners(); locationUpdateSequence++; }
 }, { immediate: true });
 
 onActivated(() => {
   isSubmitViewActive = true;
+  nextTick(resizeDetailsInput);
+  window.addEventListener('resize', resizeDetailsInput);
+  focusDescriptionInput();
+  workspace.registerSubmission({ draft, updateCoordinates, requestGpsLocation, isLocating, dismissNested, saveDraft: persistDraft, editLocation: () => goToStep(1) });
+  initMap();
   document.addEventListener('visibilitychange', cancelHiddenRecording);
   window.addEventListener('pagehide', speechRecorder.cancel);
+  window.addEventListener('resize', updatePinAndContinuePosition);
+  if (import.meta.env.DEV) window.addEventListener('keydown', handleSubmissionPreviewShortcut);
   if (draft.step === 1) {
-    window.addEventListener('resize', updatePinAndContinuePosition);
     nextTick(() => {
       updatePinAndContinuePosition();
       initMap();
@@ -1162,28 +1013,30 @@ onActivated(() => {
 });
 
 function deactivateSpeechRecorder() {
+  closeSubmissionPreview();
+  window.removeEventListener('keydown', handleSubmissionPreviewShortcut);
   isSubmitViewActive = false;
+  trayHeightAnimation?.cancel();
+  trayHeightAnimation = null;
+  window.removeEventListener('resize', resizeDetailsInput);
+  isAutoImproveOpen.value = false;
   speechRecorder.cancel();
   document.removeEventListener('visibilitychange', cancelHiddenRecording);
   window.removeEventListener('pagehide', speechRecorder.cancel);
   window.removeEventListener('resize', updatePinAndContinuePosition);
   removeMapLocationListeners();
 
-  const sharedMap = sharedBrowseMap.value;
-  if (sharedMap?.map === map) {
-    sharedMap.moveToBrowse();
-    sharedMap.setSuggestionMarkersVisible(true);
-    map = null;
-    googleMaps = null;
-    isMapReady.value = false;
-  }
+  locationUpdateSequence++;
+  map = null;
+  googleMaps = null;
+  isMapReady.value = false;
+
 }
 
 onDeactivated(deactivateSpeechRecorder);
+watch(sharedBrowseMap, context => { if (context && isSubmitViewActive) initMap(); });
 onBeforeUnmount(() => {
   deactivateSpeechRecorder();
-  window.removeEventListener('scroll', updateAutoImproveMenuPosition, true);
-  window.removeEventListener('resize', updateAutoImproveMenuPosition);
 });
 
 function goToStep(stepNumber) {
@@ -1209,6 +1062,18 @@ function prevStep() {
 }
 
 function nextStep() {
+  if (draft.step === 1 && map) {
+    const center = map.getCenter();
+    if (center) {
+      map.setCenter(center);
+      draft.location.latitude = center.lat();
+      draft.location.longitude = center.lng();
+    }
+  }
+  if (draft.step === 2 && (draft.photos || []).length > 4) {
+    photoError.value = 'Maximum 4 photos allowed. Remove extra photos to continue.';
+    return;
+  }
   if (draft.step < 4) {
     draft.step += 1;
     persistDraft();
@@ -1218,10 +1083,8 @@ function nextStep() {
 function validateAndNextStep3() {
   errors.details = '';
 
-  const detailsTrimmed = (draft.details || '').trim();
-
-  if (!detailsTrimmed) {
-    errors.details = 'Details description is required.';
+  if (!hasEnoughDetailsWords.value) {
+    errors.details = 'Describe your idea in at least three words.';
   } else {
     nextStep();
   }
@@ -1233,12 +1096,13 @@ function bindMapLocationListeners() {
 
   mapIdleListener = map.addListener('idle', () => {
     const center = map?.getCenter();
-    if (!center) return;
+    if (!center || draft.step !== 1 || !isSubmitViewActive) return;
+    if (Number(draft.location?.latitude) === center.lat() && Number(draft.location?.longitude) === center.lng() && draft.location?.address) return;
     updateCoordinates(center.lat(), center.lng());
   });
 
   mapClickListener = map.addListener('click', (event) => {
-    if (event.latLng) map?.panTo(event.latLng);
+    if (draft.step === 1 && isSubmitViewActive && event.latLng) map?.panTo(event.latLng);
   });
 }
 
@@ -1250,67 +1114,39 @@ function removeMapLocationListeners() {
 }
 
 async function initMap() {
-  try {
-    if (!mapContainerEl.value) return;
-
-    let sharedMap = sharedBrowseMap.value;
-    if (!sharedMap && browseMapInitialization.value === 'loading') {
-      await new Promise((resolve) => {
-        let stopWatching = () => {};
-        const checkReady = ([context, state]) => {
-          if (context || state !== 'loading') {
-            stopWatching();
-            resolve();
-          }
-        };
-        stopWatching = watch([sharedBrowseMap, browseMapInitialization], checkReady);
-        checkReady([sharedBrowseMap.value, browseMapInitialization.value]);
+  let context = sharedBrowseMap.value;
+  if (!context && browseMapInitialization.value === 'loading') {
+    await new Promise(resolve => {
+      const stop = watch([sharedBrowseMap, browseMapInitialization], ([value, state]) => {
+        if (value || state !== 'loading') { stop(); resolve(); }
       });
-      sharedMap = sharedBrowseMap.value;
-    }
-    if (!isSubmitViewActive) return;
-
-    if (sharedMap?.map && sharedMap.googleMaps) {
-      map = sharedMap.map;
-      googleMaps = sharedMap.googleMaps;
-      sharedMap.setSuggestionMarkersVisible(false);
-      sharedMap.moveTo(mapContainerEl.value);
-      currentMapType.value = map.getMapTypeId() === googleMaps.MapTypeId.HYBRID ? 'hybrid' : 'roadmap';
-    } else {
-      googleMaps = await loadGoogleMaps();
-      if (!googleMaps || !isSubmitViewActive || !mapContainerEl.value) return;
-
-      if (!map) {
-        const initialLat = draft.location?.latitude ?? 32.7767;
-        const initialLng = draft.location?.longitude ?? -96.7970;
-        map = new googleMaps.Map(mapContainerEl.value, {
-          center: { lat: Number(initialLat), lng: Number(initialLng) },
-          zoom: 15,
-          mapTypeId: googleMaps.MapTypeId.ROADMAP,
-          styles: getMapStyles(isDark.value, currentMapType.value),
-          disableDefaultUI: true,
-          zoomControl: true,
-          gestureHandling: 'greedy',
-          clickableIcons: false,
-        });
-      }
-    }
-
+    });
+    context = sharedBrowseMap.value;
+  }
+  if (!isSubmitViewActive || !context) return;
+  map = context.map;
+  googleMaps = context.googleMaps;
+  isMapReady.value = true;
+  if (draft.step === 1) {
     bindMapLocationListeners();
-    isMapReady.value = true;
-
-    if (sharedMap?.map === map) {
-      const center = map.getCenter();
-      if (center) await updateCoordinates(center.lat(), center.lng());
-      nextTick(() => googleMaps.event?.trigger(map, 'resize'));
+    const center = map.getCenter();
+    if (center && (draft.location?.latitude == null || draft.location?.longitude == null)) {
+      await updateCoordinates(center.lat(), center.lng());
     }
-  } catch (err) {
-    console.warn('Map initialization warning:', err);
-    isMapReady.value = true;
   }
 }
 
+function dismissNested() {
+  if (isSubmissionPreview.value) { closeSubmissionPreview(); return true; }
+  if (isPhotoLightboxOpen.value) { closePhotoLightbox(); return true; }
+  if (isRewriteModalOpen.value) { discardRewrite(); return true; }
+  if (isDescModalOpen.value) { discardDescModal(); return true; }
+  if (isAutoImproveOpen.value) { isAutoImproveOpen.value = false; return true; }
+  return false;
+}
+
 async function updateCoordinates(lat, lng, knownAddress = '') {
+  if (!isSubmitViewActive || draft.step !== 1) return;
   const updateSequence = ++locationUpdateSequence;
   draft.location = draft.location || {};
   draft.location.latitude = Number(lat);
@@ -1329,98 +1165,7 @@ async function updateCoordinates(lat, lng, knownAddress = '') {
     }
   }
   if (updateSequence !== locationUpdateSequence) return;
-  if (!isMapSearchEditing.value) mapSearchQuery.value = displayAddress.value;
   persistDraft();
-}
-
-function setMapType(type) {
-  currentMapType.value = type;
-  const sharedMap = sharedBrowseMap.value;
-  if (sharedMap?.map === map) {
-    sharedMap.setMapType(type);
-    return;
-  }
-  if (!map || !googleMaps) return;
-  if (type === 'hybrid') {
-    map.setMapTypeId(googleMaps.MapTypeId.HYBRID);
-    map.setOptions({ styles: getMapStyles(isDark.value, 'hybrid') });
-  } else {
-    map.setMapTypeId(googleMaps.MapTypeId.ROADMAP);
-    map.setOptions({ styles: getMapStyles(isDark.value, 'roadmap') });
-  }
-}
-
-watch(isDark, (darkMode) => {
-  if (!map || !googleMaps) return;
-  updateMapTheme(map, darkMode, currentMapType.value);
-});
-
-function onMapSearchFocus() {
-  isMapSearchEditing.value = true;
-  nextTick(() => mapSearchInput.value?.select());
-}
-
-function onMapSearchBlur() {
-  isMapSearchEditing.value = false;
-  if (searchDebounce) clearTimeout(searchDebounce);
-  mapSearchResults.value = [];
-  isSearching.value = false;
-  mapSearchQuery.value = displayAddress.value;
-}
-
-function clearMapSearch() {
-  mapSearchQuery.value = '';
-  mapSearchResults.value = [];
-  isSearching.value = false;
-  mapSearchInput.value?.focus();
-}
-
-function onSearchInput() {
-  isMapSearchEditing.value = true;
-  if (searchDebounce) clearTimeout(searchDebounce);
-  const q = mapSearchQuery.value.trim();
-  if (q.length < 2) {
-    mapSearchResults.value = [];
-    isSearching.value = false;
-    return;
-  }
-
-  isSearching.value = true;
-  searchDebounce = setTimeout(async () => {
-    const results = await searchAddressWithGoogle(q);
-    if (!isMapSearchEditing.value || mapSearchQuery.value.trim() !== q) return;
-    mapSearchResults.value = results;
-    isSearching.value = false;
-  }, 350);
-}
-
-async function selectAddress(item) {
-  mapSearchQuery.value = item.displayName;
-  mapSearchResults.value = [];
-
-  let lat = item.latitude;
-  let lng = item.longitude;
-
-  if (lat === undefined || lng === undefined) {
-    const resolved = await resolveGooglePlace(item.placeId || item.displayName);
-    if (resolved) {
-      lat = resolved.latitude;
-      lng = resolved.longitude;
-    }
-  }
-
-  if (lat !== undefined && lng !== undefined) {
-    isMapSearchEditing.value = false;
-    if (map) {
-      const pos = { lat: Number(lat), lng: Number(lng) };
-      map.setCenter(pos);
-      map.setZoom(16);
-    }
-    await updateCoordinates(lat, lng, item.displayName);
-  } else {
-    isMapSearchEditing.value = false;
-    mapSearchQuery.value = displayAddress.value;
-  }
 }
 
 function requestGpsLocation() {
@@ -1429,6 +1174,7 @@ function requestGpsLocation() {
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       isLocating.value = false;
+      if (!isSubmitViewActive || draft.step !== 1) return;
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       if (map) {
@@ -1463,10 +1209,14 @@ function saveDescModal() {
 
 // ---------------- PHOTO LOGIC ---------------- //
 function openFilePicker() {
+  if ((draft.photos || []).length >= 4) { showPhotoLimitTooltip.value = true; return; }
+  if (isProcessingPhotos.value) return;
   fileInput.value?.click();
 }
 
 function openCameraPicker() {
+  if ((draft.photos || []).length >= 4) { showPhotoLimitTooltip.value = true; return; }
+  if (isProcessingPhotos.value) return;
   cameraInput.value?.click();
 }
 
@@ -1512,15 +1262,16 @@ async function handleFilesSelected(event) {
   isPhotoToastDismissed.value = false;
   draft.photos = draft.photos || [];
   const currentCount = draft.photos.length;
-  const remainingSlots = 10 - currentCount;
+  const remainingSlots = 4 - currentCount;
 
   if (remainingSlots <= 0) {
-    photoError.value = 'Maximum 10 photos allowed.';
+    photoError.value = 'Maximum 4 photos allowed.';
     event.target.value = '';
     return;
   }
 
   const filesToProcess = files.slice(0, remainingSlots);
+  if (files.length > remainingSlots) photoError.value = 'Maximum 4 photos allowed. Only the first available photos were added.';
   isProcessingPhotos.value = true;
 
   try {
@@ -1585,6 +1336,11 @@ function validateStep4() {
 }
 
 async function submitFinalSuggestion() {
+  if ((draft.photos || []).length > 4) {
+    photoError.value = 'Maximum 4 photos allowed. Remove extra photos to continue.';
+    goToStep(2);
+    return;
+  }
   if (!validateStep4()) return;
 
   setSubmitting(true);
@@ -1701,6 +1457,7 @@ async function submitFinalSuggestion() {
 
     const created = await createSuggestion(payload);
     createdSuggestionId.value = created.id || created._id || 'mock-sug-12345';
+    workspace.refreshData().catch(error => console.warn('Could not refresh suggestions:', error));
 
     submissionProgress.value = 100;
     submissionStatus.value = 'success';

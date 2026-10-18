@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+import { createNeighborhoodLabelLayer } from './neighborhoodLabels';
 
 const GOOGLE_MAPS_API_KEY =
   import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
@@ -22,45 +23,27 @@ export const hasGoogleMapsKey = Boolean(
 
 export const googleMapsAuthError = ref('');
 
-// Standard dark/night mode style configuration for Google Maps JavaScript SDK
+// Keep the encoded style below the Maps SDK's legacy 1,000-character limit.
+// Broad geometry rules replace redundant fill/stroke rules from the source style.
 export const darkMapStyles = [
-  { featureType: 'all', elementType: 'all', stylers: [{ visibility: 'on' }] },
-  { featureType: 'all', elementType: 'labels', stylers: [{ visibility: 'on' }, { saturation: '-100' }] },
-  { featureType: 'all', elementType: 'labels.text.fill', stylers: [{ saturation: 36 }, { color: '#000000' }, { lightness: 40 }, { visibility: 'off' }] },
-  { featureType: 'all', elementType: 'labels.text.stroke', stylers: [{ visibility: 'off' }, { color: '#000000' }, { lightness: 16 }] },
-  { featureType: 'all', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'all', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'all', elementType: 'labels.text.fill', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'all', elementType: 'labels.text.stroke', stylers: [{ color: '#24282b' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
+  { featureType: 'administrative.neighborhood', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
+  { featureType: 'administrative.neighborhood', elementType: 'labels.text.fill', stylers: [{ color: '#d8c394' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#e4d2ab' }] },
   { featureType: 'administrative', elementType: 'geometry.fill', stylers: [{ color: '#000000' }, { lightness: 20 }] },
   { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#000000' }, { lightness: 17 }, { weight: 1.2 }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#000000' }, { lightness: 20 }] },
-  { featureType: 'landscape', elementType: 'geometry.fill', stylers: [{ color: '#4d6059' }] },
-  { featureType: 'landscape', elementType: 'geometry.stroke', stylers: [{ color: '#4d6059' }] },
-  { featureType: 'landscape.natural', elementType: 'geometry.fill', stylers: [{ color: '#4d6059' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ lightness: 21 }] },
-  { featureType: 'poi', elementType: 'geometry.fill', stylers: [{ color: '#4d6059' }] },
-  { featureType: 'poi', elementType: 'geometry.stroke', stylers: [{ color: '#4d6059' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ visibility: 'on' }, { color: '#7f8d89' }] },
-  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#7f8d89' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#4d6059' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#4d6059' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#7f8d89' }] },
   { featureType: 'road', elementType: 'labels.text', stylers: [{ visibility: 'on' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ visibility: 'on' }, { color: '#ffffff' }] },
-  { featureType: 'road', elementType: 'labels.text.stroke', stylers: [{ visibility: 'on' }, { color: '#24282b' }] },
-  { featureType: 'road.highway', elementType: 'geometry.fill', stylers: [{ color: '#7f8d89' }, { lightness: 17 }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#7f8d89' }, { lightness: 29 }, { weight: 0.2 }] },
-  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#000000' }, { lightness: 18 }] },
-  { featureType: 'road.arterial', elementType: 'geometry.fill', stylers: [{ color: '#7f8d89' }] },
-  { featureType: 'road.arterial', elementType: 'geometry.stroke', stylers: [{ color: '#7f8d89' }] },
-  { featureType: 'road.local', elementType: 'geometry', stylers: [{ color: '#000000' }, { lightness: 16 }] },
-  { featureType: 'road.local', elementType: 'geometry.fill', stylers: [{ color: '#7f8d89' }] },
-  { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ color: '#7f8d89' }] },
+  { featureType: 'road.highway', elementType: 'geometry.fill', stylers: [{ color: '#40534c' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#35473f' }, { weight: 0.2 }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#8b9b92' }] },
   { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#000000' }, { lightness: 19 }] },
-  { featureType: 'water', elementType: 'all', stylers: [{ color: '#2b3638' }, { visibility: 'on' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#2b3638' }, { lightness: 17 }] },
-  { featureType: 'water', elementType: 'geometry.fill', stylers: [{ color: '#24282b' }] },
-  { featureType: 'water', elementType: 'geometry.stroke', stylers: [{ color: '#24282b' }] },
-  { featureType: 'water', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'labels.text', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#24282b' }] },
 ];
 
 // Custom Google Streets (ROADMAP) style. Keep this shared across the app's
@@ -90,11 +73,62 @@ export const streetsMapStyles = [
  * Returns the styling array for Google Maps based on theme and map type
  * @param {boolean} isDarkTheme
  * @param {string} mapType 'roadmap' | 'hybrid' | 'satellite' | 'terrain'
+ * @param {number} zoom Streets brighten from 12 to 16; place names dim from 11 to 17.
  * @returns {Array}
  */
-export function getMapStyles(isDarkTheme, mapType = 'roadmap') {
+export function getMapStyles(isDarkTheme, mapType = 'roadmap', zoom = 16) {
   if (mapType !== 'roadmap') return [];
-  return isDarkTheme ? darkMapStyles : streetsMapStyles;
+  if (!isDarkTheme) return streetsMapStyles;
+
+  const resolvedZoom = Number.isFinite(zoom) ? zoom : 16;
+  const streetProgress = Math.min(1, Math.max(0, (resolvedZoom - 12) / 4));
+  const placeProgress = Math.min(1, Math.max(0, (17 - resolvedZoom) / 6));
+  const colors = {
+    all: blendLabelColor([186, 197, 191], [255, 255, 255], streetProgress),
+    'administrative.neighborhood': blendLabelColor([216, 195, 148], [243, 223, 178], placeProgress),
+    'administrative.locality': blendLabelColor([228, 210, 171], [255, 240, 206], placeProgress),
+  };
+  return darkMapStyles.map(rule => rule.elementType === 'labels.text.fill' && colors[rule.featureType]
+    ? { ...rule, stylers: [{ color: colors[rule.featureType] }] }
+    : rule);
+}
+
+function blendLabelColor(from, to, progress) {
+  return '#' + from.map((channel, index) => Math.round(channel + (to[index] - channel) * progress)
+    .toString(16).padStart(2, '0')).join('');
+}
+
+const mapThemeBindings = new WeakMap();
+const mapZoomControls = new WeakMap();
+
+// Reserve the search bar's height in the right-side control stack.
+export function insetMapZoomControls(map, maps) {
+  if (mapZoomControls.has(map)) return;
+  const control = document.createElement('div');
+  control.className = 'map-ui map-zoom-ui';
+  control.setAttribute('role', 'group');
+  control.setAttribute('aria-label', 'Map zoom');
+  const buttons = [1, -1].map(direction => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'map-ui-button';
+    button.textContent = direction > 0 ? '+' : '−';
+    button.setAttribute('aria-label', direction > 0 ? 'Zoom in' : 'Zoom out');
+    button.addEventListener('click', () => map.setZoom((map.getZoom() ?? 13) + direction));
+    control.appendChild(button);
+    return button;
+  });
+  const sync = () => {
+    const type = map.mapTypes?.get(map.getMapTypeId());
+    buttons[0].disabled = map.getZoom() >= (map.get('maxZoom') ?? type?.maxZoom ?? 22);
+    buttons[1].disabled = map.getZoom() <= (map.get('minZoom') ?? type?.minZoom ?? 0);
+  };
+  const listeners = ['zoom_changed', 'maptypeid_changed', 'minzoom_changed', 'maxzoom_changed']
+    .map(event => map.addListener(event, sync));
+  map.controls[maps.ControlPosition.RIGHT_TOP].push(control);
+  map.setOptions({ zoomControl: false });
+  sync();
+  mapZoomControls.set(map, { control, listeners, controls: map.controls[maps.ControlPosition.RIGHT_TOP] });
 }
 
 /**
@@ -105,8 +139,48 @@ export function getMapStyles(isDarkTheme, mapType = 'roadmap') {
  */
 export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
   if (!map) return;
-  const styles = getMapStyles(isDarkTheme, mapType);
-  map.setOptions({ styles });
+  let binding = mapThemeBindings.get(map);
+  if (!binding) {
+    binding = { isDarkTheme };
+    const refresh = () => {
+      const type = map.getMapTypeId();
+      let styles = getMapStyles(binding.isDarkTheme, type, map.getZoom());
+      const color = styles.find(rule => rule.featureType === 'administrative.neighborhood'
+        && rule.elementType === 'labels.text.fill')?.stylers[0].color;
+      binding.layer?.update({ enabled: binding.isDarkTheme && type === 'roadmap', color: color || '#d8c394' });
+      if (binding.layer?.visible) {
+        styles = styles.map(rule => rule.featureType === 'administrative.neighborhood' && rule.elementType === 'labels.text'
+          ? { ...rule, stylers: [{ visibility: 'off' }] } : rule);
+      }
+      const signature = JSON.stringify(styles);
+      if (signature !== binding.signature) {
+        binding.signature = signature;
+        map.setOptions({ styles });
+      }
+    };
+    binding.refresh = refresh;
+    mapThemeBindings.set(map, binding);
+    binding.listeners = [map.addListener('zoom_changed', refresh), map.addListener('maptypeid_changed', refresh)];
+    binding.layer = createNeighborhoodLabelLayer(map, window.google.maps, refresh);
+  }
+  binding.isDarkTheme = isDarkTheme;
+  binding.refresh();
+}
+
+export function disposeMapTheme(map) {
+  const zoom = mapZoomControls.get(map);
+  if (zoom) {
+    zoom.listeners.forEach(listener => listener.remove());
+    for (let i = zoom.controls.getLength() - 1; i >= 0; i--) {
+      if (zoom.controls.getAt(i) === zoom.control) zoom.controls.removeAt(i);
+    }
+    mapZoomControls.delete(map);
+  }
+  const binding = mapThemeBindings.get(map);
+  if (!binding) return;
+  binding.listeners.forEach(listener => listener.remove());
+  binding.layer?.dispose();
+  mapThemeBindings.delete(map);
 }
 
 // Global authentication failure handler hook for Google Maps JS API

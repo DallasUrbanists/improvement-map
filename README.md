@@ -8,6 +8,10 @@ Hosted on **GitHub Pages**: [https://dallasurbanists.github.io/improvement-map/]
 
 ## 🌟 Tech Stack & Architecture
 
+### Submission UI preview (development)
+
+On `/submit` in the Vite development server, press **Ctrl+Alt+Enter** to preview the submission loading screen for six seconds, followed by the success screen. This makes no submission or upload requests and preserves the draft. Press **Escape** to cancel, or choose **Back to submission** after completion. Adjust `SUBMISSION_PREVIEW_DURATION_MS` in `src/views/SubmitView.vue` to change the timer. The shortcut is disabled in production builds.
+
 - **Framework**: [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`) + [Vue Router 4](https://router.vuejs.org/)
 - **Bundler & PWA Engine**: [Vite](https://vitejs.dev/) + `vite-plugin-pwa` (Workbox Service Worker caching)
 - **Styling & Design System**: [Tailwind CSS](https://tailwindcss.com/) adhering to the [Strong Towns Brand Guidelines](https://www.strongtowns.org/resources/brand) (Dark Blue `#0c2340`, Light Blue `#488BE3`, Yellow `#ffa800`, Sidewalk `#f5f3ee`, Inter & DM Serif Display typefaces)
@@ -23,16 +27,17 @@ Hosted on **GitHub Pages**: [https://dallasurbanists.github.io/improvement-map/]
 ## 📱 Core Pages & User Experience
 
 ### 1. Home Page (`/`)
-- **Live Activity Log**: Displays the most recent civic suggestions submitted by advocates.
-- **30-Second Polling**: Automatically refreshes in near real-time as new submissions are posted.
+- **Persistent map workspace**: One Google Map stays mounted across Browse, submission details, and Submit. The list, details, and later Submit steps appear in trays with 12px side margins, 72px top clearance, and 88px bottom clearance. Search and the floating toolbar stay accessible; the map is dimmed and blurred behind trays.
+- **Navigation**: `/?view=map` and `/?view=list` support browser history. Details restore the originating viewport and list scroll on close. `/test` remains a separate proof-of-concept page.
 
 ### 2. Submit Page (`/submit`)
 A wizard-style multi-step form with persistent `localStorage` draft saving:
-- **Step 1: Describe** — Required description with automatic resizing, speech-to-text recording, and grammar/clarity assistance.
-- **Step 2: Locate** — Embedded Google Maps SDK with draggable Google Maps marker, Streets (`ROADMAP`) & Satellite view toggle, Google Maps address search autocomplete, GPS recenter button, and optional "Describe location" modal.
-- **Step 3: Photo** — Client-side HTML5 Canvas resizing to WebP format, support for device photo library and camera capture for up to 10 photos with optional captions.
+- **Step 1: Locate** — Select the pin location on the shared map, with address autocomplete and GPS recentering.
+- **Step 2: Photo** — Client-side HTML5 Canvas resizing to WebP format, support for device photo library and camera capture for up to 10 photos with optional captions.
+- **Step 3: Describe** — Required description with automatic resizing, speech-to-text recording, and grammar/clarity assistance.
 - **Step 4: Review & Submit** — Detailed summary with subheadings and "Edit" links for each step, author name & email validation, and direct-to-cloud submission.
 - **Submission in Progress State** — Full-screen modal replacing navbar, beforeunload prevention, animated progress bar, dynamic status text, and green checkmark / error handling states.
+- **Tray behavior** — Steps 2–4 lock the address bar to the selected location. Closing a tray preserves the draft; Submit resumes its saved step. Location summaries use the shared map rather than creating embedded maps.
 
 ### 3. Browse Page (`/browse`)
 - **Map View**: Full viewport Google Map with native Google Maps markers for all suggestions, Streets & Satellite view switchers, search bar overlay with Google address autocomplete, and popups containing summary, photo thumbnail, and "View suggestion" link.

@@ -45,7 +45,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { kSegmented, kSegmentedButton } from 'konsta/vue';
 import { isDark } from '../services/theme';
-import { getMapStyles, hasGoogleMapsKey, loadGoogleMaps } from '../services/googleMaps';
+import { getMapStyles, updateMapTheme, disposeMapTheme, hasGoogleMapsKey, loadGoogleMaps } from '../services/googleMaps';
 
 const props = defineProps({
   location: { type: Object, default: () => ({}) },
@@ -77,10 +77,13 @@ async function initializeMap() {
     streetViewControl: false,
     fullscreenControl: false,
     zoomControl: true,
+    zoomControlOptions: { position: maps.ControlPosition.TOP_RIGHT },
     gestureHandling: 'cooperative',
     clickableIcons: false,
-    styles: getMapStyles(isDark.value, 'roadmap'),
+    styles: getMapStyles(isDark.value, mapType.value, 16),
   });
+
+  updateMapTheme(mapInstance, isDark.value, mapType.value);
 
   const crosshairOverlay = new maps.OverlayView();
   crosshairOverlay.onAdd = () => {};
@@ -104,10 +107,11 @@ function centerMap() {
 onMounted(initializeMap);
 onBeforeUnmount(() => {
   mapGeneration++;
+  disposeMapTheme(mapInstance);
   mapInstance = null;
 });
 
 watch(isDark, (darkMode) => {
-  if (mapInstance) mapInstance.setOptions({ styles: getMapStyles(darkMode, mapType.value) });
+  if (mapInstance) updateMapTheme(mapInstance, darkMode, mapType.value);
 });
 </script>

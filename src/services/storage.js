@@ -124,9 +124,9 @@ export function clearWizardDraft() {
 
 export function getStoredTheme() {
   try {
-    return localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
+    return localStorage.getItem(THEME_STORAGE_KEY) || 'system';
   } catch {
-    return 'dark';
+    return 'system';
   }
 }
 
