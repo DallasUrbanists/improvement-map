@@ -1,11 +1,12 @@
 <template>
-  <div class="map-workspace view-panel" :data-tray-open="trayOpen">
+  <div class="map-workspace view-panel" :data-tray-open="trayOpen" @pointerdown.capture="interruptMapMotion" @wheel.capture.passive="interruptMapMotion">
     <div ref="browseMapContainerEl" class="workspace-map-canvas" data-testid="persistent-map"></div>
     <div v-if="!hasGoogleMapsKey || googleMapsAuthError || mapError" class="workspace-map-status" role="status">
       <p>{{ mapError || googleMapsAuthError || 'Google Maps is unavailable. You can still browse suggestions.' }}</p>
     </div>
     <div v-else-if="!isMapReady" class="workspace-map-status" role="status">Loading Map…</div>
     <Transition name="workspace-backdrop"><div v-if="trayOpen" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)) }" aria-hidden="true"></div></Transition>
+    <Teleport :to="draftCrosshairPane || 'body'" :disabled="isSubmit || !draftCrosshairPane">
     <div v-if="!isDetail && (isSubmit || hasDraftPin)" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
       <svg :key="isSubmitLocate ? 'locating' : 'locked'" data-testid="suggestion-location-crosshair" viewBox="0 0 50 50" aria-hidden="true" @animationend="onCrosshairAnimationEnd">
         <g transform="translate(25 25)" fill="none" stroke="white" stroke-width="3">
@@ -17,6 +18,13 @@
         <span v-if="coordinateCopyMessage" class="map-ui crosshair-copy-tooltip" role="status">{{ coordinateCopyMessage }}</span>
       </div>
     </div>
+    </Teleport>
+    <Teleport v-if="draftCrosshairPane && isPopupOpen && popupCoordinates" :to="draftCrosshairPane">
+      <div ref="popupCoordinateElement" class="popup-target-coordinates" :style="popupCoordinatePosition">
+        <button type="button" class="map-ui map-ui-button" :aria-label="`Copy latitude and longitude: ${popupCoordinates}`" @click.stop="copyCoordinates(popupCoordinates)">{{ popupCoordinates }}</button>
+        <span v-if="coordinateCopyMessage" class="map-ui crosshair-copy-tooltip" role="status">{{ coordinateCopyMessage }}</span>
+      </div>
+    </Teleport>
     <div v-if="isDetail && detailCoordinates" class="detail-map-target" :style="detailTargetPosition">
       <img :key="route.params.id" :src="suggestionMarkerUrl" alt="Submission location" class="detail-target-icon" />
       <div ref="coordinateLabel" class="crosshair-coordinate-label" :class="{ 'is-left': coordinateLabelOnLeft }" :style="coordinateLabelStyle">
@@ -136,6 +144,74 @@ const mapError = ref('');
 let map = null;
 let googleMaps = null;
 let infoWindow = null;
+let clusterZoomTimer = null;
+let clusterZoomRun = 0;
+function cancelClusterZoom() {
+  clusterZoomRun++;
+  if (clusterZoomTimer !== null) clearTimeout(clusterZoomTimer);
+  clusterZoomTimer = null;
+}
+function interruptMapMotion() {
+  cancelClusterZoom();
+  if (!map) return;
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+  if (!center || zoom == null) return;
+  // Finish native camera motion at its current position before the user's
+  // pointer or wheel gesture supplies the next movement.
+  if (map.moveCamera) map.moveCamera({ center, zoom });
+  else { map.setCenter(center); map.setZoom(zoom); }
+}
+function zoomIntoCluster(cluster) {
+  cancelClusterZoom();
+  const run = clusterZoomRun;
+  if (!map) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    map.fitBounds(cluster.bounds, 72);
+    return;
+  }
+  const startZoom = map.getZoom() ?? 13;
+  const maximumZoom = map.get('maxZoom') ?? map.mapTypes.get(map.getMapTypeId())?.maxZoom ?? 21;
+  const projection = map.getProjection();
+  let targetZoom = Math.min(maximumZoom, Math.floor(startZoom) + 1);
+  if (projection) {
+    const ne = projection.fromLatLngToPoint(cluster.bounds.getNorthEast());
+    const sw = projection.fromLatLngToPoint(cluster.bounds.getSouthWest());
+    const width = Math.max(1, map.getDiv().clientWidth - 144);
+    const height = Math.max(1, map.getDiv().clientHeight - 144);
+    const spanX = (ne.x - sw.x + 256) % 256;
+    const spanY = Math.abs(ne.y - sw.y);
+    const fitZoom = Math.floor(Math.log2(Math.min(width / Math.max(spanX, 1e-8), height / Math.max(spanY, 1e-8))));
+    targetZoom = Math.min(maximumZoom, Math.max(targetZoom, fitZoom));
+  }
+  const center = cluster.bounds.getCenter();
+  map.panTo(center);
+  let requestedZoom = startZoom;
+  function advance() {
+    if (run !== clusterZoomRun || !map) return;
+    clusterZoomTimer = null;
+    const zoom = map.getZoom() ?? requestedZoom;
+    // Stop if the camera was changed externally or the provider clamped a
+    // requested level. Never repeatedly request an unreachable zoom level.
+    if (zoom < requestedZoom - .01 || zoom >= targetZoom) return;
+    requestedZoom = Math.min(targetZoom, Math.floor(requestedZoom) + 1);
+    map.setZoom(requestedZoom);
+    if (requestedZoom < targetZoom && run === clusterZoomRun) clusterZoomTimer = setTimeout(advance, 280);
+  }
+  clusterZoomTimer = setTimeout(advance, 180);
+}
+const isPopupOpen = ref(false);
+const isSpiderOpen = ref(false);
+let popupShadeOverlay = null;
+const popupTarget = shallowRef(null);
+const popupCoordinateElement = ref(null);
+const popupCoordinates = ref('');
+const popupCoordinatePosition = ref({});
+const draftCrosshairPane = shallowRef(null);
+function closeInfoWindow() {
+  infoWindow?.close();
+  isPopupOpen.value = false;
+}
 
 let markersArray = [];
 let suggestionClusterer = null;
@@ -201,6 +277,7 @@ function selectTab(tab) {
 function setTab(tab) { router.push({ path: '/', query: { view: tab === 'list' ? 'list' : 'map' } }); }
 function setSortMode(sort) { activeSort.value = sort; setStoredBrowseSort(sort); }
 function setMapType(type) {
+  cancelClusterZoom();
   currentMapType.value = type;
   setStoredBrowseTab(isList.value ? 'list' : type === 'hybrid' ? 'satellite' : 'streets');
   if (!map) return;
@@ -226,7 +303,7 @@ function setSuggestionMarkersVisible(visible) {
   areSuggestionMarkersVisible = visible;
   if (!visible) markerSpiderfier?.collapse();
   suggestionClusterer?.setMap(visible ? map : null);
-  if (!visible) infoWindow?.close();
+  if (!visible) closeInfoWindow();
 }
 
 function renderSuggestionCluster({ count, position }) {
@@ -299,6 +376,7 @@ async function initGoogleMap() {
     map.addListener('dragend', () => {
       saveCurrentMapView();
     });
+    map.addListener('dragstart', cancelClusterZoom);
 
     map.addListener('zoom_changed', () => {
       saveCurrentMapView();
@@ -330,37 +408,47 @@ function escapeHtml(str) {
 
 function createInfoWindowContent(suggestion) {
   const container = document.createElement('div');
-  container.className = 'gm-suggestion-infowindow';
-  container.style.cssText = 'padding: 4px; max-width: 260px; font-family: Inter, system-ui, -apple-system, sans-serif; color: #1e293b;';
+  container.className = 'map-ui gm-suggestion-infowindow';
 
   const summary = suggestion.content?.summary || 'Civic Suggestion';
   const photoUrl = getPrimaryPhoto(suggestion);
-  const address = suggestion.location?.address;
+  const address = suggestion.location?.address?.replace(/,\s*USA\s*$/i, '');
   const timeStr = formatTime(suggestion.creationDate);
 
-  let html = `<h4 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.35;">${escapeHtml(summary)}</h4>`;
+  let html = `<button type="button" class="map-ui-button suggestion-popup-close" aria-label="Close suggestion"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button><h4 class="suggestion-popup-title">${escapeHtml(summary)}</h4>`;
 
   if (photoUrl) {
     html += `
-      <div style="width: 100%; height: 110px; margin-bottom: 8px; border-radius: 8px; overflow: hidden; background-color: #f1f5f9;">
-        <img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(summary)}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+      <div class="suggestion-popup-photo" hidden>
+        <img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(summary)}" />
       </div>
     `;
   }
 
   html += `
-    <div style="font-size: 12px; color: #64748b; margin-bottom: 10px; line-height: 1.3;">
+    <div class="suggestion-popup-address">
       ${address ? `<span>📍 ${escapeHtml(address)}</span>` : `<span>🕒 ${escapeHtml(timeStr)}</span>`}
     </div>
     <div>
-      <a href="/suggestion/${suggestion.id}" class="info-window-view-btn" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #0f172a; background-color: #f59e0b; border-radius: 8px; text-decoration: none;">
+      <a href="${escapeHtml(router.resolve('/suggestion/' + suggestion.id).href)}" class="map-ui-button info-window-view-btn">
         <span>View suggestion</span>
-        <span>&rarr;</span>
       </a>
     </div>
   `;
 
   container.innerHTML = html;
+  container.querySelector('.suggestion-popup-close').addEventListener('click', () => {
+    closeInfoWindow();
+    removeStoredActiveInfoWindowSuggestionId();
+    saveCurrentMapView();
+  });
+  const image = container.querySelector('.suggestion-popup-photo img');
+  if (image) {
+    const showPhoto = () => { if (image.naturalWidth > 0) image.parentElement.hidden = false; };
+    image.addEventListener('load', showPhoto);
+    image.addEventListener('error', () => { image.parentElement.hidden = true; });
+    if (image.complete) showPhoto();
+  }
 
   const btn = container.querySelector('.info-window-view-btn');
   if (btn) {
@@ -374,22 +462,28 @@ function createInfoWindowContent(suggestion) {
 }
 
 function openInfoWindow(suggestion, marker, autoRestore = false) {
+  cancelClusterZoom();
   if (!map || !googleMaps || trayOpen.value) return;
   if (!infoWindow) {
     infoWindow = new googleMaps.InfoWindow();
     infoWindow.addListener('closeclick', () => {
+      isPopupOpen.value = false;
       removeStoredActiveInfoWindowSuggestionId();
       saveCurrentMapView();
     });
   }
 
   setStoredActiveInfoWindowSuggestionId(suggestion.id);
+  popupTarget.value = marker;
+  const position = marker.getPosition?.() || marker.get('position');
+  popupCoordinates.value = `${position.lat().toFixed(6)}, ${position.lng().toFixed(6)}`;
   const contentEl = createInfoWindowContent(suggestion);
   infoWindow.setContent(contentEl);
   infoWindow.open({
     anchor: marker,
     map,
   });
+  isPopupOpen.value = true;
 
   // 1. Persist map view immediately when clicking marker
   saveCurrentMapView();
@@ -407,11 +501,14 @@ function renderSuggestionMarkers() {
   markerSpiderfier = createMarkerSpiderfier(map, googleMaps, (marker, anchor) => {
     const suggestion = markerSuggestions.get(marker);
     if (suggestion) openInfoWindow(suggestion, anchor);
-  }, () => infoWindow?.close());
+  }, () => { isSpiderOpen.value = false; closeInfoWindow(); }, () => { isSpiderOpen.value = true; }, () => {
+    closeInfoWindow();
+    removeStoredActiveInfoWindowSuggestionId();
+  });
 
   // Clear existing markers & close infoWindow
   if (infoWindow) {
-    infoWindow.close();
+    closeInfoWindow();
   }
   suggestionClusterer?.clearMarkers();
   suggestionClusterer?.setMap(null);
@@ -460,12 +557,13 @@ function renderSuggestionMarkers() {
     algorithm: new SuperClusterAlgorithm({ radius: 64, maxZoom: 30 }),
     renderer: { render: renderSuggestionCluster },
     onClusterClick: (_event, cluster) => {
-      infoWindow?.close();
+      cancelClusterZoom();
+      closeInfoWindow();
       if (shouldSpiderfy(cluster.markers, map)) {
         markerSpiderfier.expand(cluster.markers, cluster.position);
       } else {
         markerSpiderfier.collapse();
-        map.fitBounds(cluster.bounds, 72);
+        zoomIntoCluster(cluster);
       }
     },
   });
@@ -885,6 +983,35 @@ function frameSubmissionLocation() {
     }
 }
 function updateSubmissionCrosshair() {
+  const projection = submissionCrosshairOverlay?.getProjection();
+  const pane = draftCrosshairPane.value;
+  if (projection && pane && browseMapContainerEl.value) {
+    const origin = projection.fromLatLngToDivPixel(projection.fromContainerPixelToLatLng(new googleMaps.Point(0, 0)));
+    pane.style.left = `${origin.x}px`;
+    pane.style.top = `${origin.y}px`;
+    pane.style.width = `${browseMapContainerEl.value.clientWidth}px`;
+    pane.style.height = `${browseMapContainerEl.value.clientHeight}px`;
+    if (isPopupOpen.value && popupTarget.value) {
+      const point = projection.fromLatLngToContainerPixel(popupTarget.value.getPosition?.() || popupTarget.value.get('position'));
+      const width = popupCoordinateElement.value?.offsetWidth || 220;
+      const height = popupCoordinateElement.value?.offsetHeight || 30;
+      const viewportWidth = browseMapContainerEl.value.clientWidth;
+      const viewportHeight = browseMapContainerEl.value.clientHeight;
+      const spider = markerSpiderfier?.getScreenBounds();
+      const rightX = Math.max(point.x + 20, spider ? spider.right + 12 : -Infinity);
+      const leftX = Math.min(point.x - 20 - width, spider ? spider.left - 12 - width : Infinity);
+      let x = rightX + width <= viewportWidth - 12 ? rightX : leftX;
+      let y = point.y - height / 2;
+      if (spider && (x < 12 || x + width > viewportWidth - 12)) {
+        // Narrow screens may have no horizontal slot beside the expanded group.
+        y = spider.bottom + 12 + height <= viewportHeight - 12 ? spider.bottom + 12 : spider.top - height - 12;
+        x = point.x - width / 2;
+      }
+      x = Math.max(12, Math.min(x, viewportWidth - width - 12));
+      y = Math.max(12, Math.min(y, viewportHeight - height - 12));
+      popupCoordinatePosition.value = { left: `${x}px`, top: `${y}px`, transform: 'none' };
+    }
+  }
   if (isSubmitLocate.value) {
     const center = map?.getCenter();
     if (center) locatingCoordinates.value = { latitude: center.lat(), longitude: center.lng() };
@@ -953,6 +1080,7 @@ function resetSubmissionToBrowseCenter(viewport) {
   }).catch(() => {});
 }
 const removeNavigationGuard = router.beforeEach((to, from) => {
+  cancelClusterZoom();
   const fromBrowse = from.name === 'Browse';
   if (fromBrowse && (to.name === 'SubmissionDetail' || to.name === 'Submit')) {
     browseOrigin = { url: from.fullPath, viewport: snapshot() };
@@ -970,6 +1098,7 @@ const removeNavigationGuard = router.beforeEach((to, from) => {
 });
 function handleEscape(event) {
   if (event.key !== 'Escape' || event.defaultPrevented) return;
+  if (isPopupOpen.value) { closeInfoWindow(); removeStoredActiveInfoWindowSuggestionId(); event.preventDefault(); return; }
   const openMenu = document.querySelector('.map-toolbar[data-menu-open="true"]');
   if (openMenu) { openMenu.querySelector('[aria-label="Menu"]')?.click(); event.preventDefault(); return; }
   if (isSubmit.value && submission.value?.dismissNested?.()) { event.preventDefault(); return; }
@@ -986,17 +1115,44 @@ const workspace = {
   registerSubmission: value => { submission.value = value; },
 };
 provide(mapWorkspaceKey, workspace);
+watch([isPopupOpen, isSpiderOpen, isMapReady], ([popupOpen, spiderOpen]) => {
+  const open = popupOpen || spiderOpen;
+  if (!open || !map || !googleMaps) { popupShadeOverlay?.setMap(null); return; }
+  if (!popupShadeOverlay) {
+    const shade = document.createElement('div');
+    shade.className = 'map-popup-shade';
+    shade.setAttribute('aria-hidden', 'true');
+    popupShadeOverlay = new googleMaps.OverlayView();
+    popupShadeOverlay.onAdd = () => popupShadeOverlay.getPanes().overlayLayer.appendChild(shade);
+    popupShadeOverlay.onRemove = () => shade.remove();
+    popupShadeOverlay.draw = () => {
+      const projection = popupShadeOverlay.getProjection();
+      if (!projection || !browseMapContainerEl.value) return;
+      const corner = projection.fromLatLngToDivPixel(projection.fromContainerPixelToLatLng(new googleMaps.Point(0, 0)));
+      shade.style.left = `${corner.x}px`;
+      shade.style.top = `${corner.y}px`;
+      shade.style.width = `${browseMapContainerEl.value.clientWidth}px`;
+      shade.style.height = `${browseMapContainerEl.value.clientHeight}px`;
+    };
+  }
+  popupShadeOverlay.setMap(map);
+});
 watch([trayOpen, isMapReady], ([open]) => {
   map?.setOptions({ gestureHandling: open ? 'none' : 'greedy', keyboardShortcuts: !open });
-  if (open) { infoWindow?.close(); markerSpiderfier?.collapse(); }
+  if (open) { closeInfoWindow(); markerSpiderfier?.collapse(); }
 }, { immediate: true });
-watch([isSubmit, isDetail, isMapReady, hasDraftPin], () => {
+watch([isSubmit, isDetail, isMapReady, hasDraftPin, isPopupOpen], () => {
   setSuggestionMarkersVisible(!isSubmit.value && !isDetail.value);
   if (isSubmit.value) focusLocation(draft.value.location);
-  if ((isSubmit.value || hasDraftPin.value) && map && googleMaps && !submissionCrosshairOverlay) {
+  if ((isSubmit.value || hasDraftPin.value || isPopupOpen.value) && map && googleMaps && !submissionCrosshairOverlay) {
     submissionCrosshairOverlay = new googleMaps.OverlayView();
-    submissionCrosshairOverlay.onAdd = () => {};
-    submissionCrosshairOverlay.onRemove = () => {};
+    const pane = document.createElement('div');
+    pane.className = 'draft-crosshair-map-pane';
+    submissionCrosshairOverlay.onAdd = () => {
+      submissionCrosshairOverlay.getPanes().overlayMouseTarget.appendChild(pane);
+      draftCrosshairPane.value = pane;
+    };
+    submissionCrosshairOverlay.onRemove = () => { draftCrosshairPane.value = null; pane.remove(); };
     submissionCrosshairOverlay.draw = updateSubmissionCrosshair;
     submissionCrosshairOverlay.setMap(map);
     const markMoving = () => { if (isSubmitLocate.value) isPinMoving.value = true; };
@@ -1004,6 +1160,7 @@ watch([isSubmit, isDetail, isMapReady, hasDraftPin], () => {
     pinMotionListeners.push(map.addListener('dragstart', markMoving));
     pinMotionListeners.push(map.addListener('idle', () => { isPinMoving.value = false; }));
   }
+  updateSubmissionCrosshair();
 }, { immediate: true });
 watch([isDetail, isMapReady, detailLocation], async (_, __, onCleanup) => {
   let cancelled = false;
@@ -1026,6 +1183,8 @@ watch([isDetail, detailLocation], () => {
   mapSearchQuery.value = location?.address || (location?.latitude != null ? `${Number(location.latitude).toFixed(5)}, ${Number(location.longitude).toFixed(5)}` : 'Submission address unavailable');
 }, { immediate: true });
 watch(() => [isSubmitLocate.value, draft.value.location?.latitude, draft.value.location?.longitude], updateSubmissionCrosshair);
+watch(popupTarget, () => nextTick(updateSubmissionCrosshair));
+watch(popupCoordinateElement, () => nextTick(updateSubmissionCrosshair));
 watch([isSubmit, isMapReady, () => draft.value.step], async (_, __, onCleanup) => {
   let cancelled = false;
   let observer;
@@ -1069,6 +1228,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  cancelClusterZoom();
+  popupShadeOverlay?.setMap(null);
   detailTargetOverlay?.setMap(null);
   crosshairTravelAnimation?.cancel();
   if (crosshairTravelFrame !== null) cancelAnimationFrame(crosshairTravelFrame);

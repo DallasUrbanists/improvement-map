@@ -69,6 +69,12 @@ export const streetsMapStyles = [
   { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
 ];
 
+// Hybrid maps use satellite imagery with an overlay of roads and place labels.
+// Keep that context while removing the POI glyphs that otherwise clutter the imagery.
+const satelliteMapStyles = [
+  { featureType: 'poi', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+];
+
 /**
  * Returns the styling array for Google Maps based on theme and map type
  * @param {boolean} isDarkTheme
@@ -77,6 +83,7 @@ export const streetsMapStyles = [
  * @returns {Array}
  */
 export function getMapStyles(isDarkTheme, mapType = 'roadmap', zoom = 16) {
+  if (mapType === 'hybrid' || mapType === 'satellite') return satelliteMapStyles;
   if (mapType !== 'roadmap') return [];
   if (!isDarkTheme) return streetsMapStyles;
 

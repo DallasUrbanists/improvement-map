@@ -1,4 +1,5 @@
 const PAGE_SIZE = 8;
+const TRANSITION_MS = 220;
 
 export function clusterAppearance(count) {
   // Logarithmic growth keeps large clusters useful without dominating the map.
@@ -35,14 +36,15 @@ export function shouldSpiderfy(markers, map) {
   ) * scale < 44;
 }
 
-export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {}) {
+export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {}, onExpand = () => {}, onPageChange = () => {}) {
   const overlay = new maps.OverlayView();
   const root = document.createElement('div');
-  root.style.cssText = 'position:absolute;pointer-events:none;';
+  root.style.cssText = 'position:absolute;pointer-events:none;isolation:isolate;z-index:1;';
   root.setAttribute('role', 'group');
   root.setAttribute('aria-label', 'Overlapping suggestions');
   const lines = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  lines.style.cssText = 'position:absolute;overflow:visible;pointer-events:none;width:1px;height:1px;';
+  lines.style.cssText = 'position:absolute;overflow:visible;pointer-events:none;width:1px;height:1px;z-index:0;';
+  const centerBadge = button('Collapse overlapping suggestions', '', () => collapse(true));
   const controls = document.createElement('div');
   controls.className = 'map-ui';
   controls.style.cssText = 'position:absolute;display:flex;align-items:center;transform:translateX(-50%);pointer-events:auto;white-space:nowrap;';
@@ -53,6 +55,30 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
   let focusAfterDraw = false;
   let restoreFocus = null;
   let pageStatus;
+  let transitionTimer = null;
+  let transitionToken = 0;
+  let transitioning = false;
+  let entrance = null;
+
+  function prefersReducedMotion() {
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  }
+
+  function animate(node, keyframes, options = {}) {
+    if (prefersReducedMotion() || typeof node.animate !== 'function') return;
+    node.animate(keyframes, {
+      duration: TRANSITION_MS,
+      easing: 'cubic-bezier(.2,.75,.25,1)',
+      ...options,
+    });
+  }
+
+  function cancelPendingTransition() {
+    if (transitionTimer != null) window.clearTimeout(transitionTimer);
+    transitionTimer = null;
+    transitionToken++;
+    transitioning = false;
+  }
 
   function button(label, text, action) {
     const node = document.createElement('button');
@@ -64,17 +90,83 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
     return node;
   }
 
-  function collapse(returnFocus = false) {
+  function collapse(returnFocus = false, animateOut = true) {
     if (!markers.length) return;
+    if (transitionTimer != null) window.clearTimeout(transitionTimer);
+    transitionTimer = null;
+    transitionToken++;
+    transitioning = false;
+    const leavingNodes = [...nodes];
+    const token = ++transitionToken;
     markers = [];
-    nodes = [];
-    overlay.setMap(null);
+    transitioning = true;
     onCollapse();
-    if (returnFocus && restoreFocus?.isConnected) restoreFocus.focus();
+    const duration = animateOut && !prefersReducedMotion() ? TRANSITION_MS : 0;
+    if (duration) {
+      leavingNodes.forEach((entry, index) => {
+        animate(entry.node, [
+          { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+          { transform: `translate(-50%,-50%) translate(${-entry.offset.x}px,${-entry.offset.y}px) scale(.2)`, opacity: 0 },
+        ], { delay: Math.min(index * 12, 72), fill: 'forwards' });
+        animate(entry.line, [{ opacity: 0.9 }, { opacity: 0 }], { duration: 150, fill: 'forwards' });
+      });
+      animate(centerBadge, [
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scale(.45)', opacity: 0 },
+      ], { duration: 160, fill: 'forwards' });
+      animate(controls, [{ opacity: 1, transform: 'translateX(-50%) translateY(0)' }, { opacity: 0, transform: 'translateX(-50%) translateY(8px)' }], { duration: 150, fill: 'forwards' });
+    }
+    const finish = () => {
+      if (token !== transitionToken) return;
+      transitionTimer = null;
+      nodes = [];
+      transitioning = false;
+      overlay.setMap(null);
+      if (returnFocus && restoreFocus?.isConnected) restoreFocus.focus();
+    };
+    if (duration) transitionTimer = window.setTimeout(finish, duration + 20);
+    else finish();
+  }
+
+  function changePage(nextPage) {
+    if (transitioning || nextPage < 0 || nextPage * PAGE_SIZE >= markers.length) return;
+    onPageChange();
+    const direction = nextPage > page ? 1 : -1;
+    const leavingNodes = [...nodes];
+    const token = ++transitionToken;
+    const duration = prefersReducedMotion() ? 0 : 115;
+    transitioning = true;
+    if (duration) {
+      leavingNodes.forEach(entry => {
+        animate(entry.node, [
+          { transform: 'translate(-50%,-50%) translateX(0)', opacity: 1 },
+          { transform: `translate(-50%,-50%) translateX(${-direction * 26}px)`, opacity: 0 },
+        ], { duration, fill: 'forwards' });
+        animate(entry.line, [{ opacity: 0.9 }, { opacity: 0 }], { duration, fill: 'forwards' });
+      });
+      animate(controls, [{ opacity: 1 }, { opacity: 0 }], { duration, fill: 'forwards' });
+    }
+    const render = () => {
+      if (token !== transitionToken) return;
+      transitionTimer = null;
+      page = nextPage;
+      transitioning = false;
+      entrance = direction;
+      renderPage(true);
+    };
+    if (duration) transitionTimer = window.setTimeout(render, duration);
+    else render();
   }
 
   function renderPage(focus = true) {
-    root.replaceChildren(lines);
+    // Reused elements may still have a filled exit animation from a prior open.
+    for (const element of [centerBadge, controls, lines]) {
+      element.getAnimations?.().forEach(animation => animation.cancel());
+    }
+    root.replaceChildren(lines, centerBadge);
+    const appearance = clusterAppearance(markers.length);
+    centerBadge.textContent = String(markers.length);
+    centerBadge.style.cssText = `position:absolute;z-index:2;width:${appearance.diameter}px;height:${appearance.diameter}px;border:2px solid #d8c394;border-radius:50%;background:${appearance.fill};color:${appearance.text};font:700 15px Roboto,sans-serif;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;box-shadow:0 3px 6px #0009;`;
     lines.replaceChildren();
     controls.replaceChildren();
     const start = page * PAGE_SIZE;
@@ -100,9 +192,10 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
         event.preventDefault();
         nodes[next].node.focus();
       });
-      node.style.cssText = 'position:absolute;width:44px;height:44px;padding:0;border:0;background:transparent;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;border-radius:50%;';
+      node.style.cssText = 'position:absolute;z-index:1;width:44px;height:44px;padding:0;border:0;background:transparent;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;border-radius:50%;';
       const circle = document.createElement('span');
-      circle.style.cssText = 'display:block;width:20px;height:20px;margin:auto;border-radius:50%;background:#fff0ce;box-shadow:0 3px 6px #0009;';
+      circle.style.cssText = 'display:flex;align-items:center;justify-content:center;min-width:24px;width:max-content;height:24px;padding:0 3px;margin:auto;border-radius:50%;background:#fff0ce;color:#24282b;font:700 11px Roboto,sans-serif;box-shadow:0 3px 6px #0009;';
+      circle.textContent = String(start + index + 1);
       node.appendChild(circle);
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       line.setAttribute('stroke', '#d8c394');
@@ -112,7 +205,7 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
       return { marker, node, line, offset: offsets[index], x: 0, y: 0 };
     });
     if (markers.length > PAGE_SIZE) {
-      const previous = button('Previous overlapping suggestions', '‹', () => { page--; renderPage(); });
+      const previous = button('Previous overlapping suggestions', '‹', () => changePage(page - 1));
       previous.disabled = page === 0;
       controls.appendChild(previous);
       pageStatus = document.createElement('span');
@@ -120,7 +213,7 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
       pageStatus.style.cssText = 'font:600 12px Roboto,sans-serif;padding:0 4px;';
       pageStatus.textContent = `${start + 1}–${start + slice.length} of ${markers.length}`;
       controls.appendChild(pageStatus);
-      const next = button('Next overlapping suggestions', '›', () => { page++; renderPage(); });
+      const next = button('Next overlapping suggestions', '›', () => changePage(page + 1));
       next.disabled = start + PAGE_SIZE >= markers.length;
       controls.appendChild(next);
     }
@@ -130,7 +223,8 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
     overlay.draw();
   }
 
-  overlay.onAdd = () => overlay.getPanes().floatPane.appendChild(root);
+  // InfoWindows use floatPane, which must remain above the entire spider.
+  overlay.onAdd = () => overlay.getPanes().overlayMouseTarget.appendChild(root);
   overlay.onRemove = () => root.remove();
   overlay.draw = () => {
     const projection = overlay.getProjection();
@@ -142,6 +236,8 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
     const clamp = (value, min, max) => max >= min ? Math.min(max, Math.max(min, value)) : (min + max) / 2;
     const cx = origin.x + clamp(screen.x, radius + 28, map.getDiv().clientWidth - radius - 28) - screen.x;
     const cy = origin.y + clamp(screen.y, radius + 100, map.getDiv().clientHeight - radius - 140) - screen.y;
+    centerBadge.style.left = `${origin.x}px`;
+    centerBadge.style.top = `${origin.y}px`;
     for (const entry of nodes) {
       entry.x = cx + entry.offset.x;
       entry.y = cy + entry.offset.y;
@@ -154,6 +250,30 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
     }
     controls.style.left = `${cx}px`;
     controls.style.top = `${cy + radius + 28}px`;
+    if (entrance && !prefersReducedMotion()) {
+      const mode = entrance;
+      entrance = null;
+      nodes.forEach((entry, index) => {
+        const fromTransform = mode === 'center'
+          ? `translate(-50%,-50%) translate(${-entry.offset.x}px,${-entry.offset.y}px) scale(.2)`
+          : `translate(-50%,-50%) translateX(${mode * 26}px)`;
+        animate(entry.node, [
+          { transform: fromTransform, opacity: 0 },
+          { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        ], { delay: mode === 'center' ? Math.min(index * 14, 98) : Math.min(index * 8, 56) });
+        animate(entry.line, [{ opacity: 0 }, { opacity: 0.9 }], {
+          delay: mode === 'center' ? Math.min(index * 14, 98) : Math.min(index * 8, 56),
+          duration: 170,
+        });
+      });
+      animate(centerBadge, [
+        { transform: 'translate(-50%,-50%) scale(.55)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+      ], { duration: 200 });
+      animate(controls, [{ opacity: 0, transform: 'translateX(-50%) translateY(8px)' }, { opacity: 1, transform: 'translateX(-50%) translateY(0)' }], { delay: mode === 'center' ? 90 : 0, duration: 180 });
+    } else {
+      entrance = null;
+    }
     if (focusAfterDraw) { focusAfterDraw = false; nodes[0]?.node.focus({ preventScroll: true }); }
   };
   maps.OverlayView.preventMapHitsAndGesturesFrom(root);
@@ -165,10 +285,32 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
   };
   // Capture Escape before the workspace's tray-navigation shortcut.
   window.addEventListener('keydown', onEscape, true);
-  const listeners = ['click', 'zoom_changed', 'dragstart', 'maptypeid_changed'].map(event => map.addListener(event, () => collapse()));
+  const listeners = ['click', 'maptypeid_changed'].map(event => map.addListener(event, () => collapse()));
   return {
+    getScreenBounds() {
+      const projection = overlay.getProjection();
+      if (!markers.length || !nodes.length || !projection) return null;
+      const origin = projection.fromLatLngToDivPixel(center);
+      const screen = projection.fromLatLngToContainerPixel(center);
+      const dx = screen.x - origin.x, dy = screen.y - origin.y;
+      const radius = clusterAppearance(markers.length).diameter / 2;
+      const controlX = Number.parseFloat(controls.style.left) || origin.x;
+      const controlY = Number.parseFloat(controls.style.top) || origin.y;
+      return {
+        left: Math.min(origin.x - radius, controlX - controls.offsetWidth / 2, ...nodes.map(entry => entry.x - 22)) + dx,
+        right: Math.max(origin.x + radius, controlX + controls.offsetWidth / 2, ...nodes.map(entry => entry.x + 22)) + dx,
+        top: Math.min(origin.y - radius, ...nodes.map(entry => entry.y - 22)) + dy,
+        bottom: Math.max(controlY + controls.offsetHeight, origin.y + radius, ...nodes.map(entry => entry.y + 22)) + dy,
+      };
+    },
     expand(group, position) {
-      collapse();
+      cancelPendingTransition();
+      overlay.setMap(null);
+      nodes = [];
+      root.replaceChildren(lines);
+      lines.replaceChildren();
+      controls.replaceChildren();
+      entrance = 'center';
       markers = [...group];
       if (!markers.length) return;
       center = position;
@@ -177,10 +319,16 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
       renderPage(false);
       focusAfterDraw = true;
       overlay.setMap(map);
+      onExpand();
     },
     collapse,
     dispose() {
-      collapse();
+      cancelPendingTransition();
+      if (markers.length) collapse(false, false);
+      else {
+        nodes = [];
+        overlay.setMap(null);
+      }
       listeners.forEach(listener => listener.remove());
       window.removeEventListener('keydown', onEscape, true);
     },

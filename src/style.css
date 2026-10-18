@@ -224,6 +224,25 @@ body {
 .map-menu-popover { border-radius: 12px !important; background: var(--map-control-bg) !important; color: var(--map-control-text); }
 .map-menu-popover > :last-child { border-radius: inherit !important; background: var(--map-control-bg) !important; box-shadow: none; }
 .map-menu-popover .map-ui-button[aria-checked="true"] { color: var(--map-control-active-text); background: var(--map-control-active); }
+.gm-suggestion-infowindow.map-ui { position: relative; width: 260px; max-width: 100%; padding: 0; border: 0; border-radius: 0; box-shadow: none; font-family: Roboto, sans-serif; }
+.suggestion-popup-title { margin: 0; padding: 12px 56px 12px 12px; font-size: 14px; font-weight: 700; line-height: 1.35; text-wrap: pretty; color: var(--map-control-text); }
+.suggestion-popup-close { position: absolute; right: 0; top: 0; width: 44px; height: 44px; border-radius: 0; border-left: 1px solid var(--map-control-border); border-bottom: 1px solid var(--map-control-border); }
+.suggestion-popup-photo { width: calc(100% - 24px); height: 110px; margin: 0 12px 10px; overflow: hidden; border-radius: 8px; background: var(--map-control-hover); }
+.suggestion-popup-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.suggestion-popup-address { margin-bottom: 12px; padding-inline: 12px; font-size: 12px; line-height: 1.4; color: var(--map-control-text); opacity: .8; }
+.info-window-view-btn.map-ui-button { display: flex; width: 100%; min-height: 44px; border: 0; border-top: 1px solid var(--map-control-border); border-radius: 0; background: var(--map-control-bg); color: var(--map-control-text); text-decoration: none; }
+.draft-crosshair-map-pane { position: absolute; z-index: 0; pointer-events: none; }
+.popup-target-coordinates { position: absolute; z-index: 20; pointer-events: auto; white-space: nowrap; }
+.popup-target-coordinates > button { min-height: 30px; padding: 0 10px; border: 1px solid var(--map-control-border); background: var(--map-control-bg); font: 12px 'Courier New', Courier, monospace; }
+.gm-style-iw-c:has(.gm-suggestion-infowindow) { padding: 0 !important; border-radius: 12px !important; background: #fff !important; }
+.dark .gm-style-iw-c:has(.gm-suggestion-infowindow) { background: #2b3638 !important; }
+.dark .gm-style-iw-t:has(.gm-suggestion-infowindow) .gm-style-iw-tc::after { background: #2b3638 !important; }
+.gm-style-iw-c:has(.gm-suggestion-infowindow) .gm-style-iw-d { overflow: auto !important; }
+.gm-style-iw-c:has(.gm-suggestion-infowindow) .gm-style-iw-chr { display: none; }
+.map-popup-shade { position: absolute; background: #00000059; pointer-events: none; animation: popup-shade-appear 320ms ease; }
+@keyframes popup-shade-appear { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .map-popup-shade { animation: none; } }
+.dark .gm-style-iw-c:has(.gm-suggestion-infowindow) .gm-ui-hover-effect > span { filter: invert(1); }
 
 /* Persistent map workspace and route trays. */
 .map-workspace { position: absolute; inset: 0; isolation: isolate; }
