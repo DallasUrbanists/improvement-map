@@ -207,10 +207,14 @@ const popupTarget = shallowRef(null);
 const popupCoordinateElement = ref(null);
 const popupCoordinates = ref('');
 const popupCoordinatePosition = ref({});
+let popupCoordinateOffset = null;
 const draftCrosshairPane = shallowRef(null);
 function closeInfoWindow() {
   infoWindow?.close();
   isPopupOpen.value = false;
+  popupTarget.value = null;
+  popupCoordinates.value = '';
+  popupCoordinateOffset = null;
 }
 
 let markersArray = [];
@@ -300,6 +304,9 @@ function saveCurrentMapView() {
 }
 
 function setSuggestionMarkersVisible(visible) {
+  // Reattaching an unchanged clusterer clears its markers until the next map
+  // idle/zoom cycle. Popup state must never cause that reset.
+  if (areSuggestionMarkersVisible === visible) return;
   areSuggestionMarkersVisible = visible;
   if (!visible) markerSpiderfier?.collapse();
   suggestionClusterer?.setMap(visible ? map : null);
@@ -480,6 +487,7 @@ function openInfoWindow(suggestion, marker, autoRestore = false) {
 
   setStoredActiveInfoWindowSuggestionId(suggestion.id);
   popupTarget.value = marker;
+  popupCoordinateOffset = null;
   const position = marker.getPosition?.() || marker.get('position');
   popupCoordinates.value = `${position.lat().toFixed(6)}, ${position.lng().toFixed(6)}`;
   const contentEl = createInfoWindowContent(suggestion);
@@ -998,23 +1006,26 @@ function updateSubmissionCrosshair() {
     pane.style.height = `${browseMapContainerEl.value.clientHeight}px`;
     if (isPopupOpen.value && popupTarget.value) {
       const point = projection.fromLatLngToContainerPixel(popupTarget.value.getPosition?.() || popupTarget.value.get('position'));
+      if (!point) return;
       const width = popupCoordinateElement.value?.offsetWidth || 220;
       const height = popupCoordinateElement.value?.offsetHeight || 30;
       const viewportWidth = browseMapContainerEl.value.clientWidth;
       const viewportHeight = browseMapContainerEl.value.clientHeight;
-      const spider = markerSpiderfier?.getScreenBounds();
-      const rightX = Math.max(point.x + 20, spider ? spider.right + 12 : -Infinity);
-      const leftX = Math.min(point.x - 20 - width, spider ? spider.left - 12 - width : Infinity);
-      let x = rightX + width <= viewportWidth - 12 ? rightX : leftX;
-      let y = point.y - height / 2;
-      if (spider && (x < 12 || x + width > viewportWidth - 12)) {
-        // Narrow screens may have no horizontal slot beside the expanded group.
-        y = spider.bottom + 12 + height <= viewportHeight - 12 ? spider.bottom + 12 : spider.top - height - 12;
-        x = point.x - width / 2;
+      if (!popupCoordinateOffset) {
+        const spider = markerSpiderfier?.getScreenBounds();
+        const rightX = Math.max(point.x + 20, spider ? spider.right + 12 : -Infinity);
+        const leftX = Math.min(point.x - 20 - width, spider ? spider.left - 12 - width : Infinity);
+        let x = rightX + width <= viewportWidth - 12 ? rightX : leftX;
+        let y = point.y - height / 2;
+        if (spider && (x < 12 || x + width > viewportWidth - 12)) {
+          y = spider.bottom + 12 + height <= viewportHeight - 12 ? spider.bottom + 12 : spider.top - height - 12;
+          x = point.x - width / 2;
+        }
+        popupCoordinateOffset = { x: x - point.x, y: y - point.y };
       }
-      x = Math.max(12, Math.min(x, viewportWidth - width - 12));
-      y = Math.max(12, Math.min(y, viewportHeight - height - 12));
-      popupCoordinatePosition.value = { left: `${x}px`, top: `${y}px`, transform: 'none' };
+      // Keep the label attached to its geographic marker, even offscreen.
+      popupCoordinatePosition.value = { left: `${point.x + popupCoordinateOffset.x}px`,
+        top: `${point.y + popupCoordinateOffset.y}px`, transform: 'none' };
     }
   }
   if (isSubmitLocate.value) {
@@ -1146,8 +1157,10 @@ watch([trayOpen, isMapReady], ([open]) => {
   map?.setOptions({ gestureHandling: open ? 'none' : 'greedy', keyboardShortcuts: !open });
   if (open) { closeInfoWindow(); markerSpiderfier?.collapse(); }
 }, { immediate: true });
-watch([isSubmit, isDetail, isMapReady, hasDraftPin, isPopupOpen], () => {
+watch([isSubmit, isDetail, isMapReady], () => {
   setSuggestionMarkersVisible(!isSubmit.value && !isDetail.value);
+}, { immediate: true });
+watch([isSubmit, isDetail, isMapReady, hasDraftPin, isPopupOpen], () => {
   if (isSubmit.value) focusLocation(draft.value.location);
   if ((isSubmit.value || hasDraftPin.value || isPopupOpen.value) && map && googleMaps && !submissionCrosshairOverlay) {
     submissionCrosshairOverlay = new googleMaps.OverlayView();
