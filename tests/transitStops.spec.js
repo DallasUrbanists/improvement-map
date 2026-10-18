@@ -156,7 +156,9 @@ test('location previews render with embedded logos offline and download correctl
     return route.abort();
   });
   await page.goto('/test');
+  await page.getByLabel('Renderer').selectOption('current');
   const primary = page.getByTestId('diagram-preview');
+  await expect(primary).toHaveAttribute('src', /agency-dart/);
   await expect.poll(() => primary.evaluate((image) => image.complete && image.naturalWidth === 480)).toBe(true);
   const result = generateLocationDiagram(original, original.center);
   for (const marker of result.transitStops) {
@@ -175,7 +177,7 @@ test('location previews render with embedded logos offline and download correctl
     expect(pixels).toBeGreaterThan(20);
   }
   const previews = page.getByTestId('additional-diagram-preview');
-  await expect(previews).toHaveCount(17);
+  await expect(previews).toHaveCount(19);
   for (let i = 0; i < additional.length; i++) {
     const preview = previews.nth(i);
     await preview.scrollIntoViewIfNeeded();
@@ -185,7 +187,7 @@ test('location previews render with embedded logos offline and download correctl
   }
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('link', { name: 'Download SVG for location 8', exact: true }).click(),
+    page.getByRole('link', { name: 'Download SVG for location 10', exact: true }).click(),
   ]);
   const svg = fs.readFileSync(await download.path(), 'utf8');
   expect(svg).toContain('<symbol id="agency-dcta"');

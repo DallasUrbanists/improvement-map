@@ -152,6 +152,24 @@ test('errors clearly instead of silently using incomplete oversized geometry', a
   await expect(fetchLocationData(center, { fetchImpl: mockFetch([]) })).rejects.toThrow(/4 named/);
 });
 
+test('renders geometry when the provider administrative-area database is missing', async () => {
+  const queries = [];
+  const { data, administrativeBoundary } = await fetchLocationData(center, { fetchImpl: async (_, options) => {
+    queries.push(options.body.get('data'));
+    return queries.length === 1
+      ? response([], { remark: 'runtime error: open64: 2 No such file or directory /data/work/overpass/database/area_tags_local.bin File_Blocks::File_Blocks::1' })
+      : response();
+  } });
+  expect(queries).toHaveLength(2);
+  expect(queries[0]).toContain('is_in(');
+  expect(queries[1]).not.toContain('is_in(');
+  expect(queries[1]).toContain('way["highway"]');
+  expect(data.elements).toHaveLength(4);
+  expect(administrativeBoundary).toBeNull();
+  expect(data.provenance.acquisitions[0].administrativeAreaIndexAvailable).toBe(false);
+  expect(data.provenance.acquisitions[0].query).toBe(queries[1]);
+});
+
 test('retries once on provider/network failure with a different CORS endpoint', async () => {
   const urls = [];
   const { data } = await fetchLocationData(center, { fetchImpl: async (url) => {
@@ -211,7 +229,7 @@ test('bounded request timeout falls back and overall deadline aborts uncooperati
       return calls === 1 ? new Promise(() => {}) : response();
     } });
     expect(calls).toBe(2);
-    expect(data.source).toContain('kumi');
+    expect(data.source).toContain('private.coffee');
     globalThis.setTimeout = (callback, delay, ...args) => originalSetTimeout(callback, delay === 90000 ? 0 : delay, ...args);
     await expect(fetchLocationData(center, { fetchImpl: () => new Promise(() => {}) }))
       .rejects.toMatchObject({ name: 'TimeoutError', message: 'Live map acquisition timed out.' });

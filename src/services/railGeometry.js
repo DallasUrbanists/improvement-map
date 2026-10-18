@@ -5,6 +5,7 @@ function titleCase(value) {
 export function buildRailGeometry(sources) {
   const lines = new Map();
   const edges = new Map();
+  const stops = new Map();
   for (const [source, collection] of Object.entries(sources).sort(([a], [b]) => a.localeCompare(b))) {
     if (collection.type !== 'FeatureCollection') throw new Error(`Invalid rail FeatureCollection: ${source}`);
     for (const feature of collection.features || []) {
@@ -17,9 +18,22 @@ export function buildRailGeometry(sources) {
       const network = ref === 'TRE' ? 'TRE' : /DALLAS AREA RAPID TRANSIT/i.test(agency) ? 'DART'
         : /Denton County Transportation Authority/i.test(agency) ? 'DCTA' : agency || 'Rail';
       const id = `${network}:${ref}`;
+      for (const entry of properties.route_stops || []) {
+        const stop = entry.stop;
+        const coordinate = stop?.geometry?.type === 'Point' ? stop.geometry.coordinates : null;
+        const identity = stop?.id ?? (stop?.stop_id ? `${properties.feed_onestop_id || agency}:${stop.stop_id}` : null);
+        if (identity === null || !Array.isArray(coordinate)) continue;
+        const [lon, lat] = coordinate;
+        if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lon) > 180 || Math.abs(lat) > 90) continue;
+        const key = `geojson:${identity}`;
+        const record = stops.get(key) || { id: key, stopId: stop.stop_id, name: stop.stop_name || 'Rail stop',
+          lat, lon, lines: new Set(), networks: new Set() };
+        record.lines.add(id); record.networks.add(network); stops.set(key, record);
+      }
       if (!lines.has(id)) {
         const rawColor = String(properties.route_color || '').replace(/^#/, '');
         lines.set(id, { id, name: titleCase((properties.route_long_name || ref).replace(/^DART LIGHT RAIL - /i, '')),
+          mode: /\b(streetcar|trolley|tram)\b/i.test(properties.route_long_name || ref) ? 'streetcar' : 'rail',
           network, color: /^[0-9a-f]{6}$/i.test(rawColor) ? `#${rawColor}` : '#64748b',
           source, sourceRouteId: properties.route_id, sourceAgency: agency,
           onestopId: properties.onestop_id, url: properties.route_url });
@@ -47,6 +61,8 @@ export function buildRailGeometry(sources) {
     }
   }
   return { lines: [...lines.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    stops: [...stops.values()].sort((a, b) => a.id.localeCompare(b.id))
+      .map((stop) => ({ ...stop, lines: [...stop.lines].sort(), networks: [...stop.networks].sort() })),
     segments: [...edges.values()].sort((a, b) => a.id.localeCompare(b.id))
       .map((edge) => ({ id: edge.id, geometry: edge.geometry, keys: [...edge.services].sort() })) };
 }

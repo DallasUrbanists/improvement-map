@@ -15,6 +15,8 @@ test('all ten supplied rail files including Silver load with their source identi
   expect(Object.keys(railSources)).toHaveLength(10);
   expect(railCatalog.lines).toHaveLength(10);
   expect(railCatalog.lines.some((line) => line.id === 'DART:SILVER')).toBe(true);
+  expect(railCatalog.lines.find((line) => line.id === 'DART:425').mode).toBe('streetcar');
+  expect(railCatalog.lines.find((line) => line.id === 'DART:BLUE').mode).toBe('rail');
   expect(railCatalog.segments.length).toBeGreaterThan(0);
   for (const [source, data] of Object.entries(railSources)) {
     const properties = data.features[0].properties;
@@ -45,6 +47,18 @@ test('LineString and MultiLineString use longitude-first coordinates and dedupli
     .toBe('#64748b');
   expect(() => buildRailGeometry({ invalid: collection({ type: 'Point', coordinates: points[0] }) })).toThrow('Unsupported rail geometry');
   expect(() => buildRailGeometry({ invalid: collection({ type: 'LineString', coordinates: [[200, 20], [0, 0]] }) })).toThrow('Invalid rail coordinate');
+});
+
+test('catalog exposes GeoJSON stops once per source identity, without clustering nearby stations', () => {
+  const stop = { id: 100, stop_id: 'station-1', stop_name: 'Shared Station', geometry: { type: 'Point', coordinates: [-96.8, 32.78] } };
+  const geometry = { type: 'LineString', coordinates: [[-96.8, 32.78], [-96.79, 32.79]] };
+  const catalog = buildRailGeometry({
+    a: collection(geometry, { route_short_name: 'A', route_stops: [{ stop }] }),
+    b: collection(geometry, { route_short_name: 'B', route_stops: [{ stop }, { stop: { ...stop, id: 101, stop_name: 'Separate Station' } }] }),
+  });
+  expect(catalog.stops).toHaveLength(2);
+  expect(catalog.stops[0]).toMatchObject({ id: 'geojson:100', lat: 32.78, lon: -96.8, name: 'Shared Station', lines: ['Test Agency:A', 'Test Agency:B'] });
+  expect(catalog.stops[1].id).toBe('geojson:101');
 });
 
 test('viewport filtering includes crossing segments even when both endpoints are outside', () => {

@@ -1,6 +1,9 @@
 import { STREET_LABEL_TARGET } from './diagramSettings.js';
 
-const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+// Vite proxies this path in development to avoid browser CORS restrictions.
+const ENDPOINTS = import.meta.env?.DEV
+  ? ['/__overpass', '/__overpass-kumi']
+  : ['https://overpass.openstreetmap.fr/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 const METERS_PER_DEGREE = 111195;
 const MAX_HALF_EXTENT = 3000;
 const ATTRIBUTION = '© OpenStreetMap contributors';
@@ -36,7 +39,7 @@ function boundingBoxes(center, halfExtent) {
   return ranges.map(([w, e]) => [south, w, north, e]);
 }
 
-function queryFor(center, bounds) {
+function queryFor(center, bounds, includeAdministrativeAreas = true) {
   const local = bounds.map((box) => {
     const bbox = box.join(',');
     return `way["highway"](${bbox});way["building"](${bbox});rel["building"](${bbox});`;
@@ -48,7 +51,12 @@ function queryFor(center, bounds) {
   // Route bodies provide membership refs/tags only. Never recurse into rail route ways or request their geometry.
   return `[out:json][timeout:20][maxsize:25000000];(${local})->.local;(${stops})->.stops;(.local;.stops;);out body geom;` 
     + `(rel(bn.stops)["type"="route"];rel(bw.stops)["type"="route"];rel(bn.stops)["public_transport"="stop_area"];rel(bw.stops)["public_transport"="stop_area"];);out body;`
-    + `is_in(${center.lat},${center.lon})->.containing;area.containing["boundary"="administrative"];out tags;`;
+    + (includeAdministrativeAreas ? `is_in(${center.lat},${center.lon})->.containing;area.containing["boundary"="administrative"];out tags;` : '');
+}
+
+function missingAdministrativeAreaIndex(payload) {
+  return /No such file or directory/.test(payload?.remark || '')
+    && /\/(?:area_tags_(?:local|global)|area_blocks|areas)\.bin\b/.test(payload.remark);
 }
 
 function validatePayload(payload) {
@@ -191,17 +199,20 @@ export async function fetchLocationData(center, { signal, onProgress, fetchImpl 
   else signal?.addEventListener('abort', abort, { once: true });
   const deadline = setTimeout(() => controller.abort(new DOMException('Live map acquisition timed out.', 'TimeoutError')), 90000);
   const acquisitions = [];
+  const providersWithoutAreas = new Set();
   const checkAbort = () => { if (controller.signal.aborted) throw controller.signal.reason || new DOMException('Aborted', 'AbortError'); };
   try {
     let halfExtent = 400;
     for (let round = 0; round < 5; round++) {
       checkAbort();
       const bounds = boundingBoxes(center, halfExtent);
-      const query = queryFor(center, bounds);
+      let query;
       onProgress?.(`${round ? 'Expanding' : 'Fetching'} live OpenStreetMap streets, buildings, stops and administrative areas (${halfExtent} m half-width)…`);
       let payload; let endpoint; let lastError;
+      const endpointErrors = [];
       for (endpoint of ENDPOINTS) {
         checkAbort();
+        query = queryFor(center, bounds, !providersWithoutAreas.has(endpoint));
         const requestController = new AbortController();
         const relay = () => requestController.abort(controller.signal.reason);
         controller.signal.addEventListener('abort', relay, { once: true });
@@ -214,15 +225,25 @@ export async function fetchLocationData(center, { signal, onProgress, fetchImpl 
             requestController.signal.addEventListener('abort', listener, { once: true });
           });
           const result = await Promise.race([aborted, (async () => {
-            const response = await fetchImpl(endpoint, { method: 'POST', mode: 'cors', credentials: 'omit',
-              body: new URLSearchParams({ data: query }), signal: requestController.signal });
-            if (!response.ok) {
-              const error = new Error(`Overpass HTTP ${response.status}`);
-              error.retryable = [403, 406, 429].includes(response.status) || response.status >= 500;
-              throw error;
+            const requestPayload = async () => {
+              const response = await fetchImpl(endpoint, { method: 'POST', mode: 'cors', credentials: 'omit',
+                body: new URLSearchParams({ data: query }), signal: requestController.signal });
+              if (!response.ok) {
+                const error = new Error(`Overpass HTTP ${response.status}`);
+                error.retryable = [403, 406, 429].includes(response.status) || response.status >= 500;
+                throw error;
+              }
+              let json;
+              try { json = await response.json(); } catch { throw new Error('Malformed Overpass JSON response.'); }
+              return json;
+            };
+            let json = await requestPayload();
+            if (missingAdministrativeAreaIndex(json) && !providersWithoutAreas.has(endpoint)) {
+              providersWithoutAreas.add(endpoint);
+              query = queryFor(center, bounds, false);
+              onProgress?.('Provider administrative-area index unavailable; fetching streets, buildings and stops without boundary labels…');
+              json = await requestPayload();
             }
-            let json;
-            try { json = await response.json(); } catch { throw new Error('Malformed Overpass JSON response.'); }
             validatePayload(json);
             return json;
           })()]);
@@ -231,16 +252,18 @@ export async function fetchLocationData(center, { signal, onProgress, fetchImpl 
         } catch (error) {
           checkAbort();
           lastError = error;
+          endpointErrors.push(`${endpoint}: ${error.message || 'network error'}`);
           if (!(error instanceof TypeError) && error.name !== 'TimeoutError' && !error.retryable) throw error;
-          onProgress?.('Overpass unavailable; trying the fallback provider…');
+          onProgress?.(`Overpass unavailable (${error.message || 'network error'}); trying the fallback provider…`);
         } finally {
           clearTimeout(timer); removeAbort?.();
           controller.signal.removeEventListener('abort', relay);
         }
       }
-      if (!payload) throw new Error(`Unable to acquire live map data: ${lastError?.message || 'provider unavailable'}`);
+      if (!payload) throw new Error(`Unable to acquire live map data. ${endpointErrors.join('; ') || lastError?.message || 'Providers unavailable.'}`);
       checkAbort();
       const provenance = { endpoint, query, bounds, halfExtentMeters: halfExtent, retrievedAt: new Date().toISOString(),
+        administrativeAreaIndexAvailable: !providersWithoutAreas.has(endpoint),
         osmTimestamp: payload.osm3s?.timestamp_osm_base ?? null, areasTimestamp: payload.osm3s?.timestamp_areas_base ?? null };
       acquisitions.push(provenance);
       const data = normalize(payload);

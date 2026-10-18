@@ -34,7 +34,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          const fixture = id.match(/[\\/](test-location-osm|additional-test-locations-osm|extra-test-locations-osm)\.json$/);
+          const fixture = id.match(/[\\/](test-location-osm|additional-test-locations-osm|extra-test-locations-osm|arts-district-test-location|downtown-test-location)\.json$/);
           if (fixture) return `diagram-${fixture[1]}`;
         },
       },
@@ -138,6 +138,40 @@ export default defineConfig({
   envPrefix: ['VITE_', 'GOOGLE_', 'MAPS_'],
   server: {
     port: 5173,
-    host: true
+    host: true,
+    proxy: {
+      '/__overpass-kumi': {
+        target: 'https://overpass.private.coffee',
+        changeOrigin: true,
+        headers: { 'User-Agent': 'DallasUrbanists-ImprovementMap/4.2 (https://github.com/DallasUrbanists/improvement-map)' },
+        rewrite: (url) => url.replace(/^\/__overpass-kumi/, '/api/interpreter'),
+        timeout: 30000,
+        proxyTimeout: 25000,
+        configure: (proxy) => {
+          proxy.on('error', (error, _request, response) => {
+            if (response && !response.headersSent) {
+              response.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+              response.end(`Overpass fallback proxy connection failed: ${error.message}`);
+            }
+          });
+        },
+      },
+      '/__overpass': {
+        target: 'https://overpass.openstreetmap.fr',
+        changeOrigin: true,
+        headers: { 'User-Agent': 'DallasUrbanists-ImprovementMap/4.2 (https://github.com/DallasUrbanists/improvement-map)' },
+        rewrite: (url) => url.replace(/^\/__overpass/, '/api/interpreter'),
+        timeout: 30000,
+        proxyTimeout: 25000,
+        configure: (proxy) => {
+          proxy.on('error', (error, _request, response) => {
+            if (response && !response.headersSent) {
+              response.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
+              response.end(`Overpass proxy connection failed: ${error.message}`);
+            }
+          });
+        },
+      },
+    },
   }
 });

@@ -11,6 +11,7 @@ const rounded = (point) => ({ x: Number(number(point.x)), y: Number(number(point
 // Keep the command coordinates identical to roundedRailPath(points, 5), including its precision.
 function commandsFor(points, radius) {
   const commands = [{ type: 'M', end: rounded(points[0]) }];
+  if (radius === 0) return [...commands, ...points.slice(1).map((point) => ({ type: 'L', end: rounded(point) }))];
   for (let i = 1; i < points.length - 1; i++) {
     const before = points[i - 1]; const corner = points[i]; const after = points[i + 1];
     const incoming = distance(before, corner); const outgoing = distance(corner, after);
@@ -185,7 +186,7 @@ function hash(value) {
  * rank/text, fullyInFrame, clipped, and visibleFraction. They are geometry estimates, not DOM font measurements.
  */
 export function createStreetLabel({ name, text = name, rank, index = 0, polylines = [], occupied = [],
-  size = 480, margins = {}, minVisible = 0.65, radius = 5, haloColor = '#f5f5f5', id } = {}) {
+  size = 480, height = size, margins = {}, minVisible = 0.65, requireFull = false, allowPrimaryClipping = false, radius = 5, haloColor = '#f5f5f5', inheritPaint = false, id } = {}) {
   rank ??= index + 1;
   const previousOccupied = Array.isArray(occupied) ? occupied : [];
   const failure = (reason) => ({ defs: '', markup: '', occupied: [...previousOccupied], anchors: [],
@@ -195,16 +196,17 @@ export function createStreetLabel({ name, text = name, rank, index = 0, polyline
   if (typeof haloColor !== 'string' || !/^#(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(haloColor)
     || !Array.isArray(polylines) || !Array.isArray(occupied) || !margins || typeof margins !== 'object'
     || !Number.isInteger(rank) || rank < 1 || rank > 4 || !Number.isFinite(size) || size < 80
+    || !Number.isFinite(height) || height < 80
     || !Number.isFinite(radius) || radius < 0 || !Number.isFinite(minVisible) || minVisible <= 0.5 || minVisible > 1) return failure('invalid-options');
   const margin = { left: 12, right: 12, top: 35, bottom: 54, ...margins };
   if (Object.values(margin).some((value) => !Number.isFinite(value) || value < 0)) return failure('invalid-options');
-  const frame = { left: margin.left, right: size - margin.right, top: margin.top, bottom: size - margin.bottom };
+  const frame = { left: margin.left, right: size - margin.right, top: margin.top, bottom: height - margin.bottom };
   if (frame.left >= frame.right || frame.top >= frame.bottom) return failure('invalid-options');
-  const canvas = { left: 0, right: size, top: 0, bottom: size };
+  const canvas = { left: 0, right: size, top: 0, bottom: height };
   const obstacles = occupied.filter((box) => box && [box.x, box.y, box.width, box.height].every(Number.isFinite));
   const paths = joinedPaths(polylines, radius).map((path) => ({ ...path, samples: samplesFor(path.commands) }));
   let best = null; let supportedPaths = 0;
-  for (const fontSize of (rank === 1 ? [18, 17, 16, 15, 14] : [FONT_SIZE])) {
+  for (const fontSize of (rank === 1 || requireFull || allowPrimaryClipping ? [18, 17, 16, 15, 14] : [FONT_SIZE])) {
     const width = textWidth(text) * fontSize / FONT_SIZE;
     for (const { pathIndex, pathIndices, commands: originalCommands, samples: forward } of paths) {
       const length = forward.at(-1).offset;
@@ -213,7 +215,7 @@ export function createStreetLabel({ name, text = name, rank, index = 0, polyline
       // Bound candidate work even for long OSM paths well outside the viewport.
       const offsets = new Set([2, (length - width) / 2, length - width - 2]);
       for (const sample of forward) {
-        if (sample.x < -width || sample.x > size + width || sample.y < -width || sample.y > size + width) continue;
+        if (sample.x < -width || sample.x > size + width || sample.y < -width || sample.y > height + width) continue;
         const start = Math.round((sample.offset - width / 2) / 6) * 6;
         if (start >= 2 && start + width <= length - 2) offsets.add(start);
       }
@@ -232,17 +234,18 @@ export function createStreetLabel({ name, text = name, rank, index = 0, polyline
         if (turn > Math.PI * 0.65) continue;
         const boxes = anchors.map((anchor) => envelope(anchor, fontSize));
         const full = boxes.every((box) => contained(box, frame));
-        if (rank === 1 && !full) continue;
+        if (((rank === 1 && !allowPrimaryClipping) || requireFull) && !full) continue;
         const visible = boxes.reduce((sum, box) => sum + visibleFraction(box, canvas), 0) / boxes.length;
         if (!full && visible < minVisible) continue;
         if (boxes.some((box) => obstacles.some((obstacle) => overlaps(box, obstacle)))) continue;
         const center = anchors[Math.floor(anchors.length / 2)];
-        const score = (full ? 10000 : visible * 1000) - Math.hypot(center.x - size / 2, center.y - size / 2) - turn * 15;
+        const score = (full ? 10000 : visible * 1000) - Math.hypot(center.x - size / 2, center.y - height / 2) - turn * 15;
         if (!best || score > best.score) best = { score, full, visible, pathIndex, pathIndices, reversed, startOffset, width, fontSize,
           anchors, boxes, commands: reversed ? reverseCommands(originalCommands) : originalCommands, length, turn };
       }
     }
-    if (best) break;
+    // When clipping is allowed, try smaller text for a full fit before using a partial label.
+    if (best && (!allowPrimaryClipping || best.full)) break;
   }
   if (!best) return failure(supportedPaths ? 'no-clear-span' : 'short-or-invalid-path');
   const { width, fontSize } = best;
@@ -262,8 +265,8 @@ export function createStreetLabel({ name, text = name, rank, index = 0, polyline
     return { pathIndex, points, d: roundedStreetLabelPath(points, radius) };
   });
   return {
-    defs: `<path id="${pathId}" d="${d}"/><clipPath id="${clipId}"><rect x="0" y="0" width="${size}" height="${size}"/></clipPath>`,
-    markup: `<g data-street-label="${escapeXml(name)}" data-label-rank="${rank}" data-label-path="${pathId}" data-label-clipped="${clipped}" data-label-fully-in-frame="${best.full}" data-label-visible="${best.visible.toFixed(3)}" data-label-text="${escapeXml(text)}" clip-path="url(#${clipId})"><title>${escapeXml(name)}</title><text font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="#252525" stroke="${haloColor}" stroke-width="${HALO}" stroke-linejoin="round" paint-order="stroke" text-anchor="start" dominant-baseline="auto" letter-spacing="0" dy="${5 * fontSize / FONT_SIZE}"><textPath href="#${pathId}" startOffset="${best.startOffset.toFixed(3)}" textLength="${width}" lengthAdjust="spacingAndGlyphs">${escapeXml(text)}</textPath></text></g>`,
+    defs: `<path id="${pathId}" d="${d}"/><clipPath id="${clipId}"><rect x="0" y="0" width="${size}" height="${height}"/></clipPath>`,
+    markup: `<g data-street-label="${escapeXml(name)}" data-label-rank="${rank}" data-label-path="${pathId}" data-label-clipped="${clipped}" data-label-fully-in-frame="${best.full}" data-label-visible="${best.visible.toFixed(3)}" data-label-text="${escapeXml(text)}" clip-path="url(#${clipId})"><title>${escapeXml(name)}</title><text font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold"${inheritPaint ? '' : ` fill="#252525" stroke="${haloColor}" stroke-width="${HALO}" stroke-linejoin="round" paint-order="stroke"`} text-anchor="start" dominant-baseline="auto" letter-spacing="0" dy="${5 * fontSize / FONT_SIZE}"><textPath href="#${pathId}" startOffset="${best.startOffset.toFixed(3)}" textLength="${width}" lengthAdjust="spacingAndGlyphs">${escapeXml(text)}</textPath></text></g>`,
     occupied: [...occupied, ...best.boxes],
     anchors: best.anchors,
     diagnostics: { placed: true, rank, name, text, pathId, pathIndex: best.pathIndex, pathIndices: best.pathIndices, d,

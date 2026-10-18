@@ -1,12 +1,91 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { roundedRailPath } from '../src/services/locationDiagram.js';
-import { generateLocationDiagram } from './railFixtures.js';
+import { generateMinimalLocationDiagram } from '../src/services/locationDiagramMinimal.js';
+import { generateLocationDiagram, railCatalog } from './railFixtures.js';
 
 const additional = JSON.parse(fs.readFileSync(new URL('../src/data/additional-test-locations-osm.json', import.meta.url), 'utf8'));
 const boundaries = JSON.parse(fs.readFileSync(new URL('../src/data/test-location-boundaries.json', import.meta.url), 'utf8'));
 
 const data = JSON.parse(fs.readFileSync(new URL('../src/data/test-location-osm.json', import.meta.url), 'utf8'));
+
+test('minimal renderer includes centered labels and individual stops without agency or contextual artwork', () => {
+  const result = generateMinimalLocationDiagram(data, { ...data.center, buildings: false, railCatalog });
+  expect(result.svg).toBe(generateMinimalLocationDiagram(data, { ...data.center, buildings: false, railCatalog }).svg);
+  expect(result.svg).toContain('viewBox="0 0 480 480"');
+  expect(result.svg).toContain('data-layer="roads"');
+  expect(result.svg).toContain('data-road="Elm Street"');
+  expect(result.svg).toContain(`Center pin: ${data.center.lat}, ${data.center.lon}`);
+  expect(result.svg).toContain('data-layer="rail-lines"');
+  expect(result.svg).toContain('data-transit-line="DART:BLUE"');
+  expect(result.svg).toContain('data-transit-stop');
+  expect(result.svg).not.toContain('<symbol id="agency-');
+  expect(result.svg).not.toContain('data-bike-route');
+  expect(result.svg).toContain('textPath');
+  expect(result.streetLabels.map((label) => label.name)).toEqual(result.streets.map((street) => street.name));
+  expect(result.svg).not.toContain('administrative-boundary');
+  expect(result.svg).not.toMatch(/NaN|Infinity|<script|<foreignObject/);
+  expect(result.transitLines.map((line) => line.id)).toEqual(['DART:BLUE', 'DART:GREEN', 'DART:ORANGE', 'DART:RED']);
+  expect(result.railSegments.length).toBeGreaterThan(0);
+  expect(result.streets).toEqual(generateLocationDiagram(data, data.center).streets);
+});
+
+test('minimal renderer connects each service at the source West End rail junction', () => {
+  const fixture = additional.find((location) => location.id === 'west-end');
+  const options = { ...fixture.center, railCatalog };
+  const minimal = generateMinimalLocationDiagram(fixture, options);
+  const source = railCatalog.segments.flatMap((segment) => segment.geometry)
+    .find((point) => point.lon.toFixed(6) === '-96.808690' && point.lat.toFixed(6) === '32.780369');
+  const scale = 480 / (2 * Math.max(120, minimal.streets.at(-1).distance * 1.65));
+  const node = { x: 240 + (source.lon - fixture.center.lon) * 111195 * Math.cos(fixture.center.lat * Math.PI / 180) * scale,
+    y: 240 - (source.lat - fixture.center.lat) * 111195 * scale };
+  const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) < 1e-6;
+  for (const line of ['DART:GREEN', 'DART:ORANGE', 'DART:BLUE', 'DART:RED']) {
+    const connected = minimal.railSegments.filter((segment) => segment.line === line)
+      .flatMap((segment) => [[segment.sourcePoints[0], segment.points[0]], [segment.sourcePoints.at(-1), segment.points.at(-1)]])
+      .filter(([point]) => near(point, node));
+    expect(connected).toHaveLength(2);
+    expect(connected[0][1]).toEqual(connected[1][1]);
+  }
+  expect(minimal.railJunctions.map((junction) => ({ ...junction,
+    branchOrders: junction.branchOrders.map((order) => [...order].sort()),
+  }))).toContainEqual({
+    trunkOrder: ['DART:GREEN', 'DART:ORANGE', 'DART:BLUE', 'DART:RED'],
+    branchOrders: [['DART:GREEN', 'DART:ORANGE'], ['DART:BLUE', 'DART:RED']],
+  });
+  for (const line of minimal.transitLines) {
+    expect(minimal.svg).toContain(`data-transit-line="${line.id}"`);
+    expect(minimal.svg).toContain(`stroke="${line.color}"`);
+  }
+  expect(minimal.svg).toContain('data-transit-stop');
+});
+
+test('rail casings do not erase perpendicular rail colors and labels paint above individual stop markers', async ({ page }) => {
+  const point = (x, y) => ({ lon: (x - 240) / (111195 * 2), lat: (240 - y) / (111195 * 2) });
+  const result = generateMinimalLocationDiagram({ elements: [
+    { tags: { highway: 'residential', name: 'Example Street' }, geometry: [point(0, 240), point(480, 240)] },
+  ] }, { lat: 0, lon: 0, buildings: false, railCatalog: {
+    lines: [{ id: 'RED', color: '#ff0000' }, { id: 'BLUE', color: '#0000ff' }],
+    segments: [
+      { geometry: [point(80, 120), point(400, 120)], keys: ['RED'] },
+      { geometry: [point(240, 40), point(240, 200)], keys: ['BLUE'] },
+    ],
+  } });
+  await page.setContent(`<img id="raster" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(result.svg)}"/>`);
+  const image = page.locator('#raster');
+  await expect.poll(() => image.evaluate((img) => img.complete && img.naturalWidth === 480)).toBe(true);
+  const pixels = await image.evaluate((img) => {
+    const canvas = document.createElement('canvas'); canvas.width = 480; canvas.height = 480;
+    const context = canvas.getContext('2d'); context.drawImage(img, 0, 0);
+    return [236, 240].map((x) => [...context.getImageData(x, 120, 1, 1).data]);
+  });
+  expect(pixels[0].slice(0, 3)).toEqual([255, 0, 0]);
+  expect(pixels[1].slice(0, 3)).toEqual([0, 0, 255]);
+  const layers = [...result.svg.matchAll(/data-layer="([^"]+)"/g)].map((match) => match[1]);
+  expect(layers.indexOf('transit-stops')).toBeLessThan(layers.indexOf('street-label-casing'));
+  expect(layers.indexOf('street-label-casing')).toBeLessThan(layers.indexOf('street-label-ink'));
+  expect(layers.indexOf('street-label-ink')).toBeLessThan(layers.indexOf('crosshair'));
+});
 
 test('diagram selects four distinct closest streets and is deterministic', () => {
   const result = generateLocationDiagram(data, data.center);
@@ -138,6 +217,7 @@ test('diagram escapes names, ranks by segment distance, and allows no buildings'
 
 test('test route renders square previews and exports a standalone SVG', async ({ page }) => {
   await page.goto('/test');
+  await page.getByLabel('Renderer').selectOption('current');
   await expect(page.getByRole('heading', { name: 'Location diagram', exact: true })).toBeVisible();
   const preview = page.getByTestId('diagram-preview');
   await expect(preview).toBeVisible();
@@ -162,4 +242,44 @@ test('test route renders square previews and exports a standalone SVG', async ({
   expect(content).toContain('<svg xmlns=');
   expect(content).toContain('© OpenStreetMap contributors');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('test route switches every diagram between current and minimal renderers, retaining rail lines', async ({ page }) => {
+  await page.goto('/test');
+  await expect(page.getByLabel('Renderer')).toHaveValue('minimal');
+  await page.getByLabel('Renderer').selectOption('current');
+  const preview = page.getByTestId('diagram-preview');
+  const current = await preview.getAttribute('src');
+  const currentSvg = decodeURIComponent(current.split(',').slice(1).join(','));
+  expect(currentSvg).toContain('data-transit-line');
+  const galleryPreviews = page.getByTestId('additional-diagram-preview');
+  await expect(galleryPreviews).toHaveCount(19);
+  const originalGallery = await Promise.all((await galleryPreviews.all()).map((image) => image.getAttribute('src')));
+  expect(decodeURIComponent(originalGallery[0].split(',').slice(1).join(','))).toContain('data-transit-line');
+
+  await page.getByLabel('Renderer').selectOption('minimal');
+  await expect.poll(async () => (await galleryPreviews.evaluateAll((images) => images.map((image) => image.getAttribute('src'))))
+    .every((src, index) => src !== originalGallery[index])).toBe(true);
+  const minimal = await preview.getAttribute('src');
+  expect(minimal).not.toBe(current);
+  const minimalSvg = decodeURIComponent(minimal.split(',').slice(1).join(','));
+  expect(minimalSvg).toContain('data-layer="roads"');
+  expect(minimalSvg).toContain('data-layer="rail-lines"');
+  expect(minimalSvg).toContain('data-transit-line="DART:BLUE"');
+  expect(minimalSvg).toContain('data-transit-stop');
+  const minimalGallery = await galleryPreviews.evaluateAll((images) => images.map((image) => image.getAttribute('src')));
+  expect(minimalGallery).toHaveLength(19);
+  for (const src of minimalGallery) {
+    const svg = decodeURIComponent(src.split(',').slice(1).join(','));
+    expect(svg).toContain('data-layer="roads"');
+    expect(svg).not.toContain('<symbol id="agency-');
+  }
+  expect(decodeURIComponent(minimalGallery[0].split(',').slice(1).join(','))).toContain('data-layer="rail-lines"');
+  await expect(page.getByRole('link', { name: 'Download SVG', exact: true })).toHaveAttribute('href', minimal);
+  await expect(page.getByRole('link', { name: 'Compare with OpenStreetMap', exact: true })).toHaveAttribute('href',
+    `https://www.openstreetmap.org/?mlat=${data.center.lat}&mlon=${data.center.lon}#map=19/${data.center.lat}/${data.center.lon}`);
+  await page.getByLabel('Renderer').selectOption('current');
+  await expect(preview).toHaveAttribute('src', current);
+  await expect.poll(async () => (await galleryPreviews.evaluateAll((images) => images.map((image) => image.getAttribute('src'))))
+    .every((src, index) => src === originalGallery[index])).toBe(true);
 });

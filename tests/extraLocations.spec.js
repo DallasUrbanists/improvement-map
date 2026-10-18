@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
+import { generateMinimalLocationDiagram } from '../src/services/locationDiagramMinimal.js';
+import { railCatalog } from './railFixtures.js';
 import { generateLocationDiagram } from './railFixtures.js';
 
 const fixtures = JSON.parse(fs.readFileSync(new URL('../src/data/extra-test-locations-osm.json', import.meta.url), 'utf8'));
@@ -88,7 +90,25 @@ test('curved label anchors lie on their named rendered streets and closest label
   }
 });
 
-test('all eighteen previews render offline and location 18 downloads as a standalone SVG', async ({ page }) => {
+test('both inserted locations have attributed offline geometry and support both renderers', () => {
+  for (const [file, center] of [
+    ['arts-district-test-location.json', { lat: 32.787793249098264, lon: -96.79324425551732 }],
+    ['downtown-test-location.json', { lat: 32.780306241503396, lon: -96.80290908874652 }],
+  ]) {
+    const { data, administrativeBoundary } = JSON.parse(fs.readFileSync(new URL(`../src/data/${file}`, import.meta.url), 'utf8'));
+    expect(data.center).toEqual(center);
+    expect(data.attribution).toContain('OpenStreetMap');
+    expect(data.provenance.acquisitions.length).toBeGreaterThan(0);
+    expect(data.elements.length).toBeGreaterThan(0);
+    for (const render of [generateLocationDiagram, generateMinimalLocationDiagram]) {
+      const result = render(data, { ...center, railCatalog, administrativeBoundary });
+      expect(result.svg).not.toMatch(/NaN|Infinity/);
+      expect(result.transitLines.length).toBeGreaterThan(0);
+    }
+  }
+});
+
+test('all twenty previews render offline in the requested order and location 20 downloads as a standalone SVG', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.route('**/*', (route) => {
@@ -96,11 +116,17 @@ test('all eighteen previews render offline and location 18 downloads as a standa
     return ['127.0.0.1', 'localhost'].includes(hostname) ? route.continue() : route.abort();
   });
   await page.goto('/test');
-  await expect(page.getByTestId('additional-diagram-preview')).toHaveCount(17);
+  await expect(page.getByTestId('additional-diagram-preview')).toHaveCount(19);
+  const cards = page.locator('article');
+  await expect(cards.nth(0)).toHaveAttribute('data-testid', 'location-west-end');
+  await expect(cards.nth(1)).toHaveAttribute('data-testid', 'location-arts-district-rail-junction');
+  await expect(cards.nth(1)).toContainText('32.787793249098264, -96.79324425551732');
+  await expect(cards.nth(2)).toHaveAttribute('data-testid', 'location-downtown-field-elm');
+  await expect(cards.nth(2)).toContainText('32.780306241503396, -96.80290908874652');
   for (const data of fixtures) {
     const card = page.getByTestId(`location-${data.id}`);
     await card.scrollIntoViewIfNeeded();
-    await expect(card.getByRole('heading', { name: `Location ${Number(data.id.split('-')[1])}`, exact: true })).toBeVisible();
+    await expect(card.getByRole('heading', { name: `Location ${Number(data.id.split('-')[1]) + 2}`, exact: true })).toBeVisible();
     const image = card.getByTestId('additional-diagram-preview');
     await expect.poll(() => image.evaluate((image) => image.complete && image.naturalWidth === 480 && image.naturalHeight === 480)).toBe(true);
     const bounds = await image.boundingBox();
@@ -109,9 +135,9 @@ test('all eighteen previews render offline and location 18 downloads as a standa
   }
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('link', { name: 'Download SVG for location 18', exact: true }).click(),
+    page.getByRole('link', { name: 'Download SVG for location 20', exact: true }).click(),
   ]);
-  expect(download.suggestedFilename()).toBe('location-diagram-18.svg');
+  expect(download.suggestedFilename()).toBe('location-diagram-20.svg');
   const content = fs.readFileSync(await download.path(), 'utf8');
   expect(content).toContain('data-transit-line');
   expect(content).not.toContain('upload.wikimedia.org');

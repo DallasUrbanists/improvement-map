@@ -1601,21 +1601,20 @@ async function submitFinalSuggestion() {
     };
 
     dynamicProgressMessage.value = 'Preparing location diagram renderer…';
-    const [{ fetchLocationData }, { generateLocationDiagram }, { railCatalog }] = await Promise.all([
+    const [{ fetchLocationData }, { generateVersionTwoLocationDiagram }, { railCatalog }] = await Promise.all([
       import('../services/liveLocationData'),
-      import('../services/locationDiagram'),
+      import('../services/locationDiagramVersionTwo'),
       import('../services/railCatalog'),
     ]);
     dynamicProgressMessage.value = 'Generating location thumbnail…';
-    const { data, administrativeBoundary } = await fetchLocationData({
+    const { data } = await fetchLocationData({
       lat: location.latitude,
       lon: location.longitude,
     }, {
       onProgress: (message) => { dynamicProgressMessage.value = message; },
     });
-    const { svg } = generateLocationDiagram(data, {
+    const { svg } = generateVersionTwoLocationDiagram(data, {
       ...data.center,
-      administrativeBoundary,
       railCatalog,
     });
     submissionProgress.value = 15;

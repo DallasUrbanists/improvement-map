@@ -262,6 +262,114 @@ export async function getSuggestionById(id) {
 }
 
 /**
+ * Fetch current representatives linked to a suggestion's stored boundaries.
+ * @param {string|number} suggestionId
+ * @returns {Promise<Array<Object>>}
+ */
+export async function getSuggestionRepresentatives(suggestionId) {
+  const id = Number(suggestionId);
+  if (!Number.isSafeInteger(id) || id < 1) {
+    throw new Error('Suggestion ID must be a positive integer.');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = API_BASE_URL + '/api/public-improvements/suggestions/' + encodeURIComponent(id) + '/representatives?limit=500';
+    const response = await fetch(url, {
+      headers: await apiHeaders({ Accept: 'application/json' }),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message || 'Unable to load representatives (HTTP ' + response.status + ').');
+    }
+    if (!Array.isArray(payload)) {
+      throw new Error('The representatives response was not a list.');
+    }
+    return payload;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Loading representatives timed out. Please try again.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+/**
+ * Fetch boundary records associated with a suggestion.
+ * @param {string|number} suggestionId
+ * @returns {Promise<Array<Object>>}
+ */
+export async function getSuggestionBoundaries(suggestionId) {
+  const id = Number(suggestionId);
+  if (!Number.isSafeInteger(id) || id < 1) {
+    throw new Error('Suggestion ID must be a positive integer.');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = API_BASE_URL + '/api/public-improvements/suggestions/' + encodeURIComponent(id) + '/boundaries';
+    const response = await fetch(url, {
+      headers: await apiHeaders({ Accept: 'application/json' }),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message || 'Unable to load boundaries (HTTP ' + response.status + ').');
+    }
+    if (!Array.isArray(payload?.data)) {
+      throw new Error('The boundaries response was not a list.');
+    }
+    return payload.data.filter(Boolean);
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Loading boundaries timed out. Please try again.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+/**
+ * Fetch non-expired recommended actions linked to a suggestion.
+ * @param {string|number} suggestionId
+ * @returns {Promise<Array<Object>>}
+ */
+export async function getSuggestionRecommendedActions(suggestionId) {
+  const id = Number(suggestionId);
+  if (!Number.isSafeInteger(id) || id < 1) {
+    throw new Error('Suggestion ID must be a positive integer.');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = API_BASE_URL + '/api/public-improvements/suggestions/' + encodeURIComponent(id) + '/recommended-actions';
+    const response = await fetch(url, {
+      headers: await apiHeaders({ Accept: 'application/json' }),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.message || 'Unable to load recommended actions (HTTP ' + response.status + ').');
+    }
+    if (!Array.isArray(payload?.data)) {
+      throw new Error('The recommended actions response was not a list.');
+    }
+    return payload.data;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Loading recommended actions timed out. Please try again.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+/**
  * Request signed GCS upload URL from API
  * @param {Object} param0
  * @returns {Promise<{ uploadUrl: string, publicUrl: string }>}

@@ -25,11 +25,12 @@ const response = {
   ],
 };
 
-const provider = '**/api/interpreter';
+const providers = ['**/__overpass', '**/__overpass-kumi', '**/api/interpreter'];
+const routeProviders = (page, handler) => Promise.all(providers.map((url) => page.route(url, handler)));
 
 test('invalid coordinate input does not make requests or replace the previous preview', async ({ page }) => {
   let requests = 0;
-  await page.route(provider, async (route) => { requests++; await route.abort(); });
+  await routeProviders(page, async (route) => { requests++; await route.abort(); });
   await page.goto('/test');
   const previous = await page.getByTestId('diagram-preview').getAttribute('src');
   await page.getByLabel('Coordinates (latitude, longitude)').fill('91, -96.8');
@@ -40,8 +41,9 @@ test('invalid coordinate input does not make requests or replace the previous pr
 });
 
 test('custom coordinates update preview, comparison link, download, and reset without altering the gallery', async ({ page }) => {
-  await page.route(provider, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) }));
+  await routeProviders(page, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) }));
   await page.goto('/test');
+  await page.getByLabel('Renderer').selectOption('current');
   const original = await page.getByTestId('diagram-preview').getAttribute('src');
   await page.getByLabel('Coordinates (latitude, longitude)').fill(`${center.lat}, ${center.lon}`);
   await page.getByRole('button', { name: 'Generate diagram', exact: true }).click();
@@ -55,7 +57,7 @@ test('custom coordinates update preview, comparison link, download, and reset wi
   expect(svg).toContain(`The crosshair marks ${center.lat}, ${center.lon}`);
   expect(svg).toContain('Live Bus Stop');
   expect(svg).toContain('Dallas');
-  await expect(page.getByTestId('additional-diagram-preview')).toHaveCount(17);
+  await expect(page.getByTestId('additional-diagram-preview')).toHaveCount(19);
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('link', { name: 'Download SVG', exact: true }).first().click()]);
   expect(fs.readFileSync(await download.path(), 'utf8')).toContain(`The crosshair marks ${center.lat}, ${center.lon}`);
   await page.getByRole('button', { name: 'Reset example' }).click();
@@ -65,7 +67,7 @@ test('custom coordinates update preview, comparison link, download, and reset wi
 });
 
 test('provider failures retain the previous diagram and allow another attempt', async ({ page }) => {
-  await page.route(provider, (route) => route.fulfill({ status: 503, contentType: 'text/plain', body: 'Provider temporarily unavailable' }));
+  await routeProviders(page, (route) => route.fulfill({ status: 503, contentType: 'text/plain', body: 'Provider temporarily unavailable' }));
   await page.goto('/test');
   const previous = await page.getByTestId('diagram-preview').getAttribute('src');
   await page.getByLabel('Coordinates (latitude, longitude)').fill(`${center.lat}, ${center.lon}`);
@@ -78,7 +80,7 @@ test('provider failures retain the previous diagram and allow another attempt', 
 test('canceling prevents a late provider response from replacing the preview', async ({ page }) => {
   let release;
   const wait = new Promise((resolve) => { release = resolve; });
-  await page.route(provider, async (route) => {
+  await routeProviders(page, async (route) => {
     await wait;
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) }).catch(() => {});
   });
