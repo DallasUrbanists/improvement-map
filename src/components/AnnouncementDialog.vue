@@ -75,6 +75,10 @@ async function show(target) {
   if (!mounted || props.isSubmitting) return;
   content.value.scrollTop = 0;
   dialog.value.showModal();
+  // Reopening the shared dialog must start at the heading, not restore a
+  // previously focused footer control and its old scroll position.
+  dialog.value.querySelector('.map-tray-close')?.focus({ preventScroll: true });
+  content.value.scrollTop = 0;
   if (target === 'welcome') store.markWelcomeSeen();
 }
 function evaluate() {
@@ -135,7 +139,7 @@ onBeforeUnmount(() => { mounted = false; clearTimeout(timer); observer?.disconne
 <style>
 /* Reuse the same theme, reading sheet, header and controls as Action details. */
 .announcement-shell { display: flex; flex: 1; flex-direction: column; min-height: 0; }
-.announcement-content { padding: 16px; }
+.announcement-dialog .announcement-content { padding: 16px; }
 .announcement-content:focus-visible { outline: 2px solid var(--map-control-text); outline-offset: -3px; }
 .announcement-intro { margin: 0 0 16px; }
 .welcome-features { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
