@@ -111,6 +111,29 @@ function consolidateVariants(chains, scale) {
     }
     result.splice(result.indexOf(b.chain), 1);
   }
+  for (const chain of result) {
+    if (chain.nodes[0] !== chain.nodes[1] || chain.points.length < 4) continue;
+    // Some terminal shapes travel out and back over nearly the same track.
+    // Offsetting that as a closed loop swaps service sides at the turnaround.
+    const origin = chain.points[0];
+    let tip = 0;
+    for (let i = 1; i < chain.points.length - 1; i++) {
+      if (distance(origin, chain.points[i]) > distance(origin, chain.points[tip])) tip = i;
+    }
+    if (!tip) continue;
+    const outward = chain.points.slice(0, tip + 1);
+    const returning = chain.points.slice(tip).reverse();
+    const lengths = [measure(outward).at(-1), measure(returning).at(-1)];
+    if (Math.max(...lengths) > Math.min(...lengths) * 1.05
+      || !samples(outward).every((point) => nearPath(point, returning))
+      || !samples(returning).every((point) => nearPath(point, outward))) continue;
+    chain.points = returning.length > outward.length ? returning : outward;
+    chain.nodes = [chain.nodes[0], `terminus:${chain.signature}:${chain.nodes[0]}`];
+    if (chain.points[0].x > chain.points.at(-1).x
+      || (chain.points[0].x === chain.points.at(-1).x && chain.points[0].y > chain.points.at(-1).y)) {
+      chain.points.reverse(); chain.nodes.reverse();
+    }
+  }
   return result;
 }
 
