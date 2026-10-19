@@ -27,6 +27,7 @@ export default defineConfig({
   snapshotPathTemplate: '{testDir}/snapshots/{platform}/{projectName}/{arg}{ext}',
   use: {
     actionTimeout: 10000,
+    storageState: { cookies: [], origins: [{ origin: 'http://127.0.0.1:5174', localStorage: [{ name: 'improvement_map_announcements_v1', value: JSON.stringify({ version: 1, initialized: true, skipWelcome: true, acknowledged: '5.3.0' }) }] }] },
     baseURL: 'http://127.0.0.1:5174', serviceWorkers: 'block',
     trace: 'retain-on-failure', screenshot: 'only-on-failure',
     reducedMotion: 'reduce', locale: 'en-US', timezoneId: 'America/Chicago',

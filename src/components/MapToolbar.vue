@@ -33,6 +33,9 @@
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Saved ideas</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/my-actions')">My actions</button>
           <div class="menu-divider" role="separator"></div>
+          <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('welcome')">Welcome &amp; guide</button>
+          <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('history')">What's new</button>
+          <div class="menu-divider" role="separator"></div>
           <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings">Map settings<i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
           <div class="menu-divider" role="separator"></div>
           <button type="button" role="menuitemcheckbox" :aria-checked="isDark" class="map-ui-button w-full justify-between" @click="applyTheme(isDark ? 'light' : 'dark')">Dark mode<span class="theme-switch" :class="{ 'is-on': isDark }" aria-hidden="true"></span></button>
@@ -181,6 +184,12 @@ import { kPopover } from 'konsta/vue';
 import { railThickness, setRailThickness, DEFAULT_RAIL_THICKNESS } from '../services/railSettings.js';
 import { DEFAULT_MARKER_SETTINGS } from '../services/storage.js';
 import { applyTheme, isDark } from '../services/theme';
+import { openAnnouncement } from '../services/announcements';
+function showAnnouncement(screen) {
+  menuOpen.value = false;
+  menuButton.value?.focus({ preventScroll: true });
+  openAnnouncement(screen);
+}
 import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
 defineOptions({ inheritAttrs: false });
 const props = defineProps({

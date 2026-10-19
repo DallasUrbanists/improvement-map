@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('first Ideas request survives cold credentials and a slow API without Retry', async ({ page }) => {
+test('first Ideas request survives cold credentials and a slow API without Retry', { tag: '@critical' }, async ({ page }) => {
   let requests = 0;
   await page.route('**/api/public-improvements/suggestions', async route => {
     requests++;

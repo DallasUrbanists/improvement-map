@@ -4,6 +4,23 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import fs from 'fs';
+import { validateManifest } from './src/services/releaseVersions.js';
+
+function releaseManifestPlugin() {
+  return {
+    name: 'release-manifest',
+    resolveId(id) { if (id === 'virtual:release-manifest') return '\0virtual:release-manifest'; },
+    load(id) {
+      if (id !== '\0virtual:release-manifest') return;
+      const appVersion = JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
+      const manifest = process.env.RELEASE_MANIFEST
+        ? validateManifest(JSON.parse(fs.readFileSync(process.env.RELEASE_MANIFEST, 'utf8')))
+        : { schemaVersion: 1, appVersion, buildCommit: 'local', releases: [] };
+      if (manifest.appVersion !== appVersion) throw Error('Release manifest does not match package version');
+      return `export default ${JSON.stringify(manifest)}`;
+    },
+  };
+}
 
 // Generate 404.html for GitHub Pages SPA routing fallback
 function spa404Plugin() {
@@ -41,6 +58,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    releaseManifestPlugin(),
     vue(),
     tailwindcss(),
     spa404Plugin(),

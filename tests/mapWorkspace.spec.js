@@ -53,7 +53,7 @@ async function mapState(page) {
   return state;
 }
 
-test('one map stays mounted across list, details, and every Submit step', async ({ page }) => {
+test('one map stays mounted across list, details, and every Submit step', { tag: '@critical' }, async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/?view=map');
@@ -194,7 +194,7 @@ test('map failure and denied GPS leave the list and sort controls usable', async
   await expect(page.getByText('Suggestion 1', { exact: true })).toBeVisible();
 });
 
-test('submission failure can retry successfully without replacing the shared map', async ({ page }) => {
+test('submission failure can retry successfully without replacing the shared map', { tag: '@critical' }, async ({ page }) => {
   await page.route(/\/src\/services\/liveLocationData(?:\.js)?(?:\?|$)/, route => route.fulfill({ contentType: 'application/javascript', body: 'export async function fetchLocationData(){return {data:{center:{lat:32.78,lon:-96.8}}};}' }));
   await page.route(/\/src\/services\/locationDiagramVersionTwo(?:\.js)?(?:\?|$)/, route => route.fulfill({ contentType: 'application/javascript', body: 'export function generateVersionTwoLocationDiagram(){return {svg:`<svg xmlns="http://www.w3.org/2000/svg"/>`};}' }));
   await page.route(/\/src\/services\/railCatalog(?:\.js)?(?:\?|$)/, route => route.fulfill({ contentType: 'application/javascript', body: 'export const railCatalog={};' }));

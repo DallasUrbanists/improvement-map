@@ -9,6 +9,7 @@
       <MapWorkspace v-if="route.name && route.name !== 'TestDiagram'" />
       <router-view v-else-if="route.name === 'TestDiagram'" />
     </main>
+    <AnnouncementDialog :is-submitting="isSubmitting" />
   </k-app>
 </template>
 
@@ -17,6 +18,7 @@ import { ref, provide, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { kApp } from 'konsta/vue';
 import MapWorkspace from './components/MapWorkspace.vue';
+import AnnouncementDialog from './components/AnnouncementDialog.vue';
 import { isDark, initTheme } from './services/theme';
 
 const route = useRoute();

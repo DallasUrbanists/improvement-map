@@ -11,6 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "test:critical": "playwright test --project=chromium --grep @critical",
+    "test:extended": "playwright test --grep-invert @critical",
     "test": "playwright test",
     "major": "npm version major && git push origin main --tags",
     "minor": "npm version minor && git push origin main --tags",
@@ -29,6 +31,7 @@
     "dayjs": "^1.11.23",
     "firebase": "^13.0.0",
     "konsta": "^5.4.0",
+    "markdown-it": "^15.0.3",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },

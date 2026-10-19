@@ -46,7 +46,7 @@ async function mockThumbnailUploads(page) {
 }
 
 test.describe('Improvement Map - PWA and Navigation', () => {
-  test('default landing page loads Browse page and displays map/list controls', async ({ page }) => {
+  test('default landing page loads Browse page and displays map/list controls', { tag: '@critical' }, async ({ page }) => {
     await page.goto('/');
 
     // Check title

@@ -5,6 +5,8 @@ on:
     branches:
       - main
   workflow_dispatch:
+  release:
+    types: [published, edited, deleted]
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
@@ -21,7 +23,38 @@ concurrency:
 jobs:
   critical-tests:
     runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
     timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && 'main' || github.sha }}
+
+      - name: Record tested commit
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end suite
+        run: npm run test:critical
+
+  extended-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,8 +71,8 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Run end-to-end suite
-        run: npm run test:e2e
+      - name: Run remaining end-to-end suite
+        run: npm run test:extended
 
   usability:
     uses: ./.github/workflows/usability.yml
@@ -52,6 +85,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.critical-tests.outputs.commit }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -69,6 +105,14 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
+      - name: Test release pipeline
+        run: node --test tests/releases.node.mjs
+
+      - name: Sync eligible GitHub release notes
+        run: node scripts/releaseManifest.js
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Build project for GitHub Pages
         run: npm run build
         env:
@@ -78,6 +122,7 @@ jobs:
           VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
+          RELEASE_MANIFEST: node_modules/.cache/improvement-map-releases.json
 
 
       - name: Upload artifact
