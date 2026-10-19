@@ -17,6 +17,36 @@
   --text-input-shadow: inset 0 2px 8px #00000059;
 }
 
+:root {
+  --scrollbar-thumb: #ffffff;
+  --scrollbar-track: #b7c4bd;
+}
+
+.dark {
+  --scrollbar-thumb: #2b3638;
+  --scrollbar-track: #61766b;
+}
+
+* {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid var(--scrollbar-track);
+  border-radius: 8px;
+  background: var(--scrollbar-thumb);
+}
+
 /* Shared inset surface and typewriter typography for editable text fields. */
 textarea,
 input:not([type]),
@@ -60,10 +90,6 @@ body {
 
 .light body {
   background-image: url('/45degreee_fabric.webp');
-}
-
-.scrollable {
-  scrollbar-color: #bcc6ec transparent;
 }
 
 .hide-scrollbar {
@@ -255,10 +281,6 @@ body {
 @media (orientation: landscape) and (max-height: 500px) {
   .marker-settings-tray { top: 72px; height: calc(100dvh - 160px); }
 }
-.marker-settings-tray { scrollbar-color: var(--map-control-bg) var(--map-control-border); scrollbar-width: thin; }
-.marker-settings-tray::-webkit-scrollbar { width: 12px; }
-.marker-settings-tray::-webkit-scrollbar-track { background: var(--map-control-border); }
-.marker-settings-tray::-webkit-scrollbar-thumb { border: 3px solid var(--map-control-border); border-radius: 8px; background: var(--map-control-bg); }
 .marker-settings-dialog::backdrop { background: #0008; }
 .marker-settings-panel { padding: 16px; }
 .marker-settings-header { position: sticky; top: 0; z-index: 2; background: var(--map-control-bg); }
@@ -402,10 +424,6 @@ body {
 .detail-copy-link-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 .detail-refresh-error { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--map-control-border); color: #dc2626; font-size: 13px; }
 .map-tray-content { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
-.submission-detail-tray .map-tray-content { scrollbar-color: var(--map-control-bg) var(--map-control-border); scrollbar-width: thin; }
-.submission-detail-tray .map-tray-content::-webkit-scrollbar { width: 12px; }
-.submission-detail-tray .map-tray-content::-webkit-scrollbar-track { background: var(--map-control-border); }
-.submission-detail-tray .map-tray-content::-webkit-scrollbar-thumb { border: 3px solid var(--map-control-border); border-radius: 8px; background: var(--map-control-bg); }
 .map-tray-content-fixed { display: flex; flex-direction: column; overflow: hidden; }
 .map-tray-footer { flex-shrink: 0; border-top: 1px solid var(--map-control-border); }
 .tray-sort-controls { display: flex; align-self: stretch; width: 100%; }
