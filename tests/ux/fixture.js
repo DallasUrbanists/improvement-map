@@ -38,9 +38,9 @@ export const test = base.extend({
       export const API_BASE_URL='https://api.test';
       export async function apiHeaders(headers={}) { return headers; }
       export async function getSuggestions(){await wait();if(window.__ux.listFail)throw Error('List unavailable');return window.__ux.empty?[]:(window.__ux.items || items);}
-      export async function getSuggestionById(id){await wait();const item=items.find(x=>x.id===id);if(!item)throw Error('Suggestion not found');return {...item,...(window.__ux.author ? {author:window.__ux.author}:{}),content:{...item.content,...(window.__ux.photos ? {photos:window.__ux.photos}:{}),...(window.__ux.details !== undefined ? {details:window.__ux.details}:{})}};}
-      export async function getSuggestionRepresentatives(){return [];}
-      export async function getSuggestionBoundaries(){return [];}
+      export async function getSuggestionById(id){await wait();const item=items.find(x=>x.id===id);if(!item)throw Error('Suggestion not found');return {...item,...(window.__ux.author ? {author:window.__ux.author}:{}),content:{...item.content,...(window.__ux.summaries?.[id] ? {summary:window.__ux.summaries[id]}:{}),...(window.__ux.photos ? {photos:window.__ux.photos}:{}),...(window.__ux.details !== undefined ? {details:window.__ux.details}:{})}};}
+      export async function getSuggestionRepresentatives(){return window.__ux.representatives || [];}
+      export async function getSuggestionBoundaries(){return window.__ux.boundaries || [];}
       export async function getSuggestionRecommendedActions(){await wait();if(window.__ux.actionsFail)throw Error("Unable to load actions");return window.__ux.actions || [];}
       export async function matchSuggestionRecommendations(){window.__ux.matches=(window.__ux.matches||0)+1;await wait();if(window.__ux.matchFail)throw Error("Matching failed");return window.__ux.generated || [];}
       export async function requestPhotoUploadUrl(){return {uploadUrl:'https://uploads.test/photo',publicUrl:${JSON.stringify(photo)}};}

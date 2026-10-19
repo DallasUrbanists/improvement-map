@@ -1,34 +1,34 @@
 <template>
-  <details class="detail-accordion" @toggle="onToggle">
-    <summary class="font-bold">Recommended Actions<span v-if="loaded"> ({{ actions.length }})</span></summary>
+  <PreviewSection title="Recommended actions" button="View all actions" :count="loaded ? filtered.length : undefined" :available="loaded && actions.length > 0" @toggle="onToggle" v-slot="{ full }">
     <div class="actions-panel">
       <router-link class="action-button" to="/my-actions">My actions ({{ savedActions.length }})</router-link>
       <p v-if="storageNotice" role="alert">{{ storageNotice }}</p>
-      <p role="status" aria-live="polite">{{ message }}</p>
+      <p v-if="message" role="status" aria-live="polite">{{ message }}</p>
       <p v-if="loading" role="status">Loading recommended actions…</p>
       <div v-else-if="error" role="alert"><p>{{ error }}</p><button class="action-button" @click="load">Retry loading</button></div>
       <template v-else-if="loaded">
         <template v-if="!actions.length">
-          <p>{{ generated ? 'No matching recommendations were found.' : 'No recommended actions are available for this suggestion.' }}</p>
-          <p class="text-sm">Urbanists Cloud finds relevant actions for this suggestion. Results are kept on this device.</p>
-          <button class="action-button" :disabled="generating" @click="generate">{{ generating ? 'Generating…' : 'Generate recommended actions' }}</button>
+          <p>{{ generated ? 'No matching actions found.' : 'No actions yet.' }}</p>
+
+          <button class="action-button" :disabled="generating" @click="generate">{{ generating ? 'Generating…' : 'Find actions' }}</button>
           <p v-if="generating" role="status">Finding relevant actions…</p>
           <p v-if="generationError" role="alert">{{ generationError }}</p>
         </template>
         <template v-else>
-          <button ref="hiddenToggle" class="action-button" :aria-pressed="showHidden" @click="showHidden = !showHidden; limit = 10">{{ showHidden ? 'Hide hidden' : 'Show hidden' }} ({{ hiddenCount }})</button>
-          <p v-if="!filtered.length">All recommendations are hidden. Use Show hidden to review them.</p>
-          <ActionCard v-for="action in visible" :key="action.key" :action="action" :saved="isSaved(action.key)" :hidden="isHidden(action.key)" @save="toggleSave(action)" @hide="toggleHidden(action, $event)" />
-          <p class="text-sm">Showing {{ visible.length }} of {{ filtered.length }}</p>
-          <button v-if="visible.length < filtered.length" class="action-button" @click="limit += 10">Show 10 more</button>
+          <button v-if="full && hiddenCount" ref="hiddenToggle" class="action-button" :aria-pressed="showHidden" @click="showHidden = !showHidden; limit = 10">{{ showHidden ? 'Hide hidden' : 'Show hidden' }} ({{ hiddenCount }})</button>
+          <p v-if="!(full ? filtered : actions.filter(a => !isHidden(a.key))).length">{{ full ? 'All recommendations are hidden. Use Show hidden to review them.' : 'All recommendations are hidden. View all actions to review them.' }}</p>
+          <ActionCard v-for="action in (full ? visible : actions.filter(a => !isHidden(a.key)).slice(0, 2))" :key="action.key" :action="action" :saved="isSaved(action.key)" :hidden="isHidden(action.key)" :compact="!full" @save="toggleSave(action)" @hide="toggleHidden(action, $event)" />
+          <p v-if="full && visible.length < filtered.length" class="text-sm">Showing {{ visible.length }} of {{ filtered.length }}</p>
+          <button v-if="full && visible.length < filtered.length" class="action-button" @click="limit += 10">Show 10 more</button>
         </template>
       </template>
     </div>
-  </details>
+  </PreviewSection>
 </template>
 <script setup>
 import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 import ActionCard from './ActionCard.vue';
+import PreviewSection from './PreviewSection.vue';
 import { getSuggestionRecommendedActions, matchSuggestionRecommendations } from '../services/api';
 import { savedActions, storageNotice, isSaved, isHidden, saveAction, removeAction, setHidden, normalizeActions, recommendationInput, cachedActions, cacheActions } from '../services/localActions';
 const props = defineProps({ suggestion: { type: Object, required: true }, refreshVersion: Number });

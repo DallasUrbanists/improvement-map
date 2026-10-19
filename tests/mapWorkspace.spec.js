@@ -125,7 +125,9 @@ test('direct details, errors, menu and read-only drafts work without another map
   await expect(page).toHaveURL(/view=map/);
   expect((await mapState(page)).center).toEqual({ lat: 32.7901, lng: -96.78 });
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitemradio', { name: 'Light theme', exact: true }).click();
+  const darkMode = page.getByRole('menuitemcheckbox', { name: 'Dark mode' });
+  if (await darkMode.getAttribute('aria-checked') === 'true') await darkMode.click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/light/);
   await page.evaluate(() => document.querySelector('#app').__vue_app__.config.globalProperties.$router.push('/suggestion/missing'));
   await expect(page.getByRole('heading', { name: 'Idea unavailable' })).toBeVisible();

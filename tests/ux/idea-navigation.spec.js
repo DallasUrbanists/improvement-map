@@ -5,7 +5,7 @@ const detail = page => page.getByRole('region', { name: 'Idea details', exact: t
 async function ready(page) { await expect(detail(page)).toHaveAttribute('aria-busy', 'false'); }
 async function bookmarks(page) {
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Bookmarked ideas', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Saved ideas', exact: true }).click();
 }
 async function mapState(page) {
   return page.evaluate(async () => {
@@ -29,7 +29,7 @@ test('desktop side tray keeps the map usable; mobile restores modal map behavior
   await page.setViewportSize({ width: 360, height: 800 });
   await expect(page.locator('.map-zoom-ui')).toBeHidden();
   await expect.poll(async () => (await mapState(page)).gestures).toBe('none');
-  await page.getByRole('button', { name: 'Close Bookmarked ideas', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
   await expect(tray(page)).toBeVisible();
 });
 
@@ -60,7 +60,7 @@ test('Submit retains content, refresh keeps its step, and bookmark excursions re
   await page.getByTestId('pin-and-continue').click();
   await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
   await bookmarks(page);
-  await page.getByRole('button', { name: 'Close Bookmarked ideas', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
@@ -108,7 +108,7 @@ test('map failures, unsupported GPS, and broken thumbnails still allow bookmarks
   await expect(page.locator('.idea-thumbnail .fa-camera')).toBeVisible();
   await page.getByRole('button', { name: 'Bookmark idea', exact: true }).click();
   await bookmarks(page);
-  await expect(page.getByRole('region', { name: 'Bookmarked ideas', exact: true }).locator('[data-suggestion-id="long"]')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Saved ideas', exact: true }).locator('[data-suggestion-id="long"]')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -135,7 +135,7 @@ test('bookmark menu fits a narrow screen with 44px targets', async ({ page }, in
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/?view=list');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await expect(page.getByRole('menuitem', { name: 'Bookmarked ideas', exact: true })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Saved ideas', exact: true })).toBeVisible();
   await page.locator('.map-menu-popover').evaluate(async element => {
     await Promise.all(element.getAnimations({ subtree: true }).map(animation => animation.finished.catch(() => {})));
   });

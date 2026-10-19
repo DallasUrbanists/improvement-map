@@ -84,6 +84,7 @@ export function useAuth() {
     register: (email, password) => run(() => createUserWithEmailAndPassword(auth, email, password)),
     signInWithGoogle: () => run(() => signInWithPopup(auth, new GoogleAuthProvider())),
     signOut: () => run(() => signOut(auth)),
+    waitForReady: async () => { await auth?.authStateReady() },
     getToken: async () => user.value ? user.value.getIdToken() : null,
     getAppCheckToken: async () => {
       if (!appCheck) return null

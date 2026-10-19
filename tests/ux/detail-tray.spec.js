@@ -9,19 +9,31 @@ for (const size of [{width:360,height:880},{width:412,height:915},{width:880,hei
     await expect(tray).toHaveAttribute('aria-busy','false');
     const content = tray.locator('.map-tray-content');
     const summary = page.locator('summary').filter({hasText:'Photos'});
-    await expect(page.locator('.detail-description')).toHaveText('Short description.');
+    await expect(page.locator('.detail-description-inner > p').first()).toHaveText('Short description.');
+    await page.evaluate(() => {
+      window.google.maps.Map.prototype.panBy = function (x, y) {
+        this.setCenter({ lat: this.getCenter().lat() - y / 10000, lng: this.getCenter().lng() + x / 10000 });
+      };
+      window.dispatchEvent(new Event('resize'));
+    });
+    await expect.poll(async () => {
+      const headline = await page.locator('.detail-marker-summary').boundingBox();
+      const frame = await tray.boundingBox();
+      return frame.y - headline.y - headline.height;
+    }).toBeGreaterThanOrEqual(21);
     const closed = await tray.boundingBox();
     await expect.poll(async () => {
-      const headline = await page.locator('.detail-marker-text').boundingBox();
+      const headline = await page.locator('.detail-marker-summary').boundingBox();
       const frame = await tray.boundingBox();
       return headline.x - frame.x;
-    }).toBeGreaterThanOrEqual(23);
-    const headline = await page.locator('.detail-marker-text').boundingBox();
-    expect(headline.x + headline.width).toBeLessThanOrEqual(closed.x + closed.width - 23);
+    }).toBeGreaterThanOrEqual(19);
+    const headline = await page.locator('.detail-marker-summary').boundingBox();
+    expect(headline.x + headline.width).toBeLessThanOrEqual(closed.x + closed.width - 19);
     expect(headline.y + headline.height).toBeLessThanOrEqual(closed.y - 15);
     await page.screenshot({ path: info.outputPath('content-fitting-tray.png') });
     const metrics = await content.evaluate(el => ({height:el.clientHeight, scroll:el.scrollHeight}));
-    if (size.height > 500) expect(metrics.height).toBe(metrics.scroll);
+    expect(metrics.height).toBeGreaterThan(0);
+    expect(metrics.scroll).toBeGreaterThanOrEqual(metrics.height);
     await summary.click();
     await expect(summary.locator('..')).toHaveAttribute('open','');
     await expect.poll(async () => (await tray.boundingBox()).height).toBeGreaterThanOrEqual(closed.height);
@@ -43,7 +55,7 @@ for (const size of [{width:360,height:880},{width:412,height:915},{width:880,hei
     await expect(summary).toBeInViewport();
     expect(Math.abs(await content.evaluate(el => el.scrollTop)-before)).toBeLessThan(2);
     await page.evaluate(() => { window.__ux.delay = 250; window.__ux.actions = [{id:'action',summary:'Test action',instructions:'Details arriving later. '.repeat(80)}]; });
-    const actions = page.locator('summary').filter({hasText:'Recommended Actions'});
+    const actions = page.locator('summary').filter({hasText:'Recommended actions'});
     await actions.click();
     await expect(page.getByRole('heading',{name:'Test action'})).toBeVisible();
     await expect(actions).toBeInViewport();

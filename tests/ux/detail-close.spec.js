@@ -1,6 +1,43 @@
 import { test, expect } from './fixture.js';
 
 for (const motion of ['no-preference', 'reduce']) {
+  test(`closing details to map retains the camera with ${motion} motion`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: motion });
+    await page.goto('/?view=map');
+    await expect(page.locator('.map-zoom-ui')).toBeVisible();
+    await page.evaluate(async () => {
+      const { default: router } = await import('/src/router/index.js');
+      await router.push('/suggestion/1');
+    });
+    const tray = page.locator('.submission-detail-tray');
+    await expect(tray).toHaveAttribute('aria-busy', 'false');
+    await expect(page.locator('.detail-description')).not.toHaveClass(/detail-description-revealing/);
+    const before = await page.evaluate(async () => {
+      const { sharedBrowseMap } = await import('/src/services/sharedBrowseMap.js');
+      const map = sharedBrowseMap.value.map;
+      window.__closeCamera = [];
+      document.addEventListener('keydown', () => {
+        for (const method of ['setCenter', 'panTo', 'setZoom']) {
+          const original = map[method].bind(map);
+          map[method] = (...args) => { window.__closeCamera.push(method); return original(...args); };
+        }
+      }, { once: true, capture: true });
+      return { ...map.getCenter().toJSON(), zoom: map.getZoom() };
+    });
+    await page.getByRole('button', { name: 'Close Idea details', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/?\?view=map$/);
+    await expect(tray).toHaveCount(0);
+    const after = await page.evaluate(async () => {
+      const { sharedBrowseMap } = await import('/src/services/sharedBrowseMap.js');
+      const map = sharedBrowseMap.value.map;
+      return { camera: { ...map.getCenter().toJSON(), zoom: map.getZoom() }, calls: window.__closeCamera, saved: window.history.state.ideaView.viewport };
+    });
+    expect(after.camera).toEqual(before);
+    expect(after.calls).toEqual([]);
+    expect(after.saved).toMatchObject(before);
+  });
+
   test(`closing details restores the camera after exit with ${motion} motion`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: motion });
     await page.goto('/?view=map');

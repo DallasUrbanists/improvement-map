@@ -8,11 +8,13 @@ export const API_BASE_URL =
 const API_KEY = import.meta.env.VITE_API_KEY;
 
 export async function apiHeaders(headers = {}) {
-  const { getToken, getAppCheckToken, authVersion } = useAuth();
+  const { waitForReady, getToken, getAppCheckToken, authVersion } = useAuth();
+  // Initial auth restoration is expected, rather than an identity change mid-request.
+  await waitForReady();
   const version = authVersion.value;
   const token = await getToken();
   const appCheckToken = await getAppCheckToken();
-  if (version !== authVersion.value) throw new ApiError('Authentication changed. Please try again.', { status: 401 })
+  if (version !== authVersion.value) throw Object.assign(new Error('Authentication changed. Please try again.'), { status: 401 });
   return {
     ...headers,
     ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
@@ -25,6 +27,7 @@ export async function apiHeaders(headers = {}) {
 let suggestionsCache = null;
 let suggestionsCacheTimestamp = 0;
 const CACHE_TTL_MS = 25000; // 25 seconds TTL
+const SUGGESTIONS_TIMEOUT_MS = 15000;
 
 const itemCache = new Map();
 
@@ -167,18 +170,19 @@ export async function getSuggestions(forceRefresh = false, { strict = false } = 
     return suggestionsCache;
   }
 
+  let timeoutId;
   try {
+    // A cold App Check initialization can take several seconds. Give the API
+    // its own time budget only once credentials are ready.
+    const headers = await apiHeaders({ 'Accept': 'application/json' });
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    timeoutId = setTimeout(() => controller.abort(), SUGGESTIONS_TIMEOUT_MS);
 
     const response = await fetch(`${API_BASE_URL}/api/public-improvements/suggestions`, {
       method: 'GET',
-      headers: await apiHeaders({
-        'Accept': 'application/json',
-      }),
+      headers,
       signal: controller.signal
     });
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`API returned HTTP ${response.status}`);
@@ -212,6 +216,8 @@ export async function getSuggestions(forceRefresh = false, { strict = false } = 
     }
     suggestionsCache = SEED_SUGGESTIONS;
     return SEED_SUGGESTIONS;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

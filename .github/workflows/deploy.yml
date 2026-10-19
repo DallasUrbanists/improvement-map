@@ -19,10 +19,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  critical-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end suite
+        run: npm run test:e2e
+
   usability:
     uses: ./.github/workflows/usability.yml
   build-and-deploy:
-    needs: usability
+    needs: critical-tests
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

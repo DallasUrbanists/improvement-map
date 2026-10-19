@@ -5,7 +5,7 @@
       <p>{{ mapError || googleMapsAuthError || 'Google Maps is unavailable. You can still browse ideas.' }}</p>
     </div>
     <div v-else-if="!isMapReady" class="workspace-map-status" role="status">Loading Map…</div>
-    <Transition name="workspace-backdrop"><div v-if="trayOpen && !desktopSideTray" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top, '--spotlight-radius': `${markerSpotlightSize / 2}px`, '--spotlight-feather': `${markerSpotlightFeather}px` } : undefined" aria-hidden="true"></div></Transition>
+    <Transition name="workspace-backdrop"><div v-if="trayOpen && !desktopSideTray" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--spotlight-opacity': detailMapOpacity, '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top, '--spotlight-radius': `${markerSpotlightSize / 2}px`, '--spotlight-feather': `${markerSpotlightFeather}px` } : undefined" aria-hidden="true"></div></Transition>
     <Teleport :to="draftCrosshairPane || 'body'" :disabled="isSubmit || !draftCrosshairPane">
     <div v-if="isSubmit" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
       <svg :key="isSubmitLocate ? 'locating' : 'locked'" data-testid="suggestion-location-crosshair" viewBox="0 0 50 50" aria-hidden="true" @animationend="onCrosshairAnimationEnd">
@@ -19,12 +19,8 @@
       </div>
     </div>
     </Teleport>
-    <div v-if="isDetail" class="detail-map-target" :style="detailTargetPosition">
-        <div v-if="!detailLoading || detailTextErasing" ref="detailBylineElement" class="detail-marker-byline">
-          <span class="sr-only">{{ detailByline }}</span>
-          <span aria-hidden="true"><span class="detail-typewriter-visible">{{ revealedByline.settled }}<span v-for="character in revealedByline.leading" :key="character.index" :style="{ opacity: character.opacity }">{{ character.text }}</span></span><span class="detail-typewriter-pending">{{ revealedByline.pending }}</span></span>
-        </div>
-      <div v-if="!detailLoading || detailTextErasing" ref="detailTextElement" class="detail-marker-text">
+    <div v-if="isDetail" class="detail-map-target" :style="{ ...detailTargetPosition, opacity: detailMapOpacity, visibility: detailMapOpacity === 0 ? 'hidden' : undefined }">
+      <div ref="detailTextElement" class="detail-marker-text" :style="{ visibility: detailLoading && !detailTextErasing ? 'hidden' : undefined }">
         <div v-if="detailSummary" ref="detailSummaryElement" class="detail-marker-summary">
           <span class="sr-only">{{ detailSummary }}</span>
           <span aria-hidden="true"><span class="detail-typewriter-visible">{{ revealedSummary.settled }}<span v-for="character in revealedSummary.leading" :key="character.index" :style="{ opacity: character.opacity }">{{ character.text }}</span></span><span class="detail-typewriter-pending">{{ revealedSummary.pending }}</span></span>
@@ -268,46 +264,53 @@ let suggestionClusterer = null;
 let densityOverlay = null;
 let renderedMarkerVisibility = null;
 let detailPinnedMarker = null;
+const detailMapOpacity = ref(1);
+function setDetailReadingProgress(progress) {
+  detailMapOpacity.value = 1 - Math.max(0, Math.min(1, progress));
+  detailPinnedMarker?.setOpacity?.(detailMapOpacity.value);
+}
 let markerSpiderfier = null;
 let userLocationMarker = null;
 let submissionCrosshairOverlay = null;
 let detailTargetOverlay = null;
 const detailTextElement = ref(null);
 const detailSummaryElement = ref(null);
-const detailBylineElement = ref(null);
 let detailTextFrame = 0;
+// The marker target is 50px high; the caption starts 44px below its center.
+const detailMarkerHalfHeight = 25;
+const detailSummaryOffset = 44;
+const detailHandleHeight = 22;
+function fitDetailText() {
+  const text = detailTextElement.value;
+  const summary = detailSummaryElement.value;
+  const tray = document.querySelector('.submission-detail-tray');
+  if (!text?.isConnected || !tray || tray.matches('.is-reading, .is-dragging')) return;
+  const frame = tray.getBoundingClientRect();
+  const target = text.parentElement.getBoundingClientRect();
+  const bounds = browseMapContainerEl.value?.getBoundingClientRect();
+  const searchBottom = document.querySelector('.map-search-panel')?.getBoundingClientRect().bottom || 60;
+  text.style.width = `${Math.max(1, frame.width - 16)}px`;
+  text.style.left = `${frame.left + frame.width / 2 - target.left}px`;
+  const summaryOffset = bounds?.height <= 500 ? 24 : detailSummaryOffset;
+  text.style.top = `${detailMarkerHalfHeight + summaryOffset}px`;
+  if (!summary || !bounds) return;
+  summary.style.fontSize = '18px';
+  const trayBottom = bounds.bottom - 88;
+  const requiredGap = () => detailMarkerHalfHeight + summaryOffset + summary.getBoundingClientRect().height + 2 * (detailHandleHeight + 16);
+  if (trayBottom - searchBottom - requiredGap() < 140) summary.style.fontSize = '16px';
+  const value = `${Math.floor(Math.max(100, trayBottom - searchBottom - requiredGap()))}px`;
+  if (tray.style.getPropertyValue('--detail-readable-height') !== value) tray.style.setProperty('--detail-readable-height', value);
+}
 function scheduleDetailTextFit() {
   if (detailTextFrame) return;
-  detailTextFrame = requestAnimationFrame(() => {
-    detailTextFrame = 0;
-    const text = detailTextElement.value;
-    const summary = detailSummaryElement.value;
-    const byline = detailBylineElement.value;
-    const tray = document.querySelector('.submission-detail-tray');
-    if (!text?.isConnected || !tray || !byline) return;
-    const frame = tray.getBoundingClientRect();
-    const target = text.parentElement.getBoundingClientRect();
-    if (tray.classList.contains('is-reading') || tray.classList.contains('is-dragging')) return;
-    const bounds = browseMapContainerEl.value?.getBoundingClientRect();
-    const searchBottom = document.querySelector('.map-search-panel')?.getBoundingClientRect().bottom || 60;
-    byline.style.top = `${(searchBottom - target.top - byline.getBoundingClientRect().height) / 2}px`;
-    text.style.width = `${Math.max(1, frame.width - 16)}px`;
-    text.style.left = `${frame.left + frame.width / 2 - target.left}px`;
-    text.style.top = '69px';
-    if (!summary || !bounds) return;
-    summary.style.fontSize = '18px';
-    // Yield tray height to the full headline before reducing its readable font size.
-    const trayBottom = bounds.bottom - 88;
-    let requiredGap = 2 * (44 + summary.getBoundingClientRect().height + 22);
-    if (trayBottom - searchBottom - requiredGap < 140) {
-      summary.style.fontSize = '16px';
-      requiredGap = 2 * (44 + summary.getBoundingClientRect().height + 22);
-    }
-    const maximum = Math.max(100, trayBottom - searchBottom - requiredGap);
-    const value = `${Math.floor(maximum)}px`;
-    if (tray.style.getPropertyValue('--detail-readable-height') !== value) tray.style.setProperty('--detail-readable-height', value);
-
-  });
+  detailTextFrame = requestAnimationFrame(() => { detailTextFrame = 0; fitDetailText(); });
+}
+function detailMarkerTargetY(searchBottom, trayTop) {
+  const summaryHeight = detailSummaryElement.value?.getBoundingClientRect().height || 0;
+  const summaryOffset = (detailTextElement.value?.offsetTop || detailMarkerHalfHeight + detailSummaryOffset) - detailMarkerHalfHeight;
+  const groupCenterOffset = summaryHeight ? (summaryOffset + summaryHeight - detailMarkerHalfHeight) / 2 : 0;
+  // Center the entire marker/caption group between the search bar and tray.
+  return (searchBottom + trayTop) / 2 - groupCenterOffset;
 }
 const detailTargetPosition = ref({ left: '50%', top: '25%' });
 const submissionCrosshairPosition = ref({ left: '50%', top: '50%' });
@@ -516,6 +519,7 @@ function syncDetailSuggestionMarker(targetId = isDetail.value ? route.params.id 
   if (detailPinnedMarker) {
     const previous = detailPinnedMarker;
     previous.setZIndex(null);
+    previous.setOpacity?.(1);
     const item = suggestionMarkerData.get(previous);
     if (item) previous.setIcon(suggestionMarkerIcon(item));
     suggestionClusterer.addMarker(previous, true);
@@ -529,6 +533,7 @@ function syncDetailSuggestionMarker(targetId = isDetail.value ? route.params.id 
     suggestionClusterer.render();
     target.setMap(map);
     detailPinnedMarker = target;
+    target.setOpacity?.(detailMapOpacity.value);
   } else {
     suggestionClusterer.render();
   }
@@ -1031,11 +1036,9 @@ const detailLoading = ref(false);
 let detailMotionFrame = 0;
 let cancelDetailMotion = null;
 const detailLocation = ref(null);
-const detailByline = ref('');
 const detailSummary = ref('');
 const detailRevealProgress = ref(1);
 const revealedSummary = computed(() => revealPrefix(detailSummary.value));
-const revealedByline = computed(() => revealPrefix(detailByline.value));
 function revealPrefix(text) {
   const characters = Array.from(text);
   const fadeWidth = 6;
@@ -1082,7 +1085,7 @@ async function eraseDetailText() {
   await animateDetailText(0);
   if (version === detailTextEraseVersion) detailTextErasing.value = false;
 }
-watch([isDetail, detailLoading, detailSummary, detailByline], ([active, loading]) => {
+watch([isDetail, detailLoading, detailSummary], ([active, loading]) => {
   if (active && loading && detailTextErasing.value) return;
   cancelDetailTextAnimation?.();
   detailRevealProgress.value = 0;
@@ -1211,7 +1214,7 @@ let viewSaveTimer;
 const viewEntries = new Map([[viewPosition, viewState]]);
 function currentTray() {
   if (route.name === 'Browse' && !isList.value) return null;
-  const selectors = { Browse: '.idea-list-tray[aria-label="Browse ideas"]', Bookmarks: '.idea-list-tray[aria-label="Bookmarked ideas"]',
+  const selectors = { Browse: '.idea-list-tray[aria-label="Browse ideas"]', Bookmarks: '.idea-list-tray[aria-label="Saved ideas"]',
     MyActions: '.map-tray[aria-label="My actions"]', SubmissionDetail: '.submission-detail-tray' };
   return document.querySelector(selectors[route.name] || '.map-tray:not(.map-tray-leave-active)');
 }
@@ -1243,7 +1246,7 @@ function saveViewState(immediate = false) {
   if (immediate === true) persistViewState();
   else viewSaveTimer = setTimeout(persistViewState, 500);
 }
-async function restoreView(detailReturnViewport) {
+async function restoreView(detailReturnViewport, preserveCamera = false) {
   restoringView = true;
   const state = viewState;
   if (state.location) userLocation.value = state.location;
@@ -1252,7 +1255,7 @@ async function restoreView(detailReturnViewport) {
   await nextTick();
   if (state !== viewState) { restoringView = false; return; }
   const viewport = state.viewport || detailReturnViewport;
-  if (viewport && !isDetail.value && !isSubmit.value) restoreSnapshot(viewport, !!detailReturnViewport);
+  if (!preserveCamera && viewport && !isDetail.value && !isSubmit.value) restoreSnapshot(viewport, !!detailReturnViewport);
   const content = currentTray()?.querySelector('.map-tray-content');
   if (content && state.scroll != null) {
     content.scrollTop = state.scroll;
@@ -1320,9 +1323,8 @@ function focusLocation(location) {
   map.setZoom(location.zoom ?? 16);
   pendingLocation = null;
 }
-function setDetailLocation(location, byline = '', summary = '', suggestionId = null, creationDate = '') {
+function setDetailLocation(location, summary = '', suggestionId = null, creationDate = '') {
   detailLocation.value = location;
-  detailByline.value = byline;
   detailSummary.value = summary;
   detailSuggestionId = suggestionId == null ? null : String(suggestionId);
   syncDetailSuggestionMarker(detailSuggestionId);
@@ -1389,7 +1391,7 @@ function transitionToDetailLocation(location, finalTrayTop, trayAnimation) {
   const projection = map.getProjection?.();
   if (projection && tray && search && bounds) {
     // Navigation can resize the tray while panning; aim at its settled layout.
-    const targetY = (search.getBoundingClientRect().bottom + (finalTrayTop ?? tray.getBoundingClientRect().top)) / 2;
+    const targetY = detailMarkerTargetY(search.getBoundingClientRect().bottom, finalTrayTop ?? tray.getBoundingClientRect().top);
     const offset = bounds.top + bounds.height / 2 - targetY;
     const point = projection.fromLatLngToPoint(new googleMaps.LatLng(lat, lng));
     const center = projection.fromPointToLatLng(new googleMaps.Point(point.x, point.y + offset / 2 ** (map.getZoom() || 1)));
@@ -1492,7 +1494,7 @@ function frameDetailLocation(immediate = false) {
   const bounds = browseMapContainerEl.value?.getBoundingClientRect();
   if (!tray || !search || !bounds) return;
   if (tray.classList.contains('is-reading') || tray.classList.contains('is-dragging')) return;
-  const targetY = (search.getBoundingClientRect().bottom + tray.getBoundingClientRect().top) / 2;
+  const targetY = detailMarkerTargetY(search.getBoundingClientRect().bottom, tray.getBoundingClientRect().top);
   const offset = bounds.top + bounds.height / 2 - targetY;
   const projection = map.getProjection?.();
   if (projection) {
@@ -1696,12 +1698,20 @@ const removeAfterNavigation = router.afterEach((to, from, failure) => {
   });
   viewPosition = window.history.state?.position;
   viewState = (isHistoryNavigation && viewEntries.get(viewPosition)) || window.history.state?.ideaView || incomingView || {};
+  const preserveCamera = from.name === 'SubmissionDetail' && to.name === 'Browse'
+    && !(to.query.view === 'list' || (!to.query.view && savedTab === 'list'));
+  if (preserveCamera) {
+    // Returning to the bare map adopts the detail camera as the browse view,
+    // including when history contains an older viewport for this entry.
+    viewState = { ...viewState, viewport: snapshot() };
+    if (viewState.viewport) setStoredMapView(viewState.viewport);
+  }
   isHistoryNavigation = false;
   viewEntries.set(viewPosition, viewState);
   window.history.replaceState({ ...window.history.state, ideaView: viewState }, '');
   incomingView = null;
   refreshDetailNavigation();
-  restoreView(detailReturnViewport);
+  restoreView(detailReturnViewport, preserveCamera);
   detailReturnViewport = null;
 });
 function handleEscape(event) {
@@ -1717,7 +1727,7 @@ function handleEscape(event) {
 window.addEventListener('keydown', handleEscape);
 window.addEventListener('pagehide', persistViewState);
 const workspace = {
-  eraseDetailText, setDetailLocation, setDetailMarkerTarget, setDetailLoading, transitionToDetailLocation, cancelDetailTransition, findSuggestionLocation, updateSuggestionMarker, detailLoading, detailNavigation, navigateDetail,
+  eraseDetailText, fitDetailText, setDetailReadingProgress, setDetailLocation, setDetailMarkerTarget, setDetailLoading, transitionToDetailLocation, cancelDetailTransition, findSuggestionLocation, updateSuggestionMarker, detailLoading, detailNavigation, navigateDetail,
   pinContinueReady,
   suggestions, sortedListSuggestions, bookmarkedSuggestions, activeSort, setSortMode, requestGps, isLocating, refreshData,
   isLoading, listError, locationError, saveViewState, getViewState, rememberSuggestion,
@@ -1778,10 +1788,10 @@ watch([isSubmit, isDetail, isMapReady, hasDraftPin, isPopupOpen], () => {
   }
   updateSubmissionCrosshair();
 }, { immediate: true });
-watch([isDetail, detailLoading, detailSummary, detailByline, detailTextElement, detailTargetPosition], (_, __, onCleanup) => {
+watch([isDetail, detailLoading, detailSummary, detailTextElement, detailTargetPosition], (_, __, onCleanup) => {
   const observer = new ResizeObserver(scheduleDetailTextFit);
   if (detailTextElement.value) {
-    for (const element of [document.querySelector('.submission-detail-tray'), browseMapContainerEl.value, detailBylineElement.value]) {
+    for (const element of [document.querySelector('.submission-detail-tray'), browseMapContainerEl.value]) {
       if (element) observer.observe(element);
     }
     scheduleDetailTextFit();

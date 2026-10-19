@@ -70,3 +70,7 @@ export function normalizeActions(items, suggestionId, catalog = false) {
       expirationDate: a.expirationDate || null, status: catalog ? null : a.status || null };
   }).filter(a => { if (seen.has(a.key)) return false; seen.add(a.key); return true; });
 }
+
+export function restoreAction(entry) {
+  return write(data => { if (!Object.hasOwn(data.saved, entry.action.key)) data.saved[entry.action.key] = entry; });
+}

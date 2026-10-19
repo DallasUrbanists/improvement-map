@@ -45,17 +45,17 @@ test('real API adapter validates matches, handles HTTP failures, timeout and can
 async function open(page) {
   await page.goto('/suggestion/1');
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: 'Recommended Actions' }).click();
+  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
 }
 test('no-match, double click, and navigation discard a late generation', async ({ page }) => {
   await open(page);
   await page.evaluate(() => { window.__ux.delay = 400; });
-  await page.getByRole('button', { name: 'Generate recommended actions' }).click();
+  await page.getByRole('button', { name: 'Find actions' }).click();
   await expect(page.getByRole('button', { name: 'Generating…' })).toBeDisabled();
-  await expect(page.getByText('No matching recommendations were found.')).toBeVisible();
+  await expect(page.getByText('No matching actions found.')).toBeVisible();
   expect(await page.evaluate(() => window.__ux.matches)).toBe(1);
   await page.evaluate(a => { window.__ux.generated = [a]; window.__ux.delay = 1500; }, action);
-  await page.getByRole('button', { name: 'Generate recommended actions' }).click();
+  await page.getByRole('button', { name: 'Find actions' }).click();
   await page.getByRole('link', { name: 'My actions (0)' }).click();
   await page.waitForTimeout(1700);
   expect(await page.evaluate(k => Object.values(JSON.parse(localStorage.getItem(k)).generated)[0].actions, key)).toEqual([]);
@@ -71,13 +71,13 @@ test('malformed storage is reported and preserved', async ({ page }) => {
 test('changed generation input invalidates cache and preserves saved snapshots', async ({ page }) => {
   await page.addInitScript(a => { window.__ux.generated = [a]; }, action);
   await open(page);
-  await page.getByRole('button', { name: 'Generate recommended actions' }).click();
+  await page.getByRole('button', { name: 'Find actions' }).click();
   await page.getByRole('button', { name: 'Add to My actions', exact: true }).click();
   await page.evaluate(() => { window.__ux.details = 'A completely different suggestion description.'; });
   await page.getByRole('button', { name: 'Refresh idea', exact: true }).click();
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: 'Recommended Actions' }).click();
-  await expect(page.getByRole('button', { name: 'Generate recommended actions' })).toBeVisible();
+  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
+  await expect(page.getByRole('button', { name: 'Find actions' })).toBeVisible();
   await page.getByRole('link', { name: 'My actions (1)' }).click();
   await expect(page.getByRole('heading', { name: action.summary })).toBeVisible();
 });
@@ -97,7 +97,7 @@ test('another tab updates saves and hiding without affecting other suggestions',
   await expect(page.getByText('All recommendations are hidden.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Next idea', exact: true }).click();
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: 'Recommended Actions' }).click();
+  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
   await expect(page.getByRole('heading', { name: action.summary })).toBeVisible();
   await other.close();
 });

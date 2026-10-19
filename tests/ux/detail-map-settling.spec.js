@@ -62,12 +62,15 @@ for (const motion of ['no-preference', 'reduce']) {
         this.__panning = false;
       };
       window.__ux.details = 'A shorter incoming description.';
+      window.__ux.summaries = { '20': 'Improve pedestrian safety and crossing convenience by adjusting signal timing or narrowing this wide intersection.' };
     });
-    await page.getByRole('button', { name: 'Next idea', exact: true }).click();
+    await page.getByRole('button', { name: 'Next idea', exact: true }).focus();
+    await page.keyboard.press('Enter');
     await expect(tray).toHaveAttribute('aria-busy', 'false');
     await expect(page.locator('.detail-description')).not.toHaveClass(/detail-description-revealing/);
     // Include the debounced ResizeObserver correction after the reveal ends.
     await page.waitForTimeout(300);
+    await expect(page.locator('.detail-marker-summary .sr-only')).toHaveText('Improve pedestrian safety and crossing convenience by adjusting signal timing or narrowing this wide intersection.');
     const settling = await page.evaluate(() => window.__settling);
     expect(await page.evaluate(() => window.__navigationCenters.length)).toBeGreaterThan(0);
     expect(settling).toEqual([]);

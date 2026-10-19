@@ -69,7 +69,7 @@ test('detail navigation locks loading and tooltips respect input', async ({page}
   expect(await progress()).toMatchObject({height:'3px',animation:'detail-loading-progress'});
   await page.screenshot({path:info.outputPath('navigation-loading.png')});
   await page.emulateMedia({reducedMotion:'reduce'});
-  expect((await progress()).animation).toBe('none');
+  await expect.poll(async () => (await progress()).animation).toBe('none');
   await page.emulateMedia({reducedMotion:'no-preference'});
   await page.evaluate(() => {window.__ux.hold = false;});
   await expect(tray).toHaveAttribute('aria-busy','false');

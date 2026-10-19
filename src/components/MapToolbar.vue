@@ -30,51 +30,54 @@
     <div class="map-menu-layer">
       <k-popover :opened="menuOpen" :target="`#${menuId}`" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
         <div class="p-1" role="menu" aria-label="Map options">
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Bookmarked ideas</button>
+          <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Saved ideas</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/my-actions')">My actions</button>
-          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings">
-            Marker settings
-            <i class="fa-solid fa-sliders" aria-hidden="true"></i>
-          </button>
-          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openRailSettings">
-            Rail settings
-            <i class="fa-solid fa-train" aria-hidden="true"></i>
-          </button>
-          <button v-for="option in themeOptions" :key="option.value" type="button" role="menuitemradio"
-            :aria-checked="(isDark ? 'dark' : 'light') === option.value" class="map-ui-button w-full justify-between"
-            @click="selectTheme(option.value)">
-            {{ option.label }}
-            <i v-if="(isDark ? 'dark' : 'light') === option.value" class="fa-solid fa-check" aria-hidden="true"></i>
-          </button>
+          <div class="menu-divider" role="separator"></div>
+          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings">Map settings<i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
+          <div class="menu-divider" role="separator"></div>
+          <button type="button" role="menuitemcheckbox" :aria-checked="isDark" class="map-ui-button w-full justify-between" @click="applyTheme(isDark ? 'light' : 'dark')">Dark mode<span class="theme-switch" :class="{ 'is-on': isDark }" aria-hidden="true"></span></button>
         </div>
       </k-popover>
     </div>
   </Teleport>
   <Teleport to="body">
     <dialog ref="markerSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-settings-title`"
-      @keydown.esc.stop.prevent="closeMarkerSettings" @click.self="closeMarkerSettings" @close="!railSettingsDialog?.open && menuButton?.focus()">
+      @keydown.esc.stop.prevent="closeMarkerSettings" @click.self="closeMarkerSettings" @close="menuButton?.focus({ preventScroll: true })">
       <header class="map-tray-header marker-settings-header">
         <div class="map-tray-heading">
-          <h2 :id="`${menuId}-settings-title`">Marker settings</h2>
+          <h2 :id="`${menuId}-settings-title`">Map settings</h2>
         </div>
-        <button type="button" class="map-ui-button map-tray-header-action" aria-label="Reset marker settings to defaults" title="Reset to app defaults" @click="resetMarkerSettings">
-          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+        <button type="button" class="map-ui-button map-tray-header-action" :aria-label="`Reset ${settingsTab} settings`" @click="settingsTab === 'markers' ? resetMarkerSettings() : setRailThickness(DEFAULT_RAIL_THICKNESS)">
+          Reset
         </button>
-        <button type="button" class="map-ui-button map-tray-close" aria-label="Close marker settings" @click="closeMarkerSettings">
+        <button type="button" class="map-ui-button map-tray-close" aria-label="Close Map settings" @click="closeMarkerSettings">
           <i class="fa-solid fa-xmark" aria-hidden="true"></i>
         </button>
       </header>
-      <div class="marker-settings-panel">
+      <div class="settings-tabs" role="group" aria-label="Settings category"><button class="action-button" :aria-pressed="settingsTab === 'markers'" @click="settingsTab = 'markers'">Markers</button><button class="action-button" :aria-pressed="settingsTab === 'rail'" @click="settingsTab = 'rail'">Rail</button></div>
+      <div v-show="settingsTab === 'markers'" class="marker-settings-panel">
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker visibility threshold">
-          <label for="map-marker-threshold">Marker threshold</label>
+          <label for="map-marker-threshold">Show markers at zoom</label>
           <div class="map-marker-threshold-control">
             <input id="map-marker-threshold" type="range" min="1" max="20" step="1" :value="markerZoomThreshold"
               aria-label="Marker threshold zoom level" @input="$emit('update:markerZoomThreshold', Number($event.target.value))" />
             <output for="map-marker-threshold">{{ markerZoomThreshold }}</output>
           </div>
-          <small>Heatmap below {{ markerZoomThreshold }} · Markers at {{ markerZoomThreshold }}+</small>
+          <small>Heatmap below zoom {{ markerZoomThreshold }}.</small>
           <small>Current zoom: {{ Number(mapZoom.toFixed(1)) }}</small>
         </div>
+        <div class="settings-animation"><button type="button" class="action-button" role="switch" :aria-checked="animationEnabled" @click="toggleAnimation">Animation {{ animationEnabled ? 'on' : 'off' }}</button><img :src="markerPreview" width="80" height="80" alt="Marker animation preview" /></div>
+        <div class="map-marker-threshold-setting" role="group" aria-label="Marker spotlight size">
+          <label for="map-marker-spotlight-size">Selected marker highlight</label>
+          <div class="map-marker-threshold-control">
+            <input id="map-marker-spotlight-size" type="range" min="48" max="480" step="4" :value="markerSpotlightSize"
+              aria-label="Marker spotlight diameter" :aria-valuetext="`${markerSpotlightSize} pixels diameter`"
+              @input="$emit('update:markerSpotlightSize', Number($event.target.value))" />
+            <output for="map-marker-spotlight-size">{{ markerSpotlightSize }} px</output>
+          </div>
+          <small>Diameter of the clear area around the selected marker.</small>
+        </div>
+        <details class="settings-advanced"><summary>Advanced</summary>
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker pulse speed">
           <label for="map-marker-pulse-speed">Pulse speed</label>
           <div class="map-marker-threshold-control">
@@ -83,7 +86,6 @@
               @input="$emit('update:markerPulseSpeed', Number($event.target.value))" />
             <output for="map-marker-pulse-speed">×{{ markerPulseSpeed.toFixed(1) }}</output>
           </div>
-          <small>Higher values pulse faster.</small>
         </div>
         <div class="map-marker-threshold-setting" role="group" aria-label="Pulse easing">
           <label for="map-marker-pulse-easing">Pulse easing</label>
@@ -91,7 +93,6 @@
             aria-label="Pulse easing" @change="$emit('update:markerPulseEasing', $event.target.value)">
             <option v-for="easing in markerEasingOptions" :key="easing.value" :value="easing.value">{{ easing.label }}</option>
           </select>
-          <small>Controls how each pulse grows and shrinks.</small>
         </div>
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker pulse scale">
           <label for="map-marker-pulse-scale">Pulse scale</label>
@@ -101,7 +102,6 @@
               @input="$emit('update:markerPulseScale', Number($event.target.value))" />
             <output for="map-marker-pulse-scale">×{{ markerPulseScale.toFixed(2) }}</output>
           </div>
-          <small>Maximum marker size during each pulse.</small>
         </div>
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker bobbing speed">
           <label for="map-marker-bob-speed">Bobbing speed</label>
@@ -111,7 +111,6 @@
               @input="$emit('update:markerBobSpeed', Number($event.target.value))" />
             <output for="map-marker-bob-speed">×{{ markerBobSpeed.toFixed(1) }}</output>
           </div>
-          <small>Controls rotation speed independently of pulsing.</small>
         </div>
         <div class="map-marker-threshold-setting" role="group" aria-label="Bobbing easing">
           <label for="map-marker-bob-easing">Bobbing easing</label>
@@ -119,7 +118,6 @@
             aria-label="Bobbing easing" @change="$emit('update:markerBobEasing', $event.target.value)">
             <option v-for="easing in markerEasingOptions" :key="easing.value" :value="easing.value">{{ easing.label }}</option>
           </select>
-          <small>Controls the rotational movement between sides.</small>
         </div>
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker rotational bobbing">
           <label for="map-marker-bob-angle">Rotational bobbing</label>
@@ -129,27 +127,15 @@
               @input="$emit('update:markerBobAngle', Number($event.target.value))" />
             <output for="map-marker-bob-angle">{{ markerBobAngle ? `±${markerBobAngle}°` : 'Off' }}</output>
           </div>
-          <small>Rotate side to side in sync with the pulse.</small>
-        </div>
-        <div class="map-marker-threshold-setting" role="group" aria-label="Marker spotlight size">
-          <label for="map-marker-spotlight-size">Spotlight size</label>
-          <div class="map-marker-threshold-control">
-            <input id="map-marker-spotlight-size" type="range" min="48" max="480" step="4" :value="markerSpotlightSize"
-              aria-label="Marker spotlight diameter" :aria-valuetext="`${markerSpotlightSize} pixels diameter`"
-              @input="$emit('update:markerSpotlightSize', Number($event.target.value))" />
-            <output for="map-marker-spotlight-size">{{ markerSpotlightSize }} px</output>
-          </div>
-          <small>Diameter of the clear area around the selected marker.</small>
         </div>
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker spotlight feathering">
-          <label for="map-marker-spotlight-feather">Spotlight feathering</label>
+          <label for="map-marker-spotlight-feather">Highlight softness</label>
           <div class="map-marker-threshold-control">
             <input id="map-marker-spotlight-feather" type="range" min="0" max="96" step="1" :value="markerSpotlightFeather"
               aria-label="Marker spotlight feather width" :aria-valuetext="`${markerSpotlightFeather} pixels`"
               @input="$emit('update:markerSpotlightFeather', Number($event.target.value))" />
             <output for="map-marker-spotlight-feather">{{ markerSpotlightFeather }} px</output>
           </div>
-          <small>Width of the fade from clear map to the shade.</small>
         </div>
         <div class="map-marker-threshold-setting" role="group" aria-label="Heatmap appearance">
           <label for="map-heatmap-opacity">Heatmap opacity</label>
@@ -170,33 +156,21 @@
           </div>
           <small>Larger radius blends suggestions across a wider area.</small>
         </div>
+        </details>
       </div>
-    </dialog>
-    <dialog ref="railSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-rail-title`"
-      @keydown.esc.stop.prevent="closeRailSettings" @click.self="closeRailSettings" @close="!markerSettingsDialog?.open && menuButton?.focus()">
-      <header class="map-tray-header marker-settings-header">
-        <div class="map-tray-heading">
-          <h2 :id="`${menuId}-rail-title`">Rail settings</h2>
-        </div>
-        <button type="button" class="map-ui-button map-tray-header-action" aria-label="Reset rail settings to defaults" title="Reset to app defaults" @click="setRailThickness(DEFAULT_RAIL_THICKNESS)">
-          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="map-ui-button map-tray-close" aria-label="Close rail settings" @click="closeRailSettings">
-          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-        </button>
-      </header>
-      <div class="marker-settings-panel">
+      <div v-show="settingsTab === 'rail'" class="marker-settings-panel">
         <div class="map-marker-threshold-setting">
-          <label :for="`${menuId}-rail-thickness`">Rail thickness</label>
+          <label :for="`${menuId}-rail-thickness`">Line width</label>
           <div class="map-marker-threshold-control">
             <input :id="`${menuId}-rail-thickness`" type="range" min="1" max="9" step="0.5" :value="railThickness"
               :aria-valuetext="`${railThickness} pixels`" @input="setRailThickness($event.target.value)" />
             <output :for="`${menuId}-rail-thickness`">{{ railThickness }} px</output>
           </div>
-          <small>Updates the map live, including lane spacing and white casing.</small>
+          <svg class="rail-preview" viewBox="0 0 240 40" role="img" aria-label="Rail line preview"><path d="M10 20 H230" stroke="currentColor" :stroke-width="railThickness + 2" /><path d="M10 20 H230" stroke="#eab308" :stroke-width="railThickness" /></svg>
         </div>
       </div>
     </dialog>
+
   </Teleport>
 </template>
 
@@ -207,6 +181,7 @@ import { kPopover } from 'konsta/vue';
 import { railThickness, setRailThickness, DEFAULT_RAIL_THICKNESS } from '../services/railSettings.js';
 import { DEFAULT_MARKER_SETTINGS } from '../services/storage.js';
 import { applyTheme, isDark } from '../services/theme';
+import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
   modelValue: { type: String, default: 'streets' },
@@ -236,7 +211,19 @@ const menuId = `map-menu-${useId()}`;
 const menuOpen = ref(false);
 const menuButton = ref(null);
 const markerSettingsDialog = ref(null);
-const railSettingsDialog = ref(null);
+const settingsTab = ref('markers');
+const animationEnabled = computed(() => props.markerPulseScale > 1 || props.markerBobAngle > 0);
+let previousAnimation;
+function toggleAnimation() {
+  if (animationEnabled.value) {
+    previousAnimation = { scale: props.markerPulseScale, angle: props.markerBobAngle };
+    emit('update:markerPulseScale', 1); emit('update:markerBobAngle', 0);
+  } else {
+    emit('update:markerPulseScale', previousAnimation?.scale ?? DEFAULT_MARKER_SETTINGS.markerPulseScale);
+    emit('update:markerBobAngle', previousAnimation?.angle ?? DEFAULT_MARKER_SETTINGS.markerBobAngle);
+  }
+}
+const markerPreview = computed(() => createEmojiMarkerSvg('🌳', { pulse: animationEnabled.value, pulseScale: props.markerPulseScale, pulseSpeed: props.markerPulseSpeed, bobAngle: props.markerBobAngle, bobSpeed: props.markerBobSpeed, pulseEasing: props.markerPulseEasing, bobEasing: props.markerBobEasing }));
 const markerEasingOptions = [
   { value: 'linear', label: 'Linear' },
   { value: 'ease', label: 'Ease' },
@@ -249,24 +236,12 @@ function resetMarkerSettings() {
     emit(`update:${setting}`, value);
   }
 }
-async function openRailSettings() {
-  menuOpen.value = false;
-  closeMarkerSettings();
-  await nextTick();
-  railSettingsDialog.value?.show();
-}
-function closeRailSettings() { railSettingsDialog.value?.close(); }
 async function openMarkerSettings() {
   menuOpen.value = false;
-  closeRailSettings();
   await nextTick();
   markerSettingsDialog.value?.show();
 }
 function closeMarkerSettings() { markerSettingsDialog.value?.close(); }
-const themeOptions = [
-  { value: 'light', label: 'Light theme' },
-  { value: 'dark', label: 'Dark theme' },
-];
 function openTray(path) {
   menuOpen.value = false;
   menuButton.value?.focus({ preventScroll: true });
@@ -276,12 +251,8 @@ function browseList() {
   if (props.showMapControls) emit('update:modelValue', 'list');
   else router.push({ path: '/', query: { view: 'list' } });
 }
-function selectTheme(theme) {
-  applyTheme(theme);
-  menuOpen.value = false;
-}
-watch(() => route.fullPath, () => { menuOpen.value = false; closeMarkerSettings(); closeRailSettings(); });
-onDeactivated(() => { menuOpen.value = false; closeMarkerSettings(); closeRailSettings(); });
+watch(() => route.fullPath, () => { menuOpen.value = false; closeMarkerSettings(); });
+onDeactivated(() => { menuOpen.value = false; closeMarkerSettings(); });
 const mapMode = computed(() => props.modelValue === 'list'
   ? (props.mapType === 'hybrid' ? 'satellite' : 'streets') : props.modelValue);
 const modeLabel = computed(() => mapMode.value === 'satellite' ? 'Satellite' : 'Streets');

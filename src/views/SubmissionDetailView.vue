@@ -1,5 +1,5 @@
 <template>
-  <MapTray ref="detailTray" @scroll="workspace.saveViewState" @click="captureAccordionPosition" @wheel.passive="releaseAccordionPosition" @pointerdown="releaseAccordionPosition" @keydown.capture="releaseAccordionPosition" class="submission-detail-tray" :class="{ 'streetmix-expanded': streetmixExpanded, 'is-reading': readingExpanded }" @touchstart.passive="startTrayGesture" @touchmove="moveTrayGesture" @touchend="endTrayGesture" @touchcancel="endTrayGesture" @wheel="wheelTray" title="Idea details" :close-disabled="isLoading" :content-disabled="isLoading" @close="goBack">
+  <MapTray ref="detailTray" @scroll="workspace.saveViewState" @click="captureAccordionPosition" @wheel.passive="releaseAccordionPosition" @pointerdown="releaseAccordionPosition" @keydown.capture="releaseAccordionPosition" class="submission-detail-tray" :class="{ 'is-reading': readingExpanded }" @touchstart.passive="startTrayGesture" @touchmove="moveTrayGesture" @touchend="endTrayGesture" @touchcancel="endTrayGesture" @wheel="wheelTray" title="Idea details" :close-disabled="isLoading" :content-disabled="isLoading" @close="goBack">
     <template #handle>
       <button class="detail-tray-handle" type="button" :disabled="isLoading" :title="readingExpanded ? 'Drag to resize, or click to collapse' : 'Drag to resize, or click to expand'" @mousedown="startHandleMouse" :aria-expanded="readingExpanded" :aria-label="readingExpanded ? 'Show map' : 'Expand details'" @click="toggleReading">
         <span aria-hidden="true" class="detail-tray-grip"></span>
@@ -30,7 +30,6 @@
     </template>
     <div v-if="readingExpanded && suggestion" class="detail-reading-heading">
       <h1>{{ suggestion.content?.summary || suggestion.summary }}</h1>
-      <p>{{ formattedDate }} · {{ suggestion.author?.name || 'Anonymous Contributor' }}</p>
     </div>
     <p v-if="bookmarkNotice" class="idea-notice" role="alert">{{ bookmarkNotice }}</p>
     <p class="sr-only" role="status">{{ bookmarkMessage }}</p>
@@ -77,6 +76,7 @@
           <p>
             {{ fadingDetails.settled }}<span v-for="character in fadingDetails.leading" :key="character.index" :style="{ opacity: character.opacity }">{{ character.text }}</span><span class="detail-typewriter-pending" aria-hidden="true">{{ outgoingDetails.slice(displayedDetails.length) }}</span>
           </p>
+          <p class="detail-description-byline">{{ formattedDate }} · {{ suggestion.author?.name || 'Anonymous Contributor' }}</p>
           </div>
         </div>
 
@@ -92,99 +92,36 @@
           </div>
         </details>
 
-        <StreetmixPanel v-if="String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" @expanded="streetmixExpanded = $event" />
+        <StreetmixPanel v-if="String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" />
 
-        <details @toggle="handleBoundariesToggle" class="detail-accordion">
-          <summary class="font-bold">Neighborhoods &amp; Districts</summary>
-          <div class="w-full min-w-0 max-w-full overflow-x-auto pb-4">
-            <div v-if="boundariesLoading" role="status" aria-live="polite" class="flex items-center gap-2 px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-              <k-preloader class="h-4 w-4" />
-              <span>Loading boundaries…</span>
-            </div>
-            <div v-else-if="boundariesError" role="alert" class="space-y-3 px-4 py-3">
-              <p class="text-sm text-red-600 dark:text-red-400">{{ boundariesError }}</p>
-              <k-button :rounded="true" class="text-sm font-semibold" @click.stop="loadBoundaries">Retry</k-button>
-            </div>
-            <p v-else-if="boundariesLoaded && !boundaries.length" class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-              No boundaries were found for this idea.
-            </p>
-            <k-block v-else-if="boundaries.length" class="w-full min-w-0 mt-0 !pl-safe !pr-safe">
-              <k-table class="min-w-max">
-                <k-table-head>
-                  <k-table-row header>
-                    <k-table-cell header class="h-7 px-4">Entity</k-table-cell>
-                    <k-table-cell header class="h-7 px-4">Body</k-table-cell>
-                    <k-table-cell header class="h-7 px-4">District</k-table-cell>
-                    <k-table-cell header class="h-7 px-4">Description</k-table-cell>
-                    <k-table-cell header class="h-7 px-4">When to Contact</k-table-cell>
-                  </k-table-row>
-                </k-table-head>
-                <k-table-body>
-                  <k-table-row v-for="boundary in boundaries" :key="boundary.id">
-                    <k-table-cell class="whitespace-nowrap align-top py-2 first:px-4 px-4">{{ boundary.entityName || '—' }}</k-table-cell>
-                    <k-table-cell class="whitespace-nowrap align-top py-2 px-4">{{ boundary.bodyName || '—' }}</k-table-cell>
-                    <k-table-cell class="whitespace-nowrap align-top py-2 px-4">{{ boundary.districtName || '—' }}</k-table-cell>
-                    <k-table-cell class="align-top py-2 px-4">{{ boundary.description || '—' }}</k-table-cell>
-                    <k-table-cell class="align-top py-2 px-4">{{ boundary.whenToContact || '—' }}</k-table-cell>
-                  </k-table-row>
-                </k-table-body>
-              </k-table>
-            </k-block>
-          </div>
-        </details>
+        <PreviewSection :key="`areas-${suggestion.id}`" title="Neighborhoods &amp; districts" button="View all areas" :count="boundariesLoaded ? boundaries.length : undefined" :available="boundaries.length > 0" @toggle="handleBoundariesToggle" v-slot="{ full }">
+          <p v-if="boundariesLoading" role="status">Loading areas…</p>
+          <div v-else-if="boundariesError" role="alert"><p>{{ boundariesError }}</p><button class="action-button" @click="loadBoundaries">Retry</button></div>
+          <p v-else-if="boundariesLoaded && !boundaries.length">No areas found.</p>
+          <article v-for="boundary in (full ? prioritizedBoundaries : prioritizedBoundaries.slice(0, 2))" :key="boundary.id" class="context-card">
+            <h3>{{ boundary.districtName || boundary.entityName || boundary.bodyName }}</h3>
+            <p class="secondary-copy">{{ [boundary.entityName, boundary.bodyName].filter(v => v && v !== boundary.districtName).filter((v, i, values) => values.indexOf(v) === i).join(' · ') }}</p>
+            <template v-if="full">
+              <p v-if="boundary.description">{{ boundary.description }}</p>
+              <p v-if="boundary.whenToContact"><strong>When to contact:</strong> {{ boundary.whenToContact }}</p>
+            </template>
+          </article>
+        </PreviewSection>
 
-        <details @toggle="handleRepresentativesToggle" class="detail-accordion">
-          <summary class="font-bold">Representatives</summary>
-          <div class="w-full min-w-0 max-w-full overflow-x-auto pb-4">
-            <div v-if="representativesLoading" role="status" aria-live="polite" class="flex items-center gap-2 px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-              <k-preloader class="h-4 w-4" />
-              <span>Loading representatives…</span>
+        <PreviewSection :key="`representatives-${suggestion.id}`" title="Representatives" button="View all representatives" :count="representativesLoaded ? representatives.length : undefined" :available="representatives.length > 0" @toggle="handleRepresentativesToggle" v-slot="{ full }">
+          <p v-if="representativesLoading" role="status">Loading representatives…</p>
+          <div v-else-if="representativesError" role="alert"><p>{{ representativesError }}</p><button class="action-button" @click="loadRepresentatives">Retry</button></div>
+          <p v-else-if="representativesLoaded && !representatives.length">No representatives found.</p>
+          <article v-for="representative in (full ? prioritizedRepresentatives : prioritizedRepresentatives.slice(0, 2))" :key="representative.id" class="context-card">
+            <h3>{{ representative.name || 'Name unavailable' }}</h3>
+            <p v-if="representative.title">{{ representative.title }}</p>
+            <p class="secondary-copy">{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
+            <div class="action-card-controls">
+              <a v-for="contact in (full ? getRepresentativeContactItems(representative) : getRepresentativeContactItems(representative).slice(0, 3))" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`">{{ contactLabel(contact) }}</a>
             </div>
-            <div v-else-if="representativesError" role="alert" class="space-y-3 px-4 py-3">
-              <p class="text-sm text-red-600 dark:text-red-400">{{ representativesError }}</p>
-              <k-button :rounded="true" class="text-sm font-semibold" @click.stop="loadRepresentatives">Retry</k-button>
-            </div>
-            <p v-else-if="representativesLoaded && !representatives.length" class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-              No current representatives were found for this idea.
-            </p>
-            <k-block v-else-if="representatives.length" class="w-full min-w-0 mt-0 !pl-safe !pr-safe">
-              <k-table class="min-w-max">
-                <k-table-head>
-                  <k-table-row header>
-                    <k-table-cell header class="h-7 px-4">Jurisdiction</k-table-cell>
-                    <k-table-cell header class="h-7 px-4">Official</k-table-cell>
-                    <k-table-cell header class="h-7 px-4">Contact</k-table-cell>
-                  </k-table-row>
-                </k-table-head>
-                <k-table-body>
-                  <k-table-row v-for="representative in representatives" :key="representative.id">
-                    <k-table-cell class="whitespace-nowrap align-top py-2 first:px-4 px-4">
-                      {{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}
-                    </k-table-cell>
-                    <k-table-cell class="whitespace-nowrap align-top py-2 px-4">
-                      <strong>{{ representative.name || 'Name unavailable' }}</strong>
-                      <br v-if="representative.title" />
-                      <span v-if="representative.title">{{ representative.title }}</span>
-                    </k-table-cell>
-                    <k-table-cell class="align-top py-2 px-4">
-                      <div v-if="getRepresentativeContactItems(representative).length" class="space-y-1">
-                        <div v-for="contact in getRepresentativeContactItems(representative)" :key="contact.href + contact.label">
-                          <a
-                            :href="contact.href"
-                            :target="contact.external ? '_blank' : undefined"
-                            :rel="contact.external ? 'noopener noreferrer' : undefined"
-                            class="text-blue-700 underline dark:text-blue-300"
-                          >{{ contact.label }}</a>
-                        </div>
-                      </div>
-                      <span v-else class="text-zinc-500 dark:text-zinc-400">Contact information unavailable</span>
-                    </k-table-cell>
-                  </k-table-row>
-                </k-table-body>
-              </k-table>
-            </k-block>
-          </div>
-        </details>
+            <p v-if="!getRepresentativeContactItems(representative).length" class="secondary-copy">Contact information unavailable</p>
+          </article>
+        </PreviewSection>
 
         <RecommendedActions :suggestion="suggestion" :refresh-version="actionsRefreshVersion" />
       </div>
@@ -209,11 +146,12 @@
 <script setup>
 import { ref, shallowRef, computed, watch, inject, onBeforeUnmount, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { kBlock, kButton, kCard, kNavbar, kNavbarBackLink, kPreloader, kTable, kTableBody, kTableCell, kTableHead, kTableRow } from 'konsta/vue';
+import { kButton, kCard } from 'konsta/vue';
 import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries } from '../services/api';
 import BookmarkButton from '../components/BookmarkButton.vue';
 import { bookmarkNotice, bookmarkMessage } from '../services/bookmarks';
 import MapTray from '../components/MapTray.vue';
+import PreviewSection from '../components/PreviewSection.vue';
 import RecommendedActions from '../components/RecommendedActions.vue';
 import StreetmixPanel from '../components/StreetmixPanel.vue';
 import { mapWorkspaceKey, detailMotionDuration } from '../services/mapWorkspace';
@@ -223,7 +161,6 @@ const route = useRoute();
 const router = useRouter();
 const workspace = inject(mapWorkspaceKey);
 const actionsRefreshVersion = ref(0);
-const streetmixExpanded = ref(false);
 function updateStreetmixSummary(summary) { if (suggestion.value) suggestion.value.streetmix = summary; }
 
 const detailTray = ref(null);
@@ -232,12 +169,20 @@ let trayGesture = null;
 let suppressHandleClick = false;
 let readingAnimation = null;
 let readingAnimationRun = 0;
+let readingFadeFrame = 0;
+let readingProgress = 0;
+function setReadingProgress(progress) {
+  readingProgress = Math.max(0, Math.min(1, progress));
+  workspace.setDetailReadingProgress(readingProgress);
+}
 function cancelReadingAnimation() {
   readingAnimationRun++;
+  cancelAnimationFrame(readingFadeFrame);
+  readingFadeFrame = 0;
   readingAnimation?.cancel();
   readingAnimation = null;
 }
-onBeforeUnmount(cancelReadingAnimation);
+onBeforeUnmount(() => { cancelReadingAnimation(); setReadingProgress(0); });
 function clearDragStyle() {
   const tray = detailTray.value?.element;
   tray?.classList.remove('is-dragging');
@@ -253,11 +198,14 @@ async function setReading(expanded, fromHeight) {
   clearDragStyle();
   cancelReadingAnimation();
   const run = readingAnimationRun;
+  const fromProgress = readingProgress;
+  const toProgress = expanded ? 1 : 0;
   readingExpanded.value = expanded;
   await nextTick();
-  if (run !== readingAnimationRun || !tray?.isConnected || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (run !== readingAnimationRun || !tray?.isConnected) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setReadingProgress(toProgress); return; }
   const height = tray.getBoundingClientRect().height;
-  if (Math.abs(height - previousHeight) < .5) return;
+  if (Math.abs(height - previousHeight) < .5) { setReadingProgress(toProgress); return; }
   // Animate measured heights around the fixed bottom edge, including reversals.
   // Override top/max-height only during motion so compact content can still fit naturally.
   const animation = tray.animate([
@@ -265,9 +213,20 @@ async function setReading(expanded, fromHeight) {
     { top: 'auto', maxHeight: 'none', height: `${height}px` },
   ], { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' });
   readingAnimation = animation;
-  animation.finished.catch(() => {}).then(() => {
-    if (readingAnimation === animation) readingAnimation = null;
-  });
+  const updateFade = () => {
+    if (readingAnimation !== animation) return;
+    const progress = animation.effect.getComputedTiming().progress ?? 0;
+    setReadingProgress(fromProgress + (toProgress - fromProgress) * progress);
+    readingFadeFrame = requestAnimationFrame(updateFade);
+  };
+  updateFade();
+  animation.finished.then(() => {
+    if (readingAnimation !== animation) return;
+    cancelAnimationFrame(readingFadeFrame);
+    readingFadeFrame = 0;
+    setReadingProgress(toProgress);
+    readingAnimation = null;
+  }).catch(() => {});
 }
 function toggleReading() {
   if (suppressHandleClick) { suppressHandleClick = false; return; }
@@ -299,7 +258,7 @@ function startTrayGesture(event) {
   const content = detailTray.value?.content;
   if (isLoading.value || event.touches.length !== 1 || (!handle && (!content?.contains(event.target)
     || event.target.closest('button, input, textarea, select, a, .streetmix-road-map')))) return;
-  trayGesture = { x: event.touches[0].clientX, y: event.touches[0].clientY, atTop: content.scrollTop <= 0, handle, dragging: false, expanded: readingExpanded.value };
+  trayGesture = { samples: [{ y: event.touches[0].clientY, time: performance.now() }], x: event.touches[0].clientX, y: event.touches[0].clientY, atTop: content.scrollTop <= 0, handle, dragging: false, expanded: readingExpanded.value };
 }
 function beginTrayDrag() {
   const tray = detailTray.value.element;
@@ -322,6 +281,9 @@ function beginTrayDrag() {
 function moveTrayGesture(event) {
   if (!trayGesture || isLoading.value) return;
   if (event.touches.length !== 1) { endTrayGesture({ type: 'touchcancel' }); return; }
+  const now = performance.now();
+  trayGesture.samples = trayGesture.samples.filter(sample => now - sample.time <= 120);
+  trayGesture.samples.push({ y: event.touches[0].clientY, time: now });
   const dy = event.touches[0].clientY - trayGesture.y;
   const dx = event.touches[0].clientX - trayGesture.x;
   if (!trayGesture.dragging) {
@@ -333,6 +295,8 @@ function moveTrayGesture(event) {
   if (event.cancelable) event.preventDefault();
   const height = Math.max(trayGesture.compact, Math.min(trayGesture.expandedHeight, trayGesture.startHeight - dy));
   detailTray.value.element.style.height = `${height}px`;
+  const range = trayGesture.expandedHeight - trayGesture.compact;
+  setReadingProgress(range > 0 ? (height - trayGesture.compact) / range : 0);
   suppressHandleClick = trayGesture.handle;
 }
 function endTrayGesture(event) {
@@ -340,7 +304,17 @@ function endTrayGesture(event) {
   trayGesture = null;
   if (!gesture?.dragging) return;
   const height = detailTray.value.element.getBoundingClientRect().height;
-  const expanded = event?.type === 'touchcancel' ? gesture.expanded : height > (gesture.compact + gesture.expandedHeight) / 2;
+  // Use only recent motion, including time held still before release. A quick
+  // flick overrides the midpoint; a paused or slow drag keeps nearest-position snapping.
+  const now = performance.now();
+  const recent = gesture.samples.filter(sample => now - sample.time <= 120);
+  const first = recent[0];
+  const last = recent.at(-1);
+  const distance = first && last ? last.y - first.y : 0;
+  const velocity = first ? distance / Math.max(16, now - first.time) : 0;
+  const flick = Math.abs(distance) >= 12 && Math.abs(velocity) >= .5;
+  const expanded = event?.type === 'touchcancel' ? gesture.expanded
+    : flick ? velocity < 0 : height > (gesture.compact + gesture.expandedHeight) / 2;
   setReading(expanded, height);
 }
 
@@ -349,7 +323,7 @@ function wheelTray(event) {
   if (isLoading.value || !content?.contains(event.target) || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
   if (!readingExpanded.value && event.deltaY > 0) { event.preventDefault(); setReading(true); }
 }
-watch(() => route.params.id, () => { cancelReadingAnimation(); removeMouseListeners(); clearDragStyle(); readingExpanded.value = false; trayGesture = null; });
+watch(() => route.params.id, () => { cancelReadingAnimation(); setReadingProgress(0); removeMouseListeners(); clearDragStyle(); readingExpanded.value = false; trayGesture = null; });
 let accordionPosition = null;
 let trayResizeObserver;
 let trayPositionFrame = 0;
@@ -453,6 +427,13 @@ const representativesError = ref('');
 let representativesRequestVersion = 0;
 let suggestionRequestVersion = 0;
 const boundaries = ref([]);
+function localPriority(boundary) {
+  const text = [boundary?.entityName, boundary?.bodyName, boundary?.districtName].filter(Boolean).join(' ');
+  return /neighborhood/i.test(text) ? 0 : /city|council/i.test(text) ? 1 : 2;
+}
+const prioritizedBoundaries = computed(() => [...boundaries.value].sort((a, b) => localPriority(a) - localPriority(b)));
+const prioritizedRepresentatives = computed(() => [...representatives.value].sort((a, b) => localPriority(a.boundary) - localPriority(b.boundary)));
+function contactLabel(contact) { return contact.href.startsWith('tel:') ? 'Call' : contact.href.startsWith('mailto:') ? 'Email' : 'Website'; }
 const boundariesLoading = ref(false);
 const boundariesLoaded = ref(false);
 const boundariesError = ref('');
@@ -649,7 +630,6 @@ onBeforeUnmount(() => {
 function setDetailMetadata(item) {
   workspace.setDetailLocation(
     item?.location || null,
-    item ? `${formattedDate.value} · ${item.author?.name || 'Anonymous Contributor'}` : '',
     item?.content?.summary || item?.summary || '',
     item?.id || route.params.id,
     item?.creationDate || '',
@@ -697,6 +677,7 @@ async function prepareDetails(item) {
   erasingDetails.value = false;
   isRevealingDetails.value = false;
   await nextTick();
+  workspace.fitDetailText();
   // Read the final, unanimated geometry before restoring the outgoing height.
   const bounds = tray?.isConnected ? tray.getBoundingClientRect() : null;
   const layout = { trayTop: bounds?.top, finished: Promise.resolve() };
@@ -704,7 +685,7 @@ async function prepareDetails(item) {
   const height = bounds.height;
   if (Math.abs(height - previousHeight) < .5) return layout;
   const animation = tray.animate(
-    [{ height: `${previousHeight}px` }, { height: `${height}px` }],
+    [{ height: `${previousHeight}px`, maxHeight: 'none' }, { height: `${height}px`, maxHeight: 'none' }],
     { duration: detailMotionDuration, easing: 'cubic-bezier(.65, 0, .35, 1)' },
   );
   trayHeightAnimation = animation;

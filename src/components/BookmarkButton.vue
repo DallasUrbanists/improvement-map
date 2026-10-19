@@ -5,10 +5,11 @@
   </button>
 </template>
 <script setup>
-import { isBookmarked, toggleBookmark } from '../services/bookmarks';
+import { isBookmarked, toggleBookmark, bookmarks } from '../services/bookmarks';
 const props = defineProps({ item: { type: Object, required: true }, disabled: Boolean });
 const emit = defineEmits(['changed']);
 function toggle(event) {
-  if (toggleBookmark(props.item)) emit('changed', event.currentTarget);
+  const previous = bookmarks.value.find(entry => entry.suggestion.id === String(props.item.id));
+  if (toggleBookmark(props.item)) emit('changed', event.currentTarget, previous);
 }
 </script>

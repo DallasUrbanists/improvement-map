@@ -12,7 +12,7 @@ test('map loading surface follows theme independently of rendered tiles', async 
   await expect(canvas.locator(':scope > .gm-style')).toHaveCSS('background-color', surfaceColor(dark));
   await expect(tiles).toHaveCSS('background-color', 'rgb(77, 96, 89)');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitemradio', { name: dark ? 'Light theme' : 'Dark theme' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Dark mode' }).click();
   await expect(canvas).toHaveCSS('background-color', surfaceColor(!dark));
   await expect(canvas.locator(':scope > .gm-style')).toHaveCSS('background-color', surfaceColor(!dark));
   await expect(tiles).toHaveCSS('background-color', 'rgb(77, 96, 89)');

@@ -52,3 +52,7 @@ export function saveBookmark(item) {
 }
 export const removeBookmark = id => write(data => { delete data.saved[String(id)]; }, 'Bookmark removed.');
 export const toggleBookmark = item => isBookmarked(item.id) ? removeBookmark(item.id) : saveBookmark(item);
+
+export function restoreBookmark(entry) {
+  return write(data => { const id = entry.suggestion.id; if (!Object.hasOwn(data.saved, id)) Object.defineProperty(data.saved, id, { value: entry, enumerable: true, configurable: true, writable: true }); }, 'Idea restored.');
+}

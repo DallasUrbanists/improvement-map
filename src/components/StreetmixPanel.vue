@@ -1,6 +1,16 @@
 <template>
   <details class="detail-accordion streetmix-accordion" @toggle="toggle">
     <summary class="font-bold">Streetmix</summary>
+    <div class="actions-panel" :aria-hidden="full || undefined" :inert="full">
+      <p v-if="loading" role="status">Loading Streetmix…</p>
+      <p v-else-if="statusMessage" role="status">{{ statusMessage }}</p>
+      <p v-else-if="selecting">Choose a street for this design.</p>
+      <p v-else-if="result">{{ result.selectedStreet?.name || 'Street design ready' }}</p>
+      <p v-else>Create a street cross-section.</p>
+      <button class="action-button" :disabled="loading" @click="$event.currentTarget.focus({ preventScroll: true }); full = true">{{ result ? 'View design' : selecting ? 'Choose street' : pending || workflow ? 'Continue design' : 'Create design' }}</button>
+    </div>
+  </details>
+  <DetailSheet v-model="full" title="Streetmix">
     <div class="actions-panel streetmix-panel">
       <p v-if="loading" role="status">Loading Streetmix…</p>
       <p v-if="storageNotice" role="alert">{{ storageNotice }}</p>
@@ -15,16 +25,17 @@
       </template>
       <template v-else-if="selecting">
         <p>Which street?</p>
-        <StreetmixRoadMap v-if="open && workflow.coordinate" :candidates="workflow.candidates || []" :coordinate="workflow.coordinate" :selected="selected" @select="choose" />
-        <label :for="selectId">Street</label>
-        <select :id="selectId" v-model="selected" class="streetmix-select" :disabled="busy || confirmationPending">
-          <option disabled value="">Choose a street</option>
-          <option v-for="(candidate, index) in workflow.candidates || []" :key="candidate.osmWayId" :value="candidate.osmWayId">{{ index + 1 }} · {{ candidate.name || 'Unnamed street' }} · {{ Math.round(candidate.distanceMeters) }} m away · {{ roadDetails(candidate) }}</option>
-        </select>
-        <p v-if="selectedRoad" class="text-sm">{{ roadDetails(selectedRoad) }}</p>
-        <p v-if="selectedRoad?.oppositeOsmWayId" class="text-sm">Opposing carriageway: OSM {{ selectedRoad.oppositeOsmWayId }} (purple when mapped).</p>
-        <p class="text-sm">Map bearing may differ from traffic direction. Selection expires after 15 minutes.</p>
-        <button v-if="selectionAllowed && !confirmationPending" class="action-button" :disabled="blocked || selected === ''" @click="confirm(selected)">Confirm selected street</button>
+        <StreetmixRoadMap v-if="full && workflow.coordinate" :candidates="workflow.candidates || []" :coordinate="workflow.coordinate" :selected="selected" @select="choose" />
+        <fieldset class="street-choices" :disabled="busy || confirmationPending">
+          <legend>Nearby streets</legend>
+          <label v-for="(candidate, index) in workflow.candidates || []" :key="candidate.osmWayId" class="street-choice">
+            <input type="radio" :name="selectId" :value="candidate.osmWayId" v-model="selected" />
+            <span><strong>{{ index + 1 }} · {{ candidate.name || 'Unnamed street' }}</strong><span class="secondary-copy">{{ Math.round(candidate.distanceMeters) }} m away{{ candidate.bridge && candidate.bridge !== 'no' ? ' · Bridge' : '' }}{{ candidate.tunnel && candidate.tunnel !== 'no' ? ' · Tunnel' : '' }}</span></span>
+          </label>
+        </fieldset>
+        <details v-if="selectedRoad" class="streetmix-evidence"><summary>Street details</summary><p>{{ roadDetails(selectedRoad) }}</p><p v-if="selectedRoad.oppositeOsmWayId">Opposing carriageway: OSM {{ selectedRoad.oppositeOsmWayId }}</p><p>Map bearing may differ from traffic direction.</p></details>
+        <p class="secondary-copy">Selection expires after 15 minutes.</p>
+        <button v-if="selectionAllowed && !confirmationPending" class="action-button" :disabled="blocked || selected === ''" @click="confirm(selected)">Use this street</button>
         <p v-if="!selectionAllowed">Only the author or staff can confirm a replacement.</p>
       </template>
       <template v-if="pending && !expired && workflow?.status !== 'failed' && (!selecting || confirmationPending)">
@@ -33,16 +44,16 @@
       <button v-if="workflow?.requestId && !expired && !selecting && workflow.status !== 'failed'" class="action-button" :disabled="blocked" @click="check">Check status</button>
       <template v-if="!loading && !error && !saved && !result && !workflow && !pending">
         <p>Create a street cross-section for this location.</p>
-        <button class="action-button" :disabled="blocked" @click="start()">Generate Streetmix design</button>
+        <button class="action-button" :disabled="blocked" @click="start()">Create design</button>
         <p class="text-sm">About a minute. Creates a public, anonymous design.</p>
       </template>
       <template v-if="result">
         <p v-if="saved?.stale" role="status">Created for this suggestion’s previous location.</p>
         <a v-if="url" :href="url" target="_blank" rel="noopener noreferrer" class="action-button">Open in Streetmix ↗</a>
         <p v-else role="alert">The saved design link is invalid.</p>
-        <template v-if="open && url">
+        <template v-if="full && url">
           <p v-if="!frameLoaded" role="status">Loading design… If it does not appear, open it in Streetmix.</p>
-          <iframe :key="url" :src="url" title="Generated Streetmix design" style="width:100%;height:620px;border:0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" @load="frameLoaded = true"></iframe>
+          <iframe :key="url" :src="url" title="Generated Streetmix design" class="streetmix-frame" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" @load="frameLoaded = true"></iframe>
         </template>
         <p v-if="result.selectedStreet?.carriagewayOnly">This drawing covers one carriageway only.</p>
         <p v-else-if="result.dividedRoad">Includes opposing carriageways.</p>
@@ -57,15 +68,17 @@
         </template>
       </template>
     </div>
-  </details>
+  </DetailSheet>
 </template>
 <script setup>
-import { computed, onBeforeUnmount, ref, watch, useId } from 'vue';
+import { computed, ref, watch, useId } from 'vue';
 import { kPreloader } from 'konsta/vue';
+import DetailSheet from './DetailSheet.vue';
 import StreetmixRoadMap from './StreetmixRoadMap.vue';
 import { useStreetmix } from '../services/useStreetmix';
 const props = defineProps({ suggestion: { type: Object, required: true }, refreshVersion: Number });
-const emit = defineEmits(['saved', 'expanded']);
+const emit = defineEmits(['saved']);
+const full = ref(false);
 const open = ref(false), selected = ref(''), frameLoaded = ref(false), selectId = useId();
 const { saved, result, workflow, pending, loading, busy, error, storageNotice, authorized, selectionAllowed, regeneration, url, expired, selecting, active, blocked, statusMessage, load, check, start, resume, confirm } = useStreetmix(props, emit, open);
 const confirmationPending = computed(() => pending.value?.path.endsWith('/selection'));
@@ -76,12 +89,11 @@ function humanize(value) { const text = value.replace(/([a-z])([A-Z])/g, '$1 $2'
 function readable(value) { return typeof value === 'string' ? value : Array.isArray(value) ? value.map(readable).join('; ') : value && typeof value === 'object' ? Object.entries(value).map(([k, v]) => `${humanize(k)}: ${readable(v)}`).join('; ') : String(value); }
 function roadDetails(c) { return [c.highway, `OSM ${c.osmWayId}`, `${Math.round(c.bearingDegrees)}° bearing`, c.bridge && c.bridge !== 'no' ? 'Bridge' : '', c.tunnel && c.tunnel !== 'no' ? 'Tunnel' : '', c.layer != null ? `Layer ${c.layer}` : ''].filter(Boolean).join(' · '); }
 function choose(id) { if (!busy.value && !confirmationPending.value) selected.value = id; }
-function toggle(event) { open.value = event.currentTarget.open; emit('expanded', open.value); }
+function toggle(event) { open.value = event.currentTarget.open; }
 watch(() => [workflow.value?.requestId, pending.value?.path, pending.value?.body], ([id, path, body], [previousId]) => {
   if (path?.endsWith('/selection')) {
     try { selected.value = JSON.parse(body).osmWayId ?? ''; } catch { selected.value = ''; }
   } else if (id !== previousId) selected.value = '';
 });
 watch(url, () => { frameLoaded.value = false; });
-onBeforeUnmount(() => emit('expanded', false));
 </script>

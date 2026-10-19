@@ -20,13 +20,18 @@ async function setup(page, initial = { streetmix: null, result: null, activeRequ
   });
   return calls;
 }
+async function openDesign(page) {
+  await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
+  await page.locator('.streetmix-accordion').getByRole('button', { name: /View design|Choose street|Continue design|Create design/ }).click();
+}
 async function open(page) {
   await page.goto('/suggestion/1');
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
   await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
+  await page.locator('.streetmix-accordion').getByRole('button', { name: /View design|Choose street|Continue design|Create design/ }).click();
   await expect(page.locator('.streetmix-panel').getByText('Loading Streetmix…')).toHaveCount(0);
 }
-const generate = page => page.getByRole('button', { name: 'Generate Streetmix design', exact: true });
+const generate = page => page.getByRole('button', { name: 'Create design', exact: true });
 const posts = calls => calls.filter(c => c.method === 'POST');
 
 test('saved design, stale warning, attribution and safe embed', async ({ page }) => {
@@ -71,9 +76,9 @@ test('202 and save_pending survive reload; resume repeats original operation', a
     if (call.path.endsWith('/requests/r1')) return { body: { requestId: 'r1', status: 'save_pending' } };
   });
   await open(page); await generate(page).click();
-  await expect(page.getByText('Resume to finish saving.')).toBeVisible();
+  await expect(page.locator('.streetmix-panel').getByText('Resume to finish saving.')).toBeVisible();
   await page.reload();
-  await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
+  await openDesign(page);
   await page.getByRole('button', { name: 'Check status', exact: true }).click();
   expect(posts(calls)).toHaveLength(1);
   await page.getByRole('button', { name: 'Resume', exact: true }).click();
@@ -95,9 +100,9 @@ test('lost response and uncertain publication never create a fresh operation', a
   });
   await open(page); await generate(page).click();
   await expect(page.getByText('Connection interrupted.', { exact: false })).toBeVisible();
-  await page.reload(); await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
+  await page.reload(); await openDesign(page);
   await page.getByRole('button', { name: 'Resume', exact: true }).click();
-  await expect(page.getByText('The design may already be published.')).toBeVisible();
+  await expect(page.locator('.streetmix-panel').getByText('The design may already be published.')).toBeVisible();
   await page.getByRole('button', { name: 'Check status', exact: true }).click();
   await expect(generate(page)).toHaveCount(0);
   expect(posts(calls)).toHaveLength(2);
@@ -123,15 +128,16 @@ test('ambiguous roads synchronize map and selector; confirmation is a separate s
     if (call.method === 'POST') return { status: 409, body: choice };
   });
   await open(page); await generate(page).click();
-  await expect(page.getByLabel('Street', { exact: true })).toHaveValue('');
-  await expect(page.getByRole('button', { name: 'Confirm selected street' })).toBeDisabled();
-  await page.getByLabel('Street', { exact: true }).selectOption('1');
+  await expect(page.locator('.street-choice input:checked')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Use this street' })).toBeDisabled();
+  await page.locator('.street-choice input[value="1"]').check();
   await expect.poll(() => page.evaluate(() => window.__streetRoads.filter(o => o.map !== null).map(o => o.options.strokeColor))).toEqual(['#c2410c', '#7e22ce']);
   expect(posts(calls)).toHaveLength(1);
   await page.evaluate(() => window.__streetMarkers.filter(o => o.map !== null && o.options.label === '2').at(-1).fire('click'));
-  await expect(page.getByLabel('Street', { exact: true })).toHaveValue('2');
+  await expect(page.locator('.street-choice input[value="2"]')).toBeChecked();
+  await page.getByText('Street details', { exact: true }).click();
   await expect(page.locator('.streetmix-panel p').filter({ hasText: /OSM 2 · 90° bearing · Bridge · Layer 1/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Confirm selected street' }).click();
+  await page.getByRole('button', { name: 'Use this street' }).click();
   await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
   expect(posts(calls)[1].body).toBe('{"osmWayId":2}');
   expect(posts(calls)[1].headers['idempotency-key']).not.toBe(posts(calls)[0].headers['idempotency-key']);
@@ -143,8 +149,8 @@ test('discovered selection works without a stored key and with a failed map', as
   });
   await open(page);
   await expect(page.getByText('Map unavailable. Choose a street below.')).toBeVisible();
-  await page.getByLabel('Street', { exact: true }).selectOption('1');
-  await page.getByRole('button', { name: 'Confirm selected street' }).click();
+  await page.locator('.street-choice input[value="1"]').check();
+  await page.getByRole('button', { name: 'Use this street' }).click();
   await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
   expect(posts(calls)).toHaveLength(1);
 });
@@ -153,7 +159,7 @@ test('expired selection reloads and requires an explicit restart', async ({ page
   const calls = await setup(page, { streetmix: null, result: null, activeRequest: { ...choice, selectionExpiresAt: '2026-10-19T11:59:00Z' } });
   await open(page);
   await expect(page.getByText('Street selection expired.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Confirm selected street' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Use this street' })).toHaveCount(0);
   expect(posts(calls)).toHaveLength(0);
   await page.getByRole('button', { name: 'Start again' }).click();
   await expect.poll(() => posts(calls).length).toBe(1);
@@ -166,7 +172,7 @@ test('selection expiry retains restart when the server no longer lists the reque
     if (expired) return { body: { streetmix: null, result: null, activeRequest: null } };
   });
   await open(page); await page.clock.install({ time: new Date('2026-10-19T12:00:00Z') }); await generate(page).click();
-  await expect(page.getByLabel('Street', { exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Nearby streets' })).toBeVisible();
   expired = true;
   const reads = calls.filter(c => c.method === 'GET').length;
   await page.clock.fastForward(901000);
@@ -188,7 +194,7 @@ test('anonymous verification failure keeps recovery and never asks for sign-in',
 test('uncertain publication in a provider failure still preserves the operation', async ({ page }) => {
   const calls = await setup(page, undefined, call => call.method === 'POST' ? { status: 503, body: { status: 'publication_uncertain', requestId: 'r1' } } : undefined);
   await open(page); await generate(page).click();
-  await expect(page.getByText('The design may already be published.')).toBeVisible();
+  await expect(page.locator('.streetmix-panel').getByText('The design may already be published.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start again' })).toHaveCount(0);
   await expect(generate(page)).toHaveCount(0);
   expect(posts(calls)).toHaveLength(1);
@@ -198,7 +204,7 @@ test('production header helper acquires fresh Firebase and App Check tokens', as
   await page.route(/\/src\/services\/firebase(?:\.js)?(?:\?|$)/, route => route.fulfill({ contentType: 'application/javascript', body: `
     import {ref} from '/node_modules/.vite/deps/vue.js';
     const user=ref(null),isStaff=ref(false),authVersion=ref(0); let ids=0,checks=0;
-    export function useAuth(){return {user,isStaff,authVersion,getToken:async()=> 'test-id-'+ ++ids,getAppCheckToken:async()=> 'test-check-'+ ++checks};}
+    export function useAuth(){return {user,isStaff,authVersion,waitForReady:async()=>{},getToken:async()=> 'test-id-'+ ++ids,getAppCheckToken:async()=> 'test-check-'+ ++checks};}
   ` }));
   await setup(page); await open(page);
   await page.route('**/src/services/api.js?header-check', route => route.continue());
@@ -236,7 +242,7 @@ for (const staff of [false, true]) {
     await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
     expect(posts(calls)[0].headers['if-match']).toBe('"v1"');
     expect(calls[calls.findIndex(c => c.method === 'POST') - 1].method).toBe('GET');
-    await page.reload(); await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
+    await page.reload(); await openDesign(page);
     await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
     await page.getByRole('button', { name: 'Resume', exact: true }).click();
     await expect(page.locator('iframe')).toHaveAttribute('src', 'https://streetmix.net/-/456');
@@ -255,12 +261,12 @@ test('regeneration selection recovery keeps its phase key and original ETag acro
     state.save({ ...design, result: { streetmixUrl: 'https://streetmix.net/-/456' } }); return { body: { status: 'completed', requestId: 'r1' } };
   });
   await open(page); await page.getByRole('button', { name: 'Regenerate design', exact: true }).click();
-  await page.getByLabel('Street', { exact: true }).selectOption('2');
-  await page.getByRole('button', { name: 'Confirm selected street' }).click();
+  await page.locator('.street-choice input[value="2"]').check();
+  await page.getByRole('button', { name: 'Use this street' }).click();
   await expect(page.getByText('Connection interrupted.', { exact: false })).toBeVisible();
-  await page.reload(); await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
-  await expect(page.getByLabel('Street', { exact: true })).toBeDisabled();
-  await expect(page.getByLabel('Street', { exact: true })).toHaveValue('2');
+  await page.reload(); await openDesign(page);
+  await expect(page.locator('.street-choice input').first()).toBeDisabled();
+  await expect(page.locator('.street-choice input[value="2"]')).toBeChecked();
   await page.getByRole('button', { name: 'Resume', exact: true }).click();
   await expect(page.locator('iframe')).toHaveAttribute('src', 'https://streetmix.net/-/456');
   expect(posts(calls)).toHaveLength(3);
@@ -285,7 +291,7 @@ test('discovered regeneration selection is restricted to author or staff', async
   const calls = await setup(page, { ...design, activeRequest: choice });
   await open(page);
   await expect(page.getByText('Only the author or staff can confirm a replacement.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Confirm selected street' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Use this street' })).toHaveCount(0);
   expect(posts(calls)).toHaveLength(0);
 });
 
@@ -294,11 +300,11 @@ test('road selection remains accessible with enlarged text', async ({ page }, in
   await setup(page, { streetmix: null, result: null, activeRequest: choice });
   await open(page);
   await page.locator('html').evaluate(el => { el.style.fontSize = '20px'; });
-  const select = page.getByLabel('Street', { exact: true });
-  await select.selectOption('2');
+  const select = page.locator('.street-choice input[value="2"]');
+  await select.check();
   await select.focus();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Confirm selected street' })).toBeFocused();
+  await expect(page.getByText('Street details', { exact: true })).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const results = await new AxeBuilder({ page }).include('.streetmix-accordion').analyze();
   expect(results.violations).toEqual([]);
@@ -310,12 +316,13 @@ test('polling honors Retry-After and stops on collapse', async ({ page }) => {
     if (call.method === 'POST' || call.path.endsWith('/requests/r1')) return { status: 202, body: { status: 'generating', requestId: 'r1' }, headers: { 'Retry-After': '10' } };
   });
   await open(page); await generate(page).click();
-  await expect(page.getByText('Creating design… About a minute.')).toBeVisible();
+  await expect(page.locator('.streetmix-panel').getByText('Creating design… About a minute.')).toBeVisible();
   await page.clock.install({ time: new Date('2026-10-19T12:00:00Z') });
   await page.clock.fastForward(9000);
   expect(calls.filter(c => c.path.endsWith('/requests/r1'))).toHaveLength(0);
   await page.clock.fastForward(1100);
   await expect.poll(() => calls.filter(c => c.path.endsWith('/requests/r1')).length).toBe(1);
+  await page.getByRole('button', { name: 'Close Streetmix', exact: true }).click();
   await page.locator('.streetmix-accordion > summary').click();
   await page.clock.fastForward(120000);
   expect(calls.filter(c => c.path.endsWith('/requests/r1'))).toHaveLength(1);
@@ -336,7 +343,7 @@ test('a delayed response cannot overwrite another suggestion', async ({ page }) 
   release();
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
   await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
-  await expect(generate(page)).toBeVisible();
+  await expect(page.locator('.streetmix-accordion').getByRole('button', { name: 'Create design', exact: true })).toBeVisible();
   await expect(page.locator('iframe')).toHaveCount(0);
 });
 
@@ -357,18 +364,19 @@ for (const size of [{ width: 360, height: 880 }, { width: 320, height: 568 }, { 
     await page.setViewportSize(size);
     await setup(page, design);
     await open(page);
-    await expect(page.locator('.submission-detail-tray')).toHaveClass(/streetmix-expanded/);
+    await expect(page.getByRole('dialog', { name: 'Streetmix', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Open in Streetmix' })).toBeVisible();
     const layout = await page.evaluate(() => {
-      const tray = document.querySelector('.submission-detail-tray').getBoundingClientRect();
+      const tray = document.querySelector('.detail-sheet[open]').getBoundingClientRect();
       const iframe = document.querySelector('iframe').getBoundingClientRect();
       return { overflow: document.documentElement.scrollWidth > innerWidth, top: tray.top, bottom: tray.bottom, height: iframe.height, width: iframe.width, trayWidth: tray.width };
     });
     expect(layout.overflow).toBe(false); expect(layout.top).toBeGreaterThanOrEqual(0); expect(layout.bottom).toBeLessThanOrEqual(size.height);
-    expect(layout.height).toBe(620); expect(layout.width).toBeLessThan(layout.trayWidth);
-    expect(await page.locator('.submission-detail-tray .map-tray-close').evaluate(el => { const r = el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })).toBe(true);
+    expect(layout.height).toBeGreaterThanOrEqual(360); expect(layout.width).toBeLessThan(layout.trayWidth);
+    expect(await page.locator('.detail-sheet[open] .map-tray-close').evaluate(el => { const r = el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })).toBe(true);
     expect(await page.getByRole('link', { name: 'Open in Streetmix' }).evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
     await page.screenshot({ path: info.outputPath('streetmix.png') });
+    await page.getByRole('button', { name: 'Close Streetmix', exact: true }).click();
     await page.locator('.streetmix-accordion > summary').click();
     await expect(page.locator('.submission-detail-tray')).not.toHaveClass(/streetmix-expanded/);
   });

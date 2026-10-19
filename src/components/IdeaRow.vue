@@ -12,7 +12,7 @@
         <span class="idea-metadata">{{ workspace.formatCreationDate(item.creationDate) }}<template v-if="item._formattedDistance"> · {{ item._formattedDistance }} away</template></span>
       </span>
     </router-link>
-    <BookmarkButton :item="item" :aria-describedby="summaryId" @changed="emit('bookmark-changed', $event)" />
+    <BookmarkButton :item="item" :aria-describedby="summaryId" @changed="(button, previous) => emit('bookmark-changed', button, previous)" />
   </li>
 </template>
 <script setup>
