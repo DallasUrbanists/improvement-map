@@ -20,7 +20,7 @@ const AUTHOR_PROFILE_STORAGE_KEY = 'improvement_map_author_profile';
 const ACTIVE_INFOWINDOW_SUGGESTION_KEY = 'improvement_map_active_infowindow_suggestion_id';
 
 export const DEFAULT_MARKER_SETTINGS = Object.freeze({
-  markerZoomThreshold: 17,
+  markerZoomThreshold: 1,
   heatmapOpacity: 0,
   heatmapRadius: 8,
   markerPulseSpeed: 0.9,

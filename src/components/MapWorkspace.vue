@@ -1025,7 +1025,7 @@ watch(
 
 
 const isBrowse = computed(() => route.name === 'Browse');
-const isDensityMode = computed(() => isBrowse.value && !isList.value && mapZoom.value < markerZoomThreshold.value);
+const isDensityMode = computed(() => isBrowse.value && !isList.value && route.query.view !== 'map' && mapZoom.value < markerZoomThreshold.value);
 const isList = computed(() => isBrowse.value && (route.query.view === 'list' || (!route.query.view && savedTab === 'list')));
 const submission = shallowRef(null);
 const initialDraft = loadWizardDraft();
