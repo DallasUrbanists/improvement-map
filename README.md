@@ -1,5 +1,7 @@
 # Dallas Urbanists Improvement Map
 
+For focused development tests, integration checks, and launch-polish audits, see [the mobile usability audit guide](docs/usability-audit.md).
+
 A touch-friendly, mobile-first **Progressive Web App (PWA)** built for pedestrians, cyclists, and transit users to submit on-the-ground civic improvement suggestions and explore existing community feedback.
 
 Hosted on **GitHub Pages**: [https://dallasurbanists.github.io/improvement-map/](https://dallasurbanists.github.io/improvement-map/)

@@ -1,0 +1,43 @@
+import { defineConfig, devices } from '@playwright/test';
+
+const full = process.env.UX_FULL === '1';
+const profiles = [
+  ['android', { ...devices['Pixel 5'] }],
+  ['iphone', { ...devices['iPhone 13'], defaultBrowserType: 'webkit' }],
+  ...(full ? [
+    ['narrow', { ...devices['iPhone SE'], viewport: { width: 320, height: 568 } }],
+    ['landscape', { ...devices['iPhone 13 landscape'] }],
+    ['desktop', { ...devices['Desktop Chrome'] }],
+  ] : []),
+];
+
+export default defineConfig({
+  testDir: './tests/ux',
+  testIgnore: '**/live.spec.js',
+  timeout: 90000,
+  expect: { timeout: 8000 },
+  fullyParallel: true,
+  workers: process.env.CI ? 2 : 2,
+  retries: process.env.CI ? 1 : 0,
+  forbidOnly: !!process.env.CI,
+  outputDir: 'test-results/ux',
+  reporter: [['list'], ['./scripts/ux-reporter.js'], ['html', { outputFolder: 'playwright-report/ux', open: 'never' }]],
+  // Missing baselines must be reviewed, never silently accepted.
+  updateSnapshots: 'none',
+  snapshotPathTemplate: '{testDir}/snapshots/{platform}/{projectName}/{arg}{ext}',
+  use: {
+    actionTimeout: 10000,
+    baseURL: 'http://127.0.0.1:5174', serviceWorkers: 'block',
+    trace: 'retain-on-failure', screenshot: 'only-on-failure',
+    reducedMotion: 'reduce', locale: 'en-US', timezoneId: 'America/Chicago',
+  },
+  webServer: {
+    command: 'npm run dev -- --config vite.ux.config.js --host 127.0.0.1 --port 5174 --strictPort',
+    url: 'http://127.0.0.1:5174', reuseExistingServer: false,
+    timeout: 120000,
+    env: { VITE_FIREBASE_API_KEY: '', VITE_RECAPTCHA_SITE_KEY: '' },
+  },
+  projects: profiles.flatMap(([name, use]) => ['light', 'dark'].map(colorScheme => ({
+    name: `${name}-${colorScheme}`, use: { ...use, colorScheme },
+  }))),
+});

@@ -1,0 +1,98 @@
+{
+  "state": "review-invalid",
+  "project": "android-dark",
+  "visited": [
+    "submit-locate",
+    "submit-photos-empty",
+    "submit-photo-added",
+    "description-invalid",
+    "description-long",
+    "submit-review",
+    "draft-restored",
+    "submit-reopened-at-locate",
+    "review-invalid"
+  ],
+  "transitions": [
+    [
+      "submit-locate",
+      "submit-photos-empty"
+    ],
+    [
+      "submit-photos-empty",
+      "submit-photo-added"
+    ],
+    [
+      "submit-photo-added",
+      "description-invalid"
+    ],
+    [
+      "description-invalid",
+      "description-long"
+    ],
+    [
+      "description-long",
+      "submit-review"
+    ],
+    [
+      "submit-review",
+      "draft-restored"
+    ],
+    [
+      "draft-restored",
+      "submit-reopened-at-locate"
+    ],
+    [
+      "submit-reopened-at-locate",
+      "review-invalid"
+    ]
+  ],
+  "layout": [
+    {
+      "kind": "touch-target",
+      "target": "Copy latitude and longitude: 32.780000, -96.800000",
+      "width": 173.234375,
+      "height": 30
+    },
+    {
+      "kind": "obstructed-control",
+      "target": "Copy latitude and longitude: 32.780000, -96.800000"
+    },
+    {
+      "kind": "touch-target",
+      "target": "Open photo 1",
+      "width": 79.75,
+      "height": 41.75
+    },
+    {
+      "kind": "touch-target",
+      "target": "Search address or neighborhood",
+      "width": 335,
+      "height": 36
+    }
+  ],
+  "accessibility": [
+    {
+      "id": "meta-viewport",
+      "impact": "moderate",
+      "description": "Ensure <meta name=\"viewport\"> does not disable text scaling and zooming",
+      "nodes": [
+        {
+          "target": [
+            "meta[name=\"viewport\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  user-scalable=no on <meta> tag disables zooming on mobile devices"
+        }
+      ]
+    }
+  ],
+  "incomplete": [
+    {
+      "id": "color-contrast",
+      "targets": [
+        [
+          ".map-ui.map-ui-button"
+        ]
+      ]
+    }
+  ]
+}

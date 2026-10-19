@@ -402,7 +402,7 @@
         <div>
           <label for="input-author-name" class="block text-sm font-bold mb-1.5 flex items-center justify-between">
             <span>Your display name <span class="text-red-500">*</span></span>
-            <span class="text-xs font-normal text-zinc-400">{{ (draft.author?.name || '').length }}/70</span>
+            <span class="text-xs font-normal text-zinc-600 dark:text-zinc-400">{{ (draft.author?.name || '').length }}/70</span>
           </label>
           <input
             id="input-author-name"
@@ -414,7 +414,7 @@
             class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
             required
           />
-          <p v-if="errors.authorName" class="text-xs text-red-500 mt-1 flex items-center gap-1">
+          <p v-if="errors.authorName" class="text-xs text-red-600 dark:text-red-300 mt-1 flex items-center gap-1">
             <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
             {{ errors.authorName }}
           </p>
@@ -432,7 +432,7 @@
             class="w-full px-4 py-3 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-black dark:text-white placeholder-zinc-400 focus:outline-none"
             required
           />
-          <p v-if="errors.authorEmail" class="text-xs text-red-500 mt-1 flex items-center gap-1">
+          <p v-if="errors.authorEmail" class="text-xs text-red-600 dark:text-red-300 mt-1 flex items-center gap-1">
             <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
             {{ errors.authorEmail }}
           </p>

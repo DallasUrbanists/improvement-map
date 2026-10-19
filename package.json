@@ -14,7 +14,11 @@
     "test": "playwright test",
     "major": "npm version major && git push origin main --tags",
     "minor": "npm version minor && git push origin main --tags",
-    "patch": "npm version patch && git push origin main --tags"
+    "patch": "npm version patch && git push origin main --tags",
+    "test:ux": "node scripts/test-ux.js",
+    "test:ux:full": "node scripts/test-ux.js --full",
+    "test:ux:live": "playwright test --config=playwright.ux-live.config.js",
+    "test:feature": "node scripts/test-feature.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
@@ -29,6 +33,7 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.50.1",
     "@vitejs/plugin-vue": "^5.2.1",
     "autoprefixer": "^10.4.20",

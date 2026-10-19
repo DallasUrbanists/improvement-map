@@ -19,7 +19,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  usability:
+    uses: ./.github/workflows/usability.yml
   build-and-deploy:
+    needs: usability
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

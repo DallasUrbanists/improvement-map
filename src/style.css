@@ -139,6 +139,7 @@ body {
   --map-control-active: #fff0ce;
 }
 .map-toolbar { display: inline-flex; width: max-content; max-width: none; align-items: center; padding: 0; overflow: hidden; }
+.map-toolbar > .map-ui-button { min-width: 44px; min-height: 44px; }
 .map-ui-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 40px; flex-shrink: 0; padding: 0 10px; border: 0; border-radius: 8px;
@@ -179,9 +180,9 @@ body {
 
 @media (max-width: 400px) {
   .map-toolbar .map-ui-button { padding-left: 6px; padding-right: 6px; gap: 4px; font-size: 11px; }
-  .map-toolbar .map-icon-button { width: 40px; height: 40px; padding: 0; }
+  .map-toolbar .map-icon-button { width: 44px; height: 44px; padding: 0; }
 }
-.map-toolbar .map-icon-button { width: 40px; height: 40px; padding: 0; aspect-ratio: 1; }
+.map-toolbar .map-icon-button { width: 44px; height: 44px; padding: 0; aspect-ratio: 1; }
 
 /* Keep the Maps attribution and its links readable against the dark basemap. */
 .dark .gm-style a:has(img[alt="Google"]),
@@ -249,6 +250,10 @@ body {
 .marker-settings-dialog { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; overflow-y: auto; border: 1px solid var(--map-control-border); border-radius: 16px; background: var(--map-control-bg); color: var(--map-control-text); box-shadow: 0 16px 64px #0006; }
 .marker-settings-tray { position: fixed; z-index: 100; top: calc(60px + 40vh); right: auto; bottom: 88px; left: 50%; width: calc(100% - 24px); height: calc(100dvh - (60px + 40vh) - 88px); max-width: 960px; max-height: none; margin: 0; border-radius: 12px; transform: translateX(-50%); }
 .marker-settings-tray::backdrop { background: transparent; }
+/* Give settings usable space above the toolbar on short landscape screens. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .marker-settings-tray { top: 72px; height: calc(100dvh - 160px); }
+}
 .marker-settings-tray { scrollbar-color: var(--map-control-bg) var(--map-control-border); scrollbar-width: thin; }
 .marker-settings-tray::-webkit-scrollbar { width: 12px; }
 .marker-settings-tray::-webkit-scrollbar-track { background: var(--map-control-border); }

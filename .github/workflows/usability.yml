@@ -1,0 +1,55 @@
+name: Mobile usability audit
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run the expanded device matrix
+        type: boolean
+        default: true
+  schedule:
+    - cron: '0 13 * * 1'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Run usability checks
+        id: checks
+        # Initial rollout reports failures. Set repository variable UX_ENFORCE
+        # to true only after the findings ledger has been triaged.
+        continue-on-error: ${{ vars.UX_ENFORCE != 'true' }}
+        env:
+          UX_STRICT: ${{ vars.UX_ENFORCE == 'true' && '1' || '0' }}
+          FULL: ${{ github.event_name == 'schedule' || inputs.full == true }}
+        run: |
+          if [ "$FULL" = "true" ]; then
+            npm run test:ux:full
+          else
+            npm run test:ux
+          fi
+      - name: Publish audit outcome
+        if: always()
+        env:
+          OUTCOME: ${{ steps.checks.outcome }}
+        run: |
+          echo "## Mobile usability audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checks: $OUTCOME. Download ux-report for state screenshots, findings, coverage and failure traces. Accessibility/layout findings are annotations until UX_ENFORCE is enabled." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ux-report
+          path: |
+            playwright-report/ux/
+            test-results/ux/
+          retention-days: 14

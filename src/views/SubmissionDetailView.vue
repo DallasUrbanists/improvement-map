@@ -40,7 +40,7 @@
     >
       <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-3" aria-hidden="true"></i>
       <h2 class="text-xl font-bold mb-2">Suggestion Not Found</h2>
-      <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">{{ errorMessage }}</p>
+      <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-6">{{ errorMessage }}</p>
       <k-button
         component="router-link"
         to="/browse"

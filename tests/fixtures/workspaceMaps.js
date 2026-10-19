@@ -59,14 +59,19 @@ export function installWorkspaceMaps() {
     setMap(map) { this.map = map; }
     getPosition() { return new LatLng(this.options.position); }
     getVisible() { return true; }
+    setIcon(icon) { this.options.icon = icon; }
+    setVisible(visible) { this.options.visible = visible; }
+    setZIndex(zIndex) { this.options.zIndex = zIndex; }
+    setPosition(position) { this.options.position = position; }
   }
   class OverlayView {
     static preventMapHitsAndGesturesFrom() {}
     setMap(map) { this.map = map; if (map) { this.onAdd?.(); this.draw?.(); } else this.onRemove?.(); }
-    getPanes() { return { overlayLayer: this.map.pane }; }
+    getPanes() { return { overlayLayer: this.map.pane, overlayMouseTarget: this.map.pane }; }
     getProjection() {
       const project = position => ({ x: this.map.div.clientWidth / 2 + (position.lng() - this.map.center.lng()) * 10000, y: this.map.div.clientHeight / 2 - (position.lat() - this.map.center.lat()) * 10000 });
-      return { fromLatLngToDivPixel: project, fromLatLngToContainerPixel: project };
+      const unproject = point => new LatLng(this.map.center.lat() - (point.y - this.map.div.clientHeight / 2) / 10000, this.map.center.lng() + (point.x - this.map.div.clientWidth / 2) / 10000);
+      return { fromLatLngToDivPixel: project, fromLatLngToContainerPixel: project, fromContainerPixelToLatLng: unproject, fromDivPixelToLatLng: unproject };
     }
   }
   class InfoWindow extends Events {
@@ -100,5 +105,8 @@ export class MarkerClusterer {
  constructor({map,markers}){this.map=map;this.markers=markers;}
  setMap(map){this.map=map;}
  clearMarkers(){this.markers=[];}
+ render(){}
+ addMarker(marker){this.markers.push(marker);}
+ removeMarker(marker){this.markers=this.markers.filter(item=>item!==marker);}
 }
 `;

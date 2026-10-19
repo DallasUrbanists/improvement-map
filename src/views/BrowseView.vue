@@ -54,7 +54,7 @@
       <k-card v-else :outline="true" :content-wrap="false" class="!m-0 text-center py-12">
         <i class="fa-solid fa-inbox text-3xl text-zinc-400 mb-2"></i>
         <h3 class="text-base font-bold">No suggestions found</h3>
-        <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Be the first to add an idea to the map!</p>
+        <p class="text-xs text-zinc-600 dark:text-zinc-400 mb-4">Be the first to add an idea to the map!</p>
         <k-button component="router-link" to="/submit" :rounded="true" class="text-xs font-bold">
           Submit Suggestion
         </k-button>

@@ -1,0 +1,136 @@
+{
+  "updated": "2026-10-19",
+  "findings": [
+    {
+      "id": "UX-001",
+      "fingerprint": "submit:reenter-from-browse",
+      "status": "intentional",
+      "severity": "none",
+      "states": [
+        "submit-reopened-at-locate",
+        "draft-restored"
+      ],
+      "devices": [
+        "all"
+      ],
+      "reproduction": "Advance a draft, close to Browse, then open Submit again.",
+      "evidence": "Navigation guard resetSubmissionToBrowseCenter; user confirmed this behavior on 2026-10-19.",
+      "decision": "Restart at Locate using Browse location and retain entered content. Do not change to resume the prior step. Refresh within Submit does retain the current step.",
+      "regression": "tests/ux/journeys.spec.js: submission journey"
+    },
+    {
+      "id": "UX-002",
+      "fingerprint": "meta-viewport:meta[name=viewport]",
+      "status": "deferred",
+      "severity": "moderate",
+      "states": [
+        "all"
+      ],
+      "devices": [
+        "mobile"
+      ],
+      "reproduction": "Scan any page; viewport has user-scalable=no.",
+      "evidence": "axe meta-viewport rule in checkpoint JSON.",
+      "decision": "User explicitly requested keeping this setting for now on 2026-10-19. Continue reporting; exempt only this rule from strict blocking. This is not an accessibility compliance claim.",
+      "regression": "tests/ux/audit.js"
+    },
+    {
+      "id": "UX-003",
+      "fingerprint": "color-contrast:light-helper-text-and-name-counter",
+      "status": "fixed",
+      "severity": "serious",
+      "states": [
+        "browse-empty",
+        "detail-error",
+        "submit-review"
+      ],
+      "devices": [
+        "light theme"
+      ],
+      "reproduction": "Open empty Browse, a missing suggestion, or Review with a display name.",
+      "evidence": "docs/usability-evidence/contrast-empty-before.json, contrast-empty-after.json, contrast-review-before.json, contrast-review-after.json; full report includes all device profiles.",
+      "decision": "User approved darkening these text colors. Light colors changed to zinc-600; dark colors and layout preserved. Approved states pass color-contrast regression assertions on Android and iPhone, both themes.",
+      "regression": "tests/ux/journeys.spec.js plus checkpoint color-contrast scans"
+    },
+    {
+      "id": "UX-004",
+      "fingerprint": "icons:external-cdn-required",
+      "status": "fixed",
+      "severity": "moderate",
+      "states": [
+        "browse-map"
+      ],
+      "devices": [
+        "all"
+      ],
+      "reproduction": "Block external requests and open the app; icon-only controls were blank because Font Awesome CSS came from cdnjs.",
+      "evidence": "Initial blocked-network screenshot and index.html CDN reference; existing npm dependency was unused.",
+      "decision": "Imported the installed Font Awesome package from src/main.js and removed the CDN stylesheet. Blocked-network icon regression passed on Android/iPhone and the production build succeeds.",
+      "regression": "tests/ux/guardrails.spec.js: bundled icons"
+    },
+    {
+      "id": "UX-005",
+      "fingerprint": "touch-target:map-toolbar",
+      "status": "fixed",
+      "severity": "minor",
+      "states": [
+        "browse-map"
+      ],
+      "devices": [
+        "mobile"
+      ],
+      "reproduction": "Measure toolbar buttons: current controls are 40px high and icon buttons 40px wide.",
+      "evidence": "docs/usability-evidence/approved-fixes/toolbar-before.png; tests/ux/snapshots/win32/*/toolbar.png. New size assertions failed before the fix; passed afterward, including 320px.",
+      "decision": "User approved 2026-10-19: increase toolbar touch targets to at least 44x44 CSS pixels while retaining compact layout. Added minimum-size and viewport-fit assertions.",
+      "regression": "tests/ux/journeys.spec.js and tests/ux/audit.js; affected journeys passed on Android Chromium and iPhone WebKit, both themes. See docs/usability-evidence/approved-fixes/validation.md."
+    },
+    {
+      "id": "UX-006",
+      "fingerprint": "target-size:search-results-over-browse-sort",
+      "status": "intentional",
+      "severity": "none",
+      "states": [
+        "search-results"
+      ],
+      "devices": [
+        "mobile"
+      ],
+      "reproduction": "Open search results above an open Browse tray; axe flags underlying sort controls.",
+      "evidence": "search-results checkpoint target-size rule and overlap observations.",
+      "decision": "User confirmed intentional behavior on 2026-10-19: search suggestions may temporarily cover Browse sort controls. Preserve this overlay behavior; do not propose changing it again without new evidence of an interaction failure.",
+      "regression": "tests/ux/journeys.spec.js: search-results"
+    },
+    {
+      "id": "UX-007",
+      "fingerprint": "color-contrast:review-validation-messages",
+      "status": "fixed",
+      "severity": "serious",
+      "states": [
+        "review-invalid"
+      ],
+      "devices": [
+        "light and dark themes"
+      ],
+      "reproduction": "At Review, clear display name, enter an invalid email and press Submit.",
+      "evidence": "docs/usability-evidence/approved-fixes/validation-before.json; validation-dark-before.json; validation-light-after.json; validation-dark-after.json",
+      "decision": "User approved light-theme red-600 and, after reproduction showed 3.26:1 contrast in dark mode, also approved dark-theme red-300 on 2026-10-19. Both name/email validation messages now have theme-specific colors. review-invalid has a blocking contrast regression assertion.",
+      "regression": "tests/ux/journeys.spec.js and tests/ux/audit.js; affected journeys passed on Android Chromium and iPhone WebKit, both themes. See docs/usability-evidence/approved-fixes/validation.md."
+    },
+    {
+      "id": "UX-008",
+      "fingerprint": "layout:landscape-marker-settings-height",
+      "status": "fixed",
+      "severity": "minor",
+      "states": [
+        "marker-settings-rotated"
+      ],
+      "devices": [
+        "landscape mobile"
+      ],
+      "reproduction": "Open Marker settings over Browse and rotate to landscape.",
+      "evidence": "docs/usability-evidence/approved-fixes/settings-before.png and settings-after.png. First-control visibility assertion failed before the fix and passed afterward.",
+      "decision": "User approved 2026-10-19: expand settings trays on landscape screens up to 500px tall, preserving portrait layout and toolbar clearance. Added first-control visibility and sticky close-button assertions.",
+      "regression": "tests/ux/journeys.spec.js and tests/ux/audit.js; affected journeys passed on Android Chromium and iPhone WebKit, both themes. See docs/usability-evidence/approved-fixes/validation.md."
+    }
+  ]
+}
