@@ -1,6 +1,18 @@
 import { API_BASE_URL, apiHeaders } from './api';
 
 export const streetmixPath = id => `/api/suggestions/${encodeURIComponent(id)}/streetmix`;
+// Streetmix sends CORP: same-origin. Fetch through our authenticated PNG relay,
+// then use a local blob URL; never send our credentials to Streetmix.
+export async function fetchStreetmixThumbnail(id, { signal } = {}) {
+  const response = await fetch(`${API_BASE_URL}${streetmixPath(id)}/thumbnail`, {
+    headers: await apiHeaders({ Accept: 'image/png' }), cache: 'no-store',
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
+  });
+  if (!response.ok || response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'image/png') throw new Error('Preview unavailable.');
+  const image = await response.blob();
+  if (!image.size || image.size > 5 * 1024 * 1024) throw new Error('Preview unavailable.');
+  return image;
+}
 export function safeStreetmixUrl(value) {
   try {
     const url = new URL(value);

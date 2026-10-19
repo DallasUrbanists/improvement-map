@@ -6,6 +6,7 @@
         <button type="button" class="map-ui-button map-tray-close" :aria-label="`Close ${title}`" autofocus @click="close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
       </header>
       <div class="detail-sheet-content"><slot v-if="modelValue" /></div>
+      <footer v-if="$slots.footer" class="detail-sheet-footer"><slot name="footer" /></footer>
     </dialog>
   </Teleport>
 </template>

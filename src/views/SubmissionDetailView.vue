@@ -117,7 +117,7 @@
             <p v-if="representative.title">{{ representative.title }}</p>
             <p class="secondary-copy">{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
             <div class="action-card-controls">
-              <a v-for="contact in (full ? getRepresentativeContactItems(representative) : getRepresentativeContactItems(representative).slice(0, 3))" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`">{{ contactLabel(contact) }}</a>
+              <a v-for="contact in (full ? getRepresentativeContactItems(representative) : getRepresentativeContactItems(representative).slice(0, 3))" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`" :title="contact.label">{{ contact.buttonLabel }}</a>
             </div>
             <p v-if="!getRepresentativeContactItems(representative).length" class="secondary-copy">Contact information unavailable</p>
           </article>
@@ -491,6 +491,8 @@ function getRepresentativeContactItems(representative) {
       const label = item?.label ? item.label + ': ' + value : value;
       items.push({
         label,
+        value,
+        type,
         href: type === 'email' ? 'mailto:' + value : 'tel:' + value,
         external: false,
       });
@@ -502,10 +504,22 @@ function getRepresentativeContactItems(representative) {
 
   const website = representative.webpage_url;
   if (typeof website === 'string' && /^https?:\/\//i.test(website)) {
-    items.push({ label: 'Website', href: website, external: true });
+    items.push({ label: 'Website', buttonLabel: 'Website', href: website, external: true });
+  }
+
+  for (const type of ['email', 'phone']) {
+    const contacts = items.filter(item => item.type === type);
+    contacts.forEach(contact => {
+      const kindLabel = type === 'email' ? 'Email' : 'Call';
+      contact.buttonLabel = contacts.length > 1 ? truncateContactValue(contact.value, type === 'email' ? 24 : 18) : kindLabel;
+    });
   }
 
   return items;
+}
+
+function truncateContactValue(value, maxLength) {
+  return value.length > maxLength ? value.slice(0, maxLength - 1) + '…' : value;
 }
 
 function handleBoundariesToggle(event) {

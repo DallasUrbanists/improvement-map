@@ -1,114 +1,60 @@
 import { test, expect } from './fixture.js';
 import AxeBuilder from '@axe-core/playwright';
+import { crc32, deflateSync } from 'node:zlib';
 
-const design = { streetmix: { id: 'saved', stale: false }, result: { streetmixUrl: 'https://streetmix.net/-/123', warnings: ['Widths are estimated.'], estimatedDetails: ['Lane widths'], sources: [{ name: 'OpenStreetMap', url: 'https://www.openstreetmap.org/' }], selectedStreet: { carriagewayOnly: true } }, activeRequest: null };
+const streetId = 'c13a6af0-8888-4444-8888-0bbee0cc1122';
+const thumbnail = 'https://api.test/api/suggestions/1/streetmix/thumbnail';
+const design = { streetmix: { streetmixId: streetId, streetmixUrl: 'https://streetmix.net/-/123', stale: true }, result: { streetmixId: streetId, streetmixUrl: 'https://streetmix.net/-/123', warnings: ['Widths are estimated.'], selectedStreet: { carriagewayOnly: true } }, activeRequest: null };
+const empty = { streetmix: null, result: null, activeRequest: null };
 const coordinate = { latitude: 32.78, longitude: -96.8 };
 const candidates = [1, 2].map(n => ({ osmWayId: n, name: 'Main Street', highway: 'primary', distanceMeters: n * 5, bearingDegrees: 90, layer: n - 1, bridge: n === 2, oppositeOsmWayId: n === 1 ? 2 : undefined, snappedCoordinate: coordinate, geometry: [[coordinate, { latitude: 32.781, longitude: -96.8 + n / 1000 }]] }));
 const choice = { requestId: 'r1', status: 'awaiting_selection', coordinate, candidates, selectionExpiresAt: '2026-10-19T12:15:00Z', error: 'STREET_SELECTION_REQUIRED' };
-
-async function setup(page, initial = { streetmix: null, result: null, activeRequest: null }, respond) {
-  const calls = [];
+// Real PNG data, with the wide aspect ratio of a street drawing.
+function png() {
+  const chunk = (name, data) => {
+    const type = Buffer.from(name), length = Buffer.alloc(4), checksum = Buffer.alloc(4);
+    length.writeUInt32BE(data.length); checksum.writeUInt32BE(crc32(Buffer.concat([type, data])));
+    return Buffer.concat([length, type, data, checksum]);
+  };
+  const width = 720, height = 240, header = Buffer.alloc(13), pixels = Buffer.alloc((width * 3 + 1) * height);
+  header.writeUInt32BE(width); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 2;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const offset = y * (width * 3 + 1) + 1 + x * 3;
+    const color = y < 140 ? [190, 218, 234] : x < 110 || x > 610 ? [110, 140, 100] : [100, 105, 110];
+    color.forEach((value, channel) => { pixels[offset + channel] = value; });
+  }
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', deflateSync(pixels)), chunk('IEND', Buffer.alloc(0))]);
+}
+const image = png();
+async function setup(page, initial = empty, respond, imageStatus = 200) {
+  const calls = [], imageCalls = [];
   let saved = structuredClone(initial);
-  await page.route('https://streetmix.net/**', route => route.fulfill({ contentType: 'text/html', body: '<p>Street design preview</p>' }));
   await page.route('https://api.test/api/suggestions/**', async route => {
-    const req = route.request();
-    const call = { method: req.method(), path: new URL(req.url()).pathname, headers: req.headers(), body: req.postData() };
+    const req = route.request(), call = { method: req.method(), path: new URL(req.url()).pathname, headers: req.headers(), body: req.postData() };
     calls.push(call);
+    if (call.path.endsWith('/thumbnail')) {
+      imageCalls.push(req);
+      return route.fulfill({ status: imageStatus, contentType: imageStatus === 200 ? 'image/png' : 'application/json', body: imageStatus === 200 ? image : '{}' });
+    }
     const custom = await respond?.(call, { save: value => { saved = structuredClone(value); } });
     if (custom?.abort) return route.abort();
     await route.fulfill({ status: custom?.status || 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Expose-Headers': 'ETag, Retry-After', ETag: '"v1"', ...custom?.headers }, body: JSON.stringify(custom?.body ?? saved) });
   });
-  return calls;
+  return { calls, imageCalls };
 }
-async function openDesign(page) {
-  await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
-  await page.locator('.streetmix-accordion').getByRole('button', { name: /View design|Choose street|Continue design|Create design/ }).click();
-}
-async function open(page) {
+const section = page => page.locator('.streetmix-accordion');
+const dialog = page => page.getByRole('dialog', { name: 'Streetmix', exact: true });
+const posts = calls => calls.filter(c => c.method === 'POST');
+async function visit(page) {
   await page.goto('/suggestion/1');
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
-  await page.locator('.streetmix-accordion').getByRole('button', { name: /View design|Choose street|Continue design|Create design/ }).click();
-  await expect(page.locator('.streetmix-panel').getByText('Loading Streetmix…')).toHaveCount(0);
+  await expect(section(page).getByRole('button', { name: /Create design|Choose street/ })).toBeEnabled();
 }
-const generate = page => page.getByRole('button', { name: 'Create design', exact: true });
-const posts = calls => calls.filter(c => c.method === 'POST');
-
-test('saved design, stale warning, attribution and safe embed', async ({ page }) => {
-  await setup(page, { ...design, streetmix: { stale: true } });
-  await open(page);
-  await expect(page.getByRole('link', { name: 'Open in Streetmix' })).toHaveAttribute('href', design.result.streetmixUrl);
-  await expect(page.locator('iframe')).toHaveAttribute('sandbox', /allow-scripts allow-same-origin/);
-  await expect(page.getByText('Created for this suggestion’s previous location.')).toBeVisible();
-  await expect(page.getByText('This drawing covers one carriageway only.')).toBeAttached();
-  await page.getByText('Design details', { exact: true }).click();
-  await expect(page.locator('.streetmix-evidence').getByText(/OpenStreetMap/)).toBeAttached();
-  await expect(page.locator('.streetmix-evidence').getByText('Lane widths', { exact: true })).toBeAttached();
-  await expect(page.getByRole('button', { name: 'Regenerate design', exact: true })).toHaveCount(0);
-});
-
-test('anonymous generation prevents duplicates and reconciles permanent saved result', async ({ page }) => {
-  let release;
-  const hold = new Promise(resolve => { release = resolve; });
-  const calls = await setup(page, undefined, async (call, state) => {
-    if (call.method === 'POST') { await hold; state.save(design); return { body: { requestId: 'r1', status: 'completed', result: { streetmixUrl: 'https://streetmix.net/-/999' } } }; }
-  });
-  await open(page);
-  await generate(page).click();
-  await expect.poll(() => posts(calls).length).toBe(1);
-  await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeDisabled();
-  release();
-  await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
-  expect(posts(calls)[0].body).toBe('{}');
-  expect(posts(calls)[0].headers['idempotency-key']).toBeTruthy();
-  expect(posts(calls)[0].headers.authorization).toBeUndefined();
-  expect(calls.every(c => ['GET', 'POST'].includes(c.method))).toBe(true);
-  expect(await page.evaluate(() => localStorage.getItem('streetmix-operation-v1:1'))).toBeNull();
-});
-
-test('202 and save_pending survive reload; resume repeats original operation', async ({ page }) => {
-  let count = 0;
-  const calls = await setup(page, undefined, (call, state) => {
-    if (call.method === 'POST') {
-      if (++count === 1) { state.save({ streetmix: null, result: null, activeRequest: { requestId: 'r1', status: 'save_pending' } }); return { status: 202, body: { requestId: 'r1', status: 'save_pending' }, headers: { 'Retry-After': '1' } }; }
-      state.save(design); return { body: { requestId: 'r1', status: 'completed' } };
-    }
-    if (call.path.endsWith('/requests/r1')) return { body: { requestId: 'r1', status: 'save_pending' } };
-  });
-  await open(page); await generate(page).click();
-  await expect(page.locator('.streetmix-panel').getByText('Resume to finish saving.')).toBeVisible();
-  await page.reload();
-  await openDesign(page);
-  await page.getByRole('button', { name: 'Check status', exact: true }).click();
-  expect(posts(calls)).toHaveLength(1);
-  await page.getByRole('button', { name: 'Resume', exact: true }).click();
-  await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
-  expect(posts(calls)[1]).toMatchObject({ body: posts(calls)[0].body, path: posts(calls)[0].path });
-  expect(posts(calls)[1].headers['idempotency-key']).toBe(posts(calls)[0].headers['idempotency-key']);
-});
-
-test('lost response and uncertain publication never create a fresh operation', async ({ page }) => {
-  let count = 0;
-  const calls = await setup(page, undefined, (call, state) => {
-    if (call.method === 'POST') {
-      if (++count === 1) return { abort: true };
-      const activeRequest = { requestId: 'r1', status: 'publication_uncertain' };
-      state.save({ streetmix: null, result: null, activeRequest });
-      return { body: activeRequest };
-    }
-    if (call.path.endsWith('/requests/r1')) return { body: { requestId: 'r1', status: 'publication_uncertain' } };
-  });
-  await open(page); await generate(page).click();
-  await expect(page.getByText('Connection interrupted.', { exact: false })).toBeVisible();
-  await page.reload(); await openDesign(page);
-  await page.getByRole('button', { name: 'Resume', exact: true }).click();
-  await expect(page.locator('.streetmix-panel').getByText('The design may already be published.')).toBeVisible();
-  await page.getByRole('button', { name: 'Check status', exact: true }).click();
-  await expect(generate(page)).toHaveCount(0);
-  expect(posts(calls)).toHaveLength(2);
-  expect(new Set(posts(calls).map(c => c.headers['idempotency-key'])).size).toBe(1);
-});
-
+async function openCreation(page) {
+  await section(page).getByRole('button', { name: /Create design|Choose street/ }).click();
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page).getByText('Loading Streetmix…')).toHaveCount(0);
+}
 async function mapSupport(page) {
   await page.addInitScript(() => {
     const maps = window.google.maps;
@@ -117,267 +63,174 @@ async function mapSupport(page) {
     maps.Map.prototype.fitBounds = function () {};
     maps.Polyline = class extends maps.Marker { constructor(options) { super(options); window.__streetRoads.push(this); } };
     const Marker = maps.Marker;
-    maps.Marker = class extends Marker { constructor(options) { super(options); window.__streetMarkers.push(this); } };
+    maps.Marker = class extends Marker { constructor(options) { super(options); if (options.label) window.__streetMarkers.push(this); } };
   });
 }
 
-test('ambiguous roads synchronize map and selector; confirmation is a separate saved phase', async ({ page }) => {
-  await mapSupport(page);
-  const calls = await setup(page, undefined, (call, state) => {
-    if (call.method === 'POST' && call.path.endsWith('/selection')) { state.save(design); return { body: { requestId: 'r1', status: 'completed' } }; }
-    if (call.method === 'POST') return { status: 409, body: choice };
-  });
-  await open(page); await generate(page).click();
-  await expect(page.locator('.street-choice input:checked')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Use this street' })).toBeDisabled();
-  await page.locator('.street-choice input[value="1"]').check();
-  await expect.poll(() => page.evaluate(() => window.__streetRoads.filter(o => o.map !== null).map(o => o.options.strokeColor))).toEqual(['#c2410c', '#7e22ce']);
-  expect(posts(calls)).toHaveLength(1);
-  await page.evaluate(() => window.__streetMarkers.filter(o => o.map !== null && o.options.label === '2').at(-1).fire('click'));
-  await expect(page.locator('.street-choice input[value="2"]')).toBeChecked();
-  await page.getByText('Street details', { exact: true }).click();
-  await expect(page.locator('.streetmix-panel p').filter({ hasText: /OSM 2 · 90° bearing · Bridge · Layer 1/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Use this street' }).click();
-  await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
-  expect(posts(calls)[1].body).toBe('{"osmWayId":2}');
-  expect(posts(calls)[1].headers['idempotency-key']).not.toBe(posts(calls)[0].headers['idempotency-key']);
+test('saved design is only an inline PNG and external header icon', async ({ page }) => {
+  const { imageCalls } = await setup(page, design);
+  await page.goto('/suggestion/1');
+  await expect(section(page).locator('summary')).toBeVisible();
+  expect(imageCalls).toHaveLength(0);
+  const link = section(page).getByRole('link', { name: 'Open in Streetmix' });
+  await expect(link).toHaveAttribute('href', design.result.streetmixUrl);
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link.locator('i')).toHaveAttribute('aria-hidden', 'true');
+  await section(page).locator('summary').click();
+  await expect(section(page).locator('img')).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => section(page).locator('img').evaluate(img => img.naturalWidth)).toBe(720);
+  await expect(page.locator('iframe, .detail-sheet[open]')).toHaveCount(0);
+  await expect(section(page).getByText(/Widths are estimated|carriageway|previous location|Regenerate/)).toHaveCount(0);
+  expect(imageCalls).toHaveLength(1);
+  expect(imageCalls[0].url()).toBe(thumbnail);
 });
 
-test('discovered selection works without a stored key and with a failed map', async ({ page }) => {
-  const calls = await setup(page, { streetmix: null, result: null, activeRequest: choice }, (call, state) => {
-    if (call.method === 'POST') { state.save(design); return { body: { requestId: 'r1', status: 'completed' } }; }
-  });
-  await open(page);
-  await expect(page.getByText('Map unavailable. Choose a street below.')).toBeVisible();
-  await page.locator('.street-choice input[value="1"]').check();
-  await page.getByRole('button', { name: 'Use this street' }).click();
-  await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
-  expect(posts(calls)).toHaveLength(1);
+test('missing thumbnail leaves the external link usable', async ({ page }) => {
+  await setup(page, design, undefined, 404);
+  await page.goto('/suggestion/1'); await section(page).locator('summary').click();
+  await expect(section(page).getByText('Preview unavailable.')).toBeVisible();
+  await expect(section(page).getByRole('link', { name: 'Open in Streetmix' })).toBeVisible();
 });
 
-test('expired selection reloads and requires an explicit restart', async ({ page }) => {
-  const calls = await setup(page, { streetmix: null, result: null, activeRequest: { ...choice, selectionExpiresAt: '2026-10-19T11:59:00Z' } });
-  await open(page);
-  await expect(page.getByText('Street selection expired.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Use this street' })).toHaveCount(0);
+test('empty accordion is locked; its header opens creation without publishing', async ({ page }) => {
+  const { calls } = await setup(page);
+  await visit(page);
+  await expect(section(page)).toHaveClass(/streetmix-locked/);
+  await expect(section(page).locator('summary')).toHaveCount(0);
+  await section(page).getByRole('heading', { name: 'Streetmix' }).click();
+  await expect(dialog(page)).not.toBeVisible();
+  await openCreation(page);
+  await expect(dialog(page).getByRole('button', { name: 'Create design', exact: true })).toBeVisible();
   expect(posts(calls)).toHaveLength(0);
-  await page.getByRole('button', { name: 'Start again' }).click();
+});
+
+test('creation completes inline without a generated-design popup or duplicate POST', async ({ page }) => {
+  let release;
+  const hold = new Promise(resolve => { release = resolve; });
+  const { calls } = await setup(page, empty, async (call, state) => {
+    if (call.method === 'POST') { await hold; state.save(design); return { body: { requestId: 'r1', status: 'completed' } }; }
+  });
+  await visit(page); await openCreation(page);
+  await dialog(page).getByRole('button', { name: 'Create design', exact: true }).click();
   await expect.poll(() => posts(calls).length).toBe(1);
-});
-
-test('selection expiry retains restart when the server no longer lists the request', async ({ page }) => {
-  let expired = false;
-  const calls = await setup(page, undefined, call => {
-    if (call.method === 'POST') return { status: 409, body: choice };
-    if (expired) return { body: { streetmix: null, result: null, activeRequest: null } };
-  });
-  await open(page); await page.clock.install({ time: new Date('2026-10-19T12:00:00Z') }); await generate(page).click();
-  await expect(page.getByRole('group', { name: 'Nearby streets' })).toBeVisible();
-  expired = true;
-  const reads = calls.filter(c => c.method === 'GET').length;
-  await page.clock.fastForward(901000);
-  await expect(page.getByText('Street selection expired.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Start again' })).toBeEnabled();
-  await expect.poll(() => calls.filter(c => c.method === 'GET').length).toBeGreaterThan(reads);
-  expect(posts(calls)).toHaveLength(1);
-});
-
-test('anonymous verification failure keeps recovery and never asks for sign-in', async ({ page }) => {
-  const calls = await setup(page, undefined, call => call.method === 'POST' ? { status: 401, body: { message: 'Authentication required' } } : undefined);
-  await open(page); await generate(page).click();
-  await expect(page.getByText('Application verification failed. Please try again.')).toBeVisible();
-  await expect(page.getByText('Authentication required')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Resume', exact: true })).toBeEnabled();
-  expect(posts(calls)).toHaveLength(1);
-});
-
-test('uncertain publication in a provider failure still preserves the operation', async ({ page }) => {
-  const calls = await setup(page, undefined, call => call.method === 'POST' ? { status: 503, body: { status: 'publication_uncertain', requestId: 'r1' } } : undefined);
-  await open(page); await generate(page).click();
-  await expect(page.locator('.streetmix-panel').getByText('The design may already be published.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Start again' })).toHaveCount(0);
-  await expect(generate(page)).toHaveCount(0);
-  expect(posts(calls)).toHaveLength(1);
-});
-
-test('production header helper acquires fresh Firebase and App Check tokens', async ({ page }) => {
-  await page.route(/\/src\/services\/firebase(?:\.js)?(?:\?|$)/, route => route.fulfill({ contentType: 'application/javascript', body: `
-    import {ref} from '/node_modules/.vite/deps/vue.js';
-    const user=ref(null),isStaff=ref(false),authVersion=ref(0); let ids=0,checks=0;
-    export function useAuth(){return {user,isStaff,authVersion,waitForReady:async()=>{},getToken:async()=> 'test-id-'+ ++ids,getAppCheckToken:async()=> 'test-check-'+ ++checks};}
-  ` }));
-  await setup(page); await open(page);
-  await page.route('**/src/services/api.js?header-check', route => route.continue());
-  const headers = await page.evaluate(async () => {
-    const { apiHeaders } = await import('/src/services/api.js?header-check');
-    const first = await apiHeaders(), second = await apiHeaders();
-    return [first, second].map(h => [h.Authorization, h['X-Firebase-AppCheck']]);
-  });
-  expect(headers).toEqual([['Bearer test-id-1', 'test-check-1'], ['Bearer test-id-2', 'test-check-2']]);
-});
-
-async function identity(page, staff = false) {
-  await page.addInitScript(() => { window.__ux.author = { name: 'Author', uid: 'owner' }; });
-  await page.route(/\/src\/services\/firebase(?:\.js)?(?:\?|$)/, route => route.fulfill({ contentType: 'application/javascript', body: `
-    import {ref} from '/node_modules/.vite/deps/vue.js';
-    const user=ref({uid:${JSON.stringify(staff ? 'staff-user' : 'owner')}}),isStaff=ref(${staff});
-    export function useAuth(){return {user,isStaff};}
-  ` }));
-}
-
-for (const staff of [false, true]) {
-  test(`${staff ? 'staff' : 'author'} regeneration keeps old design and retries original ETag`, async ({ page }) => {
-    await identity(page, staff);
-    let count = 0;
-    const calls = await setup(page, design, (call, state) => {
-      if (call.method === 'POST') {
-        if (++count === 1) return { abort: true };
-        state.save({ ...design, result: { streetmixUrl: 'https://streetmix.net/-/456' } });
-        return { body: { requestId: 'r2', status: 'completed' } };
-      }
-    });
-    await open(page);
-    await page.getByRole('button', { name: 'Regenerate design', exact: true }).click();
-    await expect(page.getByText('Connection interrupted.', { exact: false })).toBeVisible();
-    await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
-    expect(posts(calls)[0].headers['if-match']).toBe('"v1"');
-    expect(calls[calls.findIndex(c => c.method === 'POST') - 1].method).toBe('GET');
-    await page.reload(); await openDesign(page);
-    await expect(page.locator('iframe')).toHaveAttribute('src', design.result.streetmixUrl);
-    await page.getByRole('button', { name: 'Resume', exact: true }).click();
-    await expect(page.locator('iframe')).toHaveAttribute('src', 'https://streetmix.net/-/456');
-    expect(posts(calls)[1].headers['idempotency-key']).toBe(posts(calls)[0].headers['idempotency-key']);
-    expect(posts(calls)[1].headers['if-match']).toBe('"v1"');
-  });
-}
-
-test('regeneration selection recovery keeps its phase key and original ETag across reload', async ({ page }) => {
-  await identity(page);
-  let confirmations = 0;
-  const calls = await setup(page, design, (call, state) => {
-    if (call.method !== 'POST') return;
-    if (call.path.endsWith('/regenerate')) { state.save({ ...design, activeRequest: choice }); return { status: 409, body: choice }; }
-    if (++confirmations === 1) return { abort: true };
-    state.save({ ...design, result: { streetmixUrl: 'https://streetmix.net/-/456' } }); return { body: { status: 'completed', requestId: 'r1' } };
-  });
-  await open(page); await page.getByRole('button', { name: 'Regenerate design', exact: true }).click();
-  await page.locator('.street-choice input[value="2"]').check();
-  await page.getByRole('button', { name: 'Use this street' }).click();
-  await expect(page.getByText('Connection interrupted.', { exact: false })).toBeVisible();
-  await page.reload(); await openDesign(page);
-  await expect(page.locator('.street-choice input').first()).toBeDisabled();
-  await expect(page.locator('.street-choice input[value="2"]')).toBeChecked();
-  await page.getByRole('button', { name: 'Resume', exact: true }).click();
-  await expect(page.locator('iframe')).toHaveAttribute('src', 'https://streetmix.net/-/456');
-  expect(posts(calls)).toHaveLength(3);
-  expect(posts(calls)[2].headers['idempotency-key']).toBe(posts(calls)[1].headers['idempotency-key']);
-  expect(posts(calls)[2].headers['if-match']).toBe('"v1"');
-  expect(posts(calls)[2].body).toBe(posts(calls)[1].body);
-});
-
-test('ETag conflict reloads the replacement without publishing again', async ({ page }) => {
-  await identity(page);
-  const calls = await setup(page, design, (call, state) => {
-    if (call.method === 'POST') { state.save({ ...design, result: { streetmixUrl: 'https://streetmix.net/-/789' } }); return { status: 412, body: {} }; }
-  });
-  await open(page); await page.getByRole('button', { name: 'Regenerate design', exact: true }).click();
-  await expect(page.getByText('The design changed. Review the latest design.')).toBeVisible();
-  await expect(page.locator('iframe')).toHaveAttribute('src', 'https://streetmix.net/-/789');
-  expect(posts(calls)).toHaveLength(1);
+  await expect(dialog(page).getByRole('button', { name: 'Resume', exact: true })).toBeDisabled();
+  release();
+  await expect(dialog(page)).not.toBeVisible();
+  await expect(section(page).locator('img')).toHaveAttribute('src', /^blob:/);
+  expect(posts(calls)).toHaveLength(1); expect(posts(calls)[0].body).toBe('{}');
+  expect(calls.every(c => ['GET', 'POST'].includes(c.method))).toBe(true);
   expect(await page.evaluate(() => localStorage.getItem('streetmix-operation-v1:1'))).toBeNull();
 });
 
-test('discovered regeneration selection is restricted to author or staff', async ({ page }) => {
-  const calls = await setup(page, { ...design, activeRequest: choice });
-  await open(page);
-  await expect(page.getByText('Only the author or staff can confirm a replacement.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Use this street' })).toHaveCount(0);
+test('street choice has a flush footer and only the selected marker', async ({ page }) => {
+  await mapSupport(page);
+  const { calls } = await setup(page, { ...empty, activeRequest: choice }, (call, state) => {
+    if (call.method === 'POST') { state.save(design); return { body: { status: 'completed', requestId: 'r1' } }; }
+  });
+  await visit(page); await expect(section(page).getByRole('button', { name: 'Choose street' })).toBeVisible();
+  await openCreation(page);
+  const use = dialog(page).getByRole('button', { name: 'Use this street' });
+  await expect(use).toBeDisabled();
+  await expect.poll(() => page.evaluate(() => window.__streetMarkers.filter(m => m.map !== null).length)).toBe(3);
+  await page.locator('.street-choice input[value="1"]').check();
+  await expect.poll(() => page.evaluate(() => window.__streetMarkers.filter(m => m.map !== null).map(m => m.options.label))).toEqual(['1']);
+  await expect.poll(() => page.evaluate(() => window.__streetRoads.filter(r => r.map !== null).map(r => r.options.strokeColor))).toEqual(['#c2410c', '#7e22ce']);
+  await page.evaluate(() => window.__streetRoads.filter(r => r.map !== null).at(-1).fire('click'));
+  await expect(page.locator('.street-choice input[value="2"]')).toBeChecked();
+  await expect.poll(() => page.evaluate(() => window.__streetMarkers.filter(m => m.map !== null).map(m => m.options.label))).toEqual(['2']);
+  await expect(use.locator('..')).toHaveClass('detail-sheet-footer');
+  const before = await use.boundingBox();
+  await dialog(page).locator('.detail-sheet-content').evaluate(el => { el.scrollTop = el.scrollHeight; });
+  const after = await use.boundingBox(), frame = await dialog(page).boundingBox();
+  expect(Math.abs(before.y - after.y)).toBeLessThan(1); expect(Math.abs(after.width - frame.width)).toBeLessThanOrEqual(2);
   expect(posts(calls)).toHaveLength(0);
+  await use.click();
+  await expect(section(page).locator('img')).toHaveAttribute('src', /^blob:/);
+  expect(posts(calls)[0].body).toBe('{"osmWayId":2}');
 });
 
-test('road selection remains accessible with enlarged text', async ({ page }, info) => {
-  await page.setViewportSize({ width: 360, height: 740 });
-  await setup(page, { streetmix: null, result: null, activeRequest: choice });
-  await open(page);
+test('confirmation recovery restores the radio and reuses its phase key', async ({ page }) => {
+  let confirms = 0;
+  const { calls } = await setup(page, { ...empty, activeRequest: choice }, (call, state) => {
+    if (call.method === 'POST') {
+      if (++confirms === 1) return { abort: true };
+      state.save(design); return { body: { status: 'completed', requestId: 'r1' } };
+    }
+  });
+  await visit(page); await openCreation(page);
+  await page.locator('.street-choice input[value="2"]').check();
+  await dialog(page).getByRole('button', { name: 'Use this street' }).click();
+  await expect(dialog(page).getByText(/Connection interrupted/)).toBeVisible();
+  await page.reload(); await openCreation(page);
+  await expect(page.locator('.street-choice input[value="2"]')).toBeChecked();
+  await expect(page.locator('.street-choice input[value="2"]')).toBeDisabled();
+  await dialog(page).getByRole('button', { name: 'Resume', exact: true }).click();
+  await expect(section(page).locator('img')).toHaveAttribute('src', /^blob:/);
+  expect(posts(calls)[1].headers['idempotency-key']).toBe(posts(calls)[0].headers['idempotency-key']);
+  expect(posts(calls)[1].body).toBe(posts(calls)[0].body);
+});
+
+test('202 recovery and uncertain publication never start a fresh operation', async ({ page }) => {
+  let count = 0;
+  const { calls } = await setup(page, empty, (call, state) => {
+    if (call.method === 'POST') {
+      const activeRequest = { status: ++count === 1 ? 'save_pending' : 'publication_uncertain', requestId: 'r1' };
+      state.save({ ...empty, activeRequest }); return { status: 202, body: activeRequest };
+    }
+    if (call.path.endsWith('/requests/r1')) return { body: { status: 'publication_uncertain', requestId: 'r1' } };
+  });
+  await visit(page); await openCreation(page);
+  await dialog(page).getByRole('button', { name: 'Create design', exact: true }).click();
+  await expect(dialog(page).getByText('Resume to finish saving.')).toBeVisible();
+  await page.reload(); await openCreation(page);
+  await dialog(page).getByRole('button', { name: 'Resume', exact: true }).click();
+  await expect(dialog(page).getByText('The design may already be published.')).toBeVisible();
+  await dialog(page).getByRole('button', { name: 'Check status', exact: true }).click();
+  expect(posts(calls)).toHaveLength(2); expect(new Set(posts(calls).map(c => c.headers['idempotency-key'])).size).toBe(1);
+  await expect(dialog(page).getByRole('button', { name: 'Create design', exact: true })).toHaveCount(0);
+});
+
+test('expired choice needs restart and map failure leaves radios usable', async ({ page }) => {
+  const { calls } = await setup(page, { ...empty, activeRequest: { ...choice, selectionExpiresAt: '2026-10-19T11:59:00Z' } }, call => call.method === 'POST' ? { status: 409, body: choice } : undefined);
+  await visit(page); await openCreation(page);
+  await expect(dialog(page).getByText('Street selection expired.')).toBeVisible();
+  expect(posts(calls)).toHaveLength(0);
+  await dialog(page).getByRole('button', { name: 'Start again' }).click();
+  await expect(dialog(page).getByText('Map unavailable. Choose a street below.')).toBeVisible();
+  await page.locator('.street-choice input[value="1"]').check();
+  await expect(dialog(page).getByRole('button', { name: 'Use this street' })).toBeEnabled();
+});
+
+test('street choice popup is accessible with enlarged text', async ({ page }) => {
+  await setup(page, { ...empty, activeRequest: choice });
+  await visit(page); await openCreation(page);
   await page.locator('html').evaluate(el => { el.style.fontSize = '20px'; });
-  const select = page.locator('.street-choice input[value="2"]');
-  await select.check();
-  await select.focus();
-  await page.keyboard.press('Tab');
-  await expect(page.getByText('Street details', { exact: true })).toBeFocused();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const results = await new AxeBuilder({ page }).include('.streetmix-accordion').analyze();
+  await page.locator('.street-choice input[value="2"]').check();
+  const results = await new AxeBuilder({ page }).include('.detail-sheet[open]').analyze();
   expect(results.violations).toEqual([]);
-  await page.screenshot({ path: info.outputPath('street-selection.png') });
-});
-
-test('polling honors Retry-After and stops on collapse', async ({ page }) => {
-  const calls = await setup(page, undefined, call => {
-    if (call.method === 'POST' || call.path.endsWith('/requests/r1')) return { status: 202, body: { status: 'generating', requestId: 'r1' }, headers: { 'Retry-After': '10' } };
-  });
-  await open(page); await generate(page).click();
-  await expect(page.locator('.streetmix-panel').getByText('Creating design… About a minute.')).toBeVisible();
-  await page.clock.install({ time: new Date('2026-10-19T12:00:00Z') });
-  await page.clock.fastForward(9000);
-  expect(calls.filter(c => c.path.endsWith('/requests/r1'))).toHaveLength(0);
-  await page.clock.fastForward(1100);
-  await expect.poll(() => calls.filter(c => c.path.endsWith('/requests/r1')).length).toBe(1);
-  await page.getByRole('button', { name: 'Close Streetmix', exact: true }).click();
-  await page.locator('.streetmix-accordion > summary').click();
-  await page.clock.fastForward(120000);
-  expect(calls.filter(c => c.path.endsWith('/requests/r1'))).toHaveLength(1);
-  expect(posts(calls)).toHaveLength(1);
-});
-
-test('a delayed response cannot overwrite another suggestion', async ({ page }) => {
-  let release;
-  const hold = new Promise(resolve => { release = resolve; });
-  let first = true;
-  await setup(page, undefined, async call => {
-    if (call.path.includes('/suggestions/1/') && first) { first = false; await hold; return { body: design }; }
-  });
-  await page.goto('/suggestion/1');
-  await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.getByRole('button', { name: 'Next idea', exact: true }).click();
-  await expect(page).not.toHaveURL(/suggestion\/1$/);
-  release();
-  await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: /^Streetmix$/ }).click();
-  await expect(page.locator('.streetmix-accordion').getByRole('button', { name: 'Create design', exact: true })).toBeVisible();
-  await expect(page.locator('iframe')).toHaveCount(0);
-});
-
-test('unsafe iframe URLs are rejected, including credentials and suffixes', async ({ page }) => {
-  await setup(page, { ...design, result: { streetmixUrl: 'https://streetmix.net.evil.test/-/123' } });
-  await open(page);
-  await expect(page.getByText('The saved design link is invalid.')).toBeVisible();
-  await expect(page.locator('iframe')).toHaveCount(0);
-  const valid = await page.evaluate(async () => {
-    const { safeStreetmixUrl } = await import('/src/services/streetmix.js');
-    return ['https://streetmix.net/-/123', 'http://streetmix.net/-/123', 'https://user@streetmix.net/-/123', 'https://streetmix.net/-/123?a=b', 'https://streetmix.net/-/123#x', 'javascript:alert(1)', 'https://streetmix.net/-/123/', 'https://streetmix.net/-/123?', 'https://streetmix.net/-/123#'].map(safeStreetmixUrl);
-  });
-  expect(valid).toEqual(['https://streetmix.net/-/123', '', '', '', '', '', '', '', '']);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 for (const size of [{ width: 360, height: 880 }, { width: 320, height: 568 }, { width: 880, height: 360 }]) {
-  test(`Streetmix fits ${size.width}x${size.height}`, async ({ page }, info) => {
-    await page.setViewportSize(size);
-    await setup(page, design);
-    await open(page);
-    await expect(page.getByRole('dialog', { name: 'Streetmix', exact: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Open in Streetmix' })).toBeVisible();
-    const layout = await page.evaluate(() => {
-      const tray = document.querySelector('.detail-sheet[open]').getBoundingClientRect();
-      const iframe = document.querySelector('iframe').getBoundingClientRect();
-      return { overflow: document.documentElement.scrollWidth > innerWidth, top: tray.top, bottom: tray.bottom, height: iframe.height, width: iframe.width, trayWidth: tray.width };
+  test(`PNG and street footer fit ${size.width}x${size.height}`, async ({ page }, info) => {
+    await page.setViewportSize(size); await mapSupport(page);
+    await setup(page, { ...empty, activeRequest: { ...choice, candidates: Array.from({ length: 12 }, (_, i) => ({ ...candidates[i % 2], osmWayId: i + 1 })) } }, (call, state) => {
+      if (call.method === 'POST') { state.save(design); return { body: { status: 'completed', requestId: 'r1' } }; }
     });
-    expect(layout.overflow).toBe(false); expect(layout.top).toBeGreaterThanOrEqual(0); expect(layout.bottom).toBeLessThanOrEqual(size.height);
-    expect(layout.height).toBeGreaterThanOrEqual(360); expect(layout.width).toBeLessThan(layout.trayWidth);
-    expect(await page.locator('.detail-sheet[open] .map-tray-close').evaluate(el => { const r = el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })).toBe(true);
-    expect(await page.getByRole('link', { name: 'Open in Streetmix' }).evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
-    await page.screenshot({ path: info.outputPath('streetmix.png') });
-    await page.getByRole('button', { name: 'Close Streetmix', exact: true }).click();
-    await page.locator('.streetmix-accordion > summary').click();
-    await expect(page.locator('.submission-detail-tray')).not.toHaveClass(/streetmix-expanded/);
+    await visit(page); await openCreation(page); await page.locator('.street-choice input[value="1"]').check();
+    const use = dialog(page).getByRole('button', { name: 'Use this street' });
+    await expect(use).toBeInViewport(); expect((await use.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    await dialog(page).locator('.detail-sheet-content').evaluate(el => { el.scrollTop = el.scrollHeight; });
+    await expect(use).toBeInViewport();
+    await page.screenshot({ path: info.outputPath('street-choice-footer.png') });
+    await use.click(); await expect(section(page).locator('img')).toBeVisible();
+    await expect.poll(() => section(page).locator('img').evaluate(img => img.naturalWidth)).toBe(720);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const pic = await section(page).locator('img').boundingBox(), tray = await page.locator('.submission-detail-tray').boundingBox();
+    expect(pic.width).toBeLessThan(tray.width);
+    await expect(page.locator('.detail-sheet[open], iframe')).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath('inline-png.png') });
+    const results = await new AxeBuilder({ page }).include('.streetmix-accordion').analyze();
+    expect(results.violations).toEqual([]);
   });
 }

@@ -1,16 +1,24 @@
 <template>
-  <details class="detail-accordion streetmix-accordion" @toggle="toggle">
-    <summary class="font-bold">Streetmix</summary>
-    <div class="actions-panel" :aria-hidden="full || undefined" :inert="full">
-      <p v-if="loading" role="status">Loading Streetmix…</p>
-      <p v-else-if="statusMessage" role="status">{{ statusMessage }}</p>
-      <p v-else-if="selecting">Choose a street for this design.</p>
-      <p v-else-if="result">{{ result.selectedStreet?.name || 'Street design ready' }}</p>
-      <p v-else>Create a street cross-section.</p>
-      <button class="action-button" :disabled="loading" @click="$event.currentTarget.focus({ preventScroll: true }); full = true">{{ result ? 'View design' : selecting ? 'Choose street' : pending || workflow ? 'Continue design' : 'Create design' }}</button>
+  <section v-if="!hasDesign" class="detail-accordion streetmix-accordion streetmix-locked" aria-label="Streetmix">
+    <div class="streetmix-header">
+      <h3 class="font-bold">Streetmix</h3>
+      <button type="button" class="action-button" :disabled="loading" @click="$event.currentTarget.focus({ preventScroll: true }); full = true">{{ selecting ? 'Choose street' : 'Create design' }}</button>
     </div>
-  </details>
-  <DetailSheet v-model="full" title="Streetmix">
+  </section>
+  <section v-else class="detail-accordion streetmix-accordion streetmix-generated" aria-label="Streetmix">
+    <details class="detail-accordion" :open="expanded" @toggle="expanded = $event.currentTarget.open">
+    <summary ref="heading" class="font-bold">Streetmix</summary>
+    <div class="streetmix-preview">
+      <template v-if="expanded && !imageFailed">
+        <p v-if="!imageLoaded" role="status">Loading design…</p>
+        <img v-if="imageUrl" :key="imageUrl" :src="imageUrl" alt="Generated Streetmix design" referrerpolicy="no-referrer" @load="imageLoaded = true" @error="imageFailed = true" />
+      </template>
+      <p v-else-if="expanded" role="status">Preview unavailable.</p>
+    </div>
+    </details>
+    <a v-if="editorUrl" :href="editorUrl" target="_blank" rel="noopener noreferrer" class="map-ui-button streetmix-external" aria-label="Open in Streetmix" title="Open in Streetmix" @click.stop><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+  </section>
+  <DetailSheet v-if="!hasDesign" v-model="full" title="Streetmix">
     <div class="actions-panel streetmix-panel">
       <p v-if="loading" role="status">Loading Streetmix…</p>
       <p v-if="storageNotice" role="alert">{{ storageNotice }}</p>
@@ -35,7 +43,6 @@
         </fieldset>
         <details v-if="selectedRoad" class="streetmix-evidence"><summary>Street details</summary><p>{{ roadDetails(selectedRoad) }}</p><p v-if="selectedRoad.oppositeOsmWayId">Opposing carriageway: OSM {{ selectedRoad.oppositeOsmWayId }}</p><p>Map bearing may differ from traffic direction.</p></details>
         <p class="secondary-copy">Selection expires after 15 minutes.</p>
-        <button v-if="selectionAllowed && !confirmationPending" class="action-button" :disabled="blocked || selected === ''" @click="confirm(selected)">Use this street</button>
         <p v-if="!selectionAllowed">Only the author or staff can confirm a replacement.</p>
       </template>
       <template v-if="pending && !expired && workflow?.status !== 'failed' && (!selecting || confirmationPending)">
@@ -47,53 +54,58 @@
         <button class="action-button" :disabled="blocked" @click="start()">Create design</button>
         <p class="text-sm">About a minute. Creates a public, anonymous design.</p>
       </template>
-      <template v-if="result">
-        <p v-if="saved?.stale" role="status">Created for this suggestion’s previous location.</p>
-        <a v-if="url" :href="url" target="_blank" rel="noopener noreferrer" class="action-button">Open in Streetmix ↗</a>
-        <p v-else role="alert">The saved design link is invalid.</p>
-        <template v-if="full && url">
-          <p v-if="!frameLoaded" role="status">Loading design… If it does not appear, open it in Streetmix.</p>
-          <iframe :key="url" :src="url" title="Generated Streetmix design" class="streetmix-frame" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads" @load="frameLoaded = true"></iframe>
-        </template>
-        <p v-if="result.selectedStreet?.carriagewayOnly">This drawing covers one carriageway only.</p>
-        <p v-else-if="result.dividedRoad">Includes opposing carriageways.</p>
-        <p v-for="(warning, index) in warnings" :key="index" class="text-sm">{{ readable(warning) }}</p>
-        <details v-if="evidence.length" class="streetmix-evidence">
-          <summary>Design details</summary>
-          <div v-for="([label, value]) in evidence" :key="label"><strong>{{ humanize(label) }}</strong><div class="text-sm">{{ readable(value) }}</div></div>
-        </details>
-        <template v-if="authorized && !pending && !workflow">
-          <button class="action-button" :disabled="blocked" @click="start(true)">Regenerate design</button>
-          <p class="text-sm">Creates a new public design.</p>
-        </template>
-      </template>
     </div>
+    <template v-if="selecting && selectionAllowed && !confirmationPending" #footer>
+      <button type="button" class="streetmix-confirm" :disabled="blocked || selected === ''" @click="confirm(selected)">Use this street</button>
+    </template>
   </DetailSheet>
 </template>
 <script setup>
-import { computed, ref, watch, useId } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch, useId } from 'vue';
 import { kPreloader } from 'konsta/vue';
 import DetailSheet from './DetailSheet.vue';
 import StreetmixRoadMap from './StreetmixRoadMap.vue';
 import { useStreetmix } from '../services/useStreetmix';
+import { fetchStreetmixThumbnail, safeStreetmixUrl } from '../services/streetmix';
 const props = defineProps({ suggestion: { type: Object, required: true }, refreshVersion: Number });
 const emit = defineEmits(['saved']);
-const full = ref(false);
-const open = ref(false), selected = ref(''), frameLoaded = ref(false), selectId = useId();
+const full = ref(false), expanded = ref(false), heading = ref(null);
+const open = computed(() => full.value || expanded.value);
+const selected = ref(''), imageLoaded = ref(false), imageFailed = ref(false), selectId = useId();
 const { saved, result, workflow, pending, loading, busy, error, storageNotice, authorized, selectionAllowed, regeneration, url, expired, selecting, active, blocked, statusMessage, load, check, start, resume, confirm } = useStreetmix(props, emit, open);
+const hasDesign = computed(() => Boolean(saved.value || result.value));
+const editorUrl = computed(() => url.value || safeStreetmixUrl(saved.value?.streetmixUrl));
+const imageUrl = ref('');
+let imageController, imageVersion = 0;
 const confirmationPending = computed(() => pending.value?.path.endsWith('/selection'));
 const selectedRoad = computed(() => workflow.value?.candidates?.find(c => String(c.osmWayId) === String(selected.value)));
-const warnings = computed(() => { const value = result.value?.warnings; return Array.isArray(value) ? value : value ? [value] : []; });
-const evidence = computed(() => Object.entries(result.value || {}).filter(([key, value]) => value != null && /source|attribution|estimat|evidence|assumption/i.test(key)));
-function humanize(value) { const text = value.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' '); return text.charAt(0).toUpperCase() + text.slice(1); }
-function readable(value) { return typeof value === 'string' ? value : Array.isArray(value) ? value.map(readable).join('; ') : value && typeof value === 'object' ? Object.entries(value).map(([k, v]) => `${humanize(k)}: ${readable(v)}`).join('; ') : String(value); }
 function roadDetails(c) { return [c.highway, `OSM ${c.osmWayId}`, `${Math.round(c.bearingDegrees)}° bearing`, c.bridge && c.bridge !== 'no' ? 'Bridge' : '', c.tunnel && c.tunnel !== 'no' ? 'Tunnel' : '', c.layer != null ? `Layer ${c.layer}` : ''].filter(Boolean).join(' · '); }
 function choose(id) { if (!busy.value && !confirmationPending.value) selected.value = id; }
-function toggle(event) { open.value = event.currentTarget.open; }
 watch(() => [workflow.value?.requestId, pending.value?.path, pending.value?.body], ([id, path, body], [previousId]) => {
   if (path?.endsWith('/selection')) {
     try { selected.value = JSON.parse(body).osmWayId ?? ''; } catch { selected.value = ''; }
   } else if (id !== previousId) selected.value = '';
 });
-watch(url, () => { frameLoaded.value = false; });
+function clearImage() { if (imageUrl.value) URL.revokeObjectURL(imageUrl.value); imageUrl.value = ''; imageLoaded.value = imageFailed.value = false; }
+watch([expanded, () => result.value?.streetmixId || saved.value?.streetmixId], async ([visible, id], [, previousId]) => {
+  imageController?.abort();
+  const version = ++imageVersion;
+  if (id !== previousId) clearImage();
+  if (!visible || imageUrl.value) return;
+  imageFailed.value = false;
+  imageController = new AbortController();
+  try {
+    const image = await fetchStreetmixThumbnail(props.suggestion.id, { signal: imageController.signal });
+    if (version === imageVersion) imageUrl.value = URL.createObjectURL(image);
+  } catch { if (version === imageVersion) imageFailed.value = true; }
+});
+onBeforeUnmount(() => { imageVersion++; imageController?.abort(); clearImage(); });
+watch(hasDesign, async value => {
+  if (value && full.value) {
+    full.value = false;
+    expanded.value = true;
+    await nextTick();
+    heading.value?.focus({ preventScroll: true });
+  }
+});
 </script>

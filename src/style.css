@@ -543,13 +543,25 @@ body {
 /* Recommendation lists share the tray scroll area, including on narrow phones. */
 .actions-panel { padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow-wrap: anywhere; }
 .streetmix-panel > * { min-width: 0; max-width: 100%; }
-.streetmix-panel iframe { flex-shrink: 0; background: var(--map-control-bg); }
+.streetmix-generated { position: relative; }
+.streetmix-generated > details { border-top: 0; }
+.streetmix-generated > details > summary, .streetmix-header { min-height: 48px; padding: 2px 16px; }
+.streetmix-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.streetmix-header h3 { margin: 0; font-size: 1rem; line-height: 1.5rem; }
+.streetmix-external { position: absolute; top: 2px; right: 40px; width: 44px; height: 44px; }
+.streetmix-preview { padding: 0 16px 12px; min-width: 0; }
+.streetmix-preview img { display: block; width: 100%; height: auto; }
+.detail-sheet-footer { flex-shrink: 0; border-top: 1px solid var(--map-control-border); padding-bottom: env(safe-area-inset-bottom); background: var(--map-control-bg); }
+.detail-sheet:has(.detail-sheet-footer) .detail-sheet-content { padding-bottom: 0; }
+.streetmix-confirm { display: block; width: 100%; min-height: 56px; padding: 12px 16px; border: 0; border-radius: 0; background: var(--map-control-active); color: var(--map-control-active-text); font-weight: 600; cursor: pointer; }
+.streetmix-confirm:disabled { opacity: .6; cursor: default; }
+.streetmix-confirm:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }
 .streetmix-road-map { position: relative; height: 200px; width: 100%; border: 1px solid var(--map-control-border); border-radius: 8px; overflow: hidden; }
 .streetmix-evidence > summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
 .streetmix-evidence > div { margin-block: 8px; white-space: pre-wrap; }
 .action-card { padding: 12px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent); min-width: 0; overflow-wrap: anywhere; }
 .action-card-controls { display: flex; flex-wrap: wrap; gap: 8px; }
-.action-button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 8px; white-space: normal; text-align: center; max-width: 100%; cursor: pointer; }
+.action-button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 8px; white-space: nowrap; text-align: center; max-width: 100%; cursor: pointer; }
 .action-button:disabled { opacity: .6; cursor: wait; }
 .action-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 @media (max-width: 380px) { .action-card-controls > * { width: 100%; } }
@@ -653,7 +665,6 @@ body {
 .marker-settings-dialog input[type="range"], .marker-settings-select { min-height: 44px; font-size: 16px; }
 .marker-settings-header .map-tray-header-action { width: auto; min-width: 60px; }
 .rail-preview { width: 100%; height: 60px; }
-.streetmix-frame { width: 100%; height: max(360px, calc(100dvh - 200px)); border: 0; }
 .street-choices { min-width: 0; border: 0; padding: 0; }
 .street-choice { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 12px; border: 1px solid var(--map-control-border); border-radius: 8px; margin-top: 8px; cursor: pointer; }
 .street-choice input { width: 22px; height: 22px; flex-shrink: 0; }

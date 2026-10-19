@@ -22,7 +22,7 @@ function draw() {
   const selected = props.candidates.find(c => String(c.osmWayId) === String(props.selected));
   const bounds = new maps.LatLngBounds();
   const origin = point(props.coordinate);
-  objects.push(new maps.Marker({ map, position: origin, title: 'Suggestion location', label: '•' }));
+  if (!selected) objects.push(new maps.Marker({ map, position: origin, title: 'Suggestion location', label: '•' }));
   bounds.extend(origin);
   props.candidates.forEach((candidate, index) => {
     const chosen = String(candidate.osmWayId) === String(props.selected);
@@ -35,7 +35,7 @@ function draw() {
       road.addListener('click', () => emit('select', candidate.osmWayId)); objects.push(road);
     }
     const position = candidate.snappedCoordinate || candidate.geometry?.[0]?.[0];
-    if (position) {
+    if (position && (!selected || chosen)) {
       const marker = new maps.Marker({ map, position: point(position), label: String(index + 1), title: `${index + 1}. ${candidate.name || 'Unnamed street'}${chosen ? ' (selected)' : opposing ? ' (opposing carriageway)' : ''}` });
       marker.addListener('click', () => emit('select', candidate.osmWayId)); objects.push(marker);
     }
