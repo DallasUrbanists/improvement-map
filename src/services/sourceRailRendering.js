@@ -1,4 +1,4 @@
-import { carrolltonBridgePaths } from './railSvgLayers.js';
+import { carrolltonBridgePaths, streetcarOverpassPaths } from './railSvgLayers.js';
 import { railSegmentsInBounds } from './railGeometry.js';
 import { arrangeRailJunctions, offsetPolyline } from './railRendering.js';
 import { RAIL_DISPLAY_CORRIDORS } from './railDisplayCorridors.js';
@@ -340,7 +340,9 @@ export function renderSourceTransit(catalog, center, halfExtent, project, screen
   for (const segment of segments) paths.push(`<path data-transit-line="${escapeXml(segment.line)}" d="${segment.path}" stroke="${lines.get(segment.line).color}"/>`);
   const overpasses = lines.has('DART:SILVER') ? carrolltonBridgePaths(segments,
     screen(project({ lon: -96.90864, lat: 32.95508 })), lines.get('DART:GREEN')?.color) : [];
-  return { paths, segments, displayCorridors, overpasses, lines: [...visible].sort().map((key) => lines.get(key)),
+  const streetcarOverpasses = lines.has('DART:620') && lines.has('DART:RED')
+    ? streetcarOverpassPaths(segments, screen(project({ lon: -96.8062749, lat: 32.7732092 })), lines.get('DART:620').color) : [];
+  return { paths, segments, displayCorridors, overpasses, streetcarOverpasses, lines: [...visible].sort().map((key) => lines.get(key)),
     junctions: junctions.map(({ trunk, branches }) => ({ trunkOrder: trunk.keys,
       branchOrders: branches.map((branch) => branch.chain.keys) })) };
 }

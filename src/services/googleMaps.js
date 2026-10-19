@@ -160,6 +160,11 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
           ? { ...rule, stylers: [{ visibility: 'off' }] } : rule);
       }
       binding.railLayer?.update({ styles, mapType: type });
+      // Labels are rendered once, in the managed label layer above all rails.
+      // Keeping it in the base tiles too produces conflicting label placements.
+      if (binding.railLayer && type !== 'hybrid' && type !== 'satellite') {
+        styles = [...styles, { featureType: 'all', elementType: 'labels', stylers: [{ visibility: 'off' }] }];
+      }
       const signature = JSON.stringify(styles);
       if (signature !== binding.signature) {
         binding.signature = signature;

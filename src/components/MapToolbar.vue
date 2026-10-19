@@ -162,7 +162,7 @@
         <button type="button" class="map-ui-button marker-settings-done" @click="closeMarkerSettings">Done</button>
       </div>
     </dialog>
-    <dialog ref="railSettingsDialog" class="map-ui marker-settings-dialog" :aria-labelledby="`${menuId}-rail-title`"
+    <dialog ref="railSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-rail-title`"
       @keydown.esc.stop @click.self="closeRailSettings" @close="menuButton?.focus()">
       <div class="marker-settings-panel">
         <div class="marker-settings-header">

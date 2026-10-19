@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 
 const STORAGE_KEY = 'map-rail-thickness';
-export const DEFAULT_RAIL_THICKNESS = 4.5;
+export const DEFAULT_RAIL_THICKNESS = 2;
 function readThickness() {
   try {
     const value = Number(localStorage.getItem(STORAGE_KEY));

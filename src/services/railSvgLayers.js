@@ -10,11 +10,12 @@ export function railSvgLayers(transit) {
     return `<g data-layer="${name}-casing" fill="none" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round">${casing}</g>`
       + `<g data-layer="${name}-lines" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">${paths.join('')}</g>`;
   };
-  return paint(decks[0], 'streetcar') + paint(decks[1], 'rail') + `<g data-layer="rail-bridge-lines" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">${(transit.overpasses || []).join('')}</g>`;
+  return paint(decks[0], 'streetcar') + paint(decks[1], 'rail') + `<g data-layer="rail-bridge-lines" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">${(transit.overpasses || []).join('')}</g>`
+    + `<g data-layer="streetcar-bridge-lines" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">${(transit.streetcarOverpasses || []).join('')}</g>`;
 }
 
-/** Local bridge deck; clip the displayed Green lane, including any display offsets. */
-export function carrolltonBridgePaths(segments, center, color) {
+/** Local bridge deck clipped from the displayed geometry, including lane offsets. */
+function localBridgePaths(segments, center, color, line) {
   const radius = 13;
   const clip = (a, b) => {
     const dx = b.x - a.x; const dy = b.y - a.y;
@@ -31,10 +32,10 @@ export function carrolltonBridgePaths(segments, center, color) {
     return [{ x: a.x + lo * dx, y: a.y + lo * dy }, { x: a.x + hi * dx, y: a.y + hi * dy }];
   };
   const paths = [];
-  for (const segment of segments.filter((s) => s.line === 'DART:GREEN')) {
+  for (const segment of segments.filter((s) => s.line === line)) {
     let piece = [];
     const flush = () => {
-      if (piece.length > 1) paths.push(`<path data-transit-line="DART:GREEN" d="M${piece.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L')}" stroke="${color}"/>`);
+      if (piece.length > 1) paths.push(`<path data-transit-line="${line}" d="M${piece.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L')}" stroke="${color}"/>`);
       piece = [];
     };
     for (let i = 1; i < segment.points.length; i++) {
@@ -46,4 +47,31 @@ export function carrolltonBridgePaths(segments, center, color) {
     flush();
   }
   return paths;
+}
+
+export function carrolltonBridgePaths(segments, center, color) {
+  return localBridgePaths(segments, center, color, 'DART:GREEN');
+}
+
+export function streetcarOverpassPaths(segments, center, color) {
+  const edges = (line) => segments.filter((s) => line.includes(s.line)).flatMap((s) =>
+    s.points.slice(1).map((b, i) => [s.points[i], b]).filter(([a, b]) =>
+      Math.min(a.x, b.x) <= center.x + 24 && Math.max(a.x, b.x) >= center.x - 24
+      && Math.min(a.y, b.y) <= center.y + 24 && Math.max(a.y, b.y) >= center.y - 24));
+  const crossings = [];
+  for (const [a, b] of edges(['DART:620'])) for (const [c, d] of edges(['DART:RED', 'DART:BLUE'])) {
+    const dx = b.x - a.x; const dy = b.y - a.y; const ex = d.x - c.x; const ey = d.y - c.y;
+    const determinant = dx * ey - dy * ex;
+    if (Math.abs(determinant) < 1e-9) continue;
+    const t = ((c.x - a.x) * ey - (c.y - a.y) * ex) / determinant;
+    const u = ((c.x - a.x) * dy - (c.y - a.y) * dx) / determinant;
+    if (t < 0 || t > 1 || u < 0 || u > 1) continue;
+    const point = { x: a.x + t * dx, y: a.y + t * dy };
+    if (Math.hypot(point.x - center.x, point.y - center.y) <= 24) crossings.push(point);
+  }
+  // Do not repaint casing over parallel, grouped lanes at distant scales.
+  if (!crossings.length) return [];
+  const midpoint = { x: crossings.reduce((sum, p) => sum + p.x, 0) / crossings.length,
+    y: crossings.reduce((sum, p) => sum + p.y, 0) / crossings.length };
+  return localBridgePaths(segments, midpoint, color, 'DART:620');
 }

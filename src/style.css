@@ -153,6 +153,12 @@ body {
 .map-toolbar .map-ui-button[aria-pressed="true"] { background: var(--map-control-active); color: var(--map-control-active-text); border-radius: 0; }
 .map-toolbar .map-ui-button[aria-pressed="true"]:last-child { border-radius: 0 8px 8px 0; }
 .map-ui-button:disabled, .map-ui-button[aria-disabled="true"] { opacity: .4; cursor: default; }
+.spiderfier-toolbar { padding: 0; gap: 0; overflow: hidden; }
+.spiderfier-backdrop { --spiderfier-ground-color: #ffffff; background: radial-gradient(circle closest-side, var(--spiderfier-ground-color) 30%, transparent 100%); }
+.dark .spiderfier-backdrop { --spiderfier-ground-color: #4d6059; }
+.spiderfier-toolbar > .map-ui-button { box-sizing: border-box; flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px; padding: 0; aspect-ratio: 1; border-radius: 0; font-size: 24px; line-height: 1; }
+.spiderfier-toolbar > [role="status"] { display: flex; align-items: center; justify-content: center; align-self: stretch; flex-shrink: 0; box-sizing: border-box; }
+.spiderfier-toolbar > * + * { border-left: 1px solid var(--map-control-border); }
 .map-location-button { width: 40px; padding: 0; flex-shrink: 0; border-radius: 8px 0 0 8px; }
 .map-toolbar-divider { width: 1px; align-self: stretch; margin: 0; background: var(--map-control-border); flex-shrink: 0; }
 .map-toolbar > .map-ui-button + .map-ui-button { border-left: 1px solid var(--map-control-border); }

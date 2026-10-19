@@ -7,7 +7,7 @@
     <div v-else-if="!isMapReady" class="workspace-map-status" role="status">Loading Map…</div>
     <Transition name="workspace-backdrop"><div v-if="trayOpen" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top, '--spotlight-radius': `${markerSpotlightSize / 2}px`, '--spotlight-feather': `${markerSpotlightFeather}px` } : undefined" aria-hidden="true"></div></Transition>
     <Teleport :to="draftCrosshairPane || 'body'" :disabled="isSubmit || !draftCrosshairPane">
-    <div v-if="!isDetail && (isSubmit || hasDraftPin) && (isSubmit || !isDensityMode)" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
+    <div v-if="isSubmit" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
       <svg :key="isSubmitLocate ? 'locating' : 'locked'" data-testid="suggestion-location-crosshair" viewBox="0 0 50 50" aria-hidden="true" @animationend="onCrosshairAnimationEnd">
         <g transform="translate(25 25)" fill="none" stroke="white" stroke-width="3">
           <circle r="9" /><path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" /><circle r="2" fill="white" stroke="none" />
@@ -697,10 +697,27 @@ function createSuggestionClusterer(visible) {
     markers: markersArray.filter(marker => marker !== detailPinnedMarker),
     algorithm: new SuperClusterAlgorithm({ radius: 64, maxZoom: 30 }),
     renderer: { render: renderSuggestionCluster },
-    onClusterClick: (_event, cluster) => {
+    onClusterClick: async (_event, cluster) => {
       cancelClusterZoom();
       closeInfoWindow();
-      markerSpiderfier.expand(cluster.markers, cluster.position);
+      // Closing details can rebuild clusters when its highlighted marker returns.
+      const group = [...cluster.markers];
+      const position = cluster.position;
+      if (isDetail.value) {
+        cancelDetailTransition();
+        skipRestore = true;
+        await closeToMap();
+        await nextTick();
+        if (!isBrowse.value || !map) return;
+        // Keep the opened spider in marker mode when leaving a zoomed-out detail.
+        if ((map.getZoom() ?? 0) < markerZoomThreshold.value) {
+          map.setZoom(markerZoomThreshold.value);
+          await nextTick();
+        }
+        map.setCenter(position);
+        saveCurrentMapView();
+      }
+      markerSpiderfier?.expand(group, position);
     },
   });
 }
