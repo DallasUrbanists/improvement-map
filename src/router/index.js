@@ -4,24 +4,26 @@ import BrowseView from '../views/BrowseView.vue';
 import SubmissionDetailView from '../views/SubmissionDetailView.vue';
 
 const routes = [
+  { path: '/bookmarks', name: 'Bookmarks', component: () => import('../views/BookmarksView.vue'), meta: { title: 'Bookmarked ideas | Improvement Map' } },
+  { path: '/my-actions', name: 'MyActions', component: () => import('../views/MyActionsView.vue'), meta: { title: 'My actions | Improvement Map' } },
   {
     path: '/',
     alias: ['/browse'],
     name: 'Browse',
     component: BrowseView,
-    meta: { title: 'Browse Suggestions | Improvement Map' }
+    meta: { title: 'Browse ideas | Improvement Map' }
   },
   {
     path: '/submit',
     name: 'Submit',
     component: SubmitView,
-    meta: { title: 'Submit Suggestion | Improvement Map' }
+    meta: { title: 'Submit idea | Improvement Map' }
   },
   {
     path: '/suggestion/:id',
     name: 'SubmissionDetail',
     component: SubmissionDetailView,
-    meta: { title: 'View Suggestion | Improvement Map' }
+    meta: { title: 'View idea | Improvement Map' }
   },
   {
     path: '/test',

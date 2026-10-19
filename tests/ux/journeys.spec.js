@@ -24,7 +24,7 @@ test('browse, search, history, photos, settings and theme', async ({ page }, inf
   await scroll.evaluate(el => { el.scrollTop = 0; });
   const card = page.locator('[data-suggestion-id="1"]');
   await card.focus(); await card.press('Enter');
-  await expect(page.getByRole('region', { name: 'Submission details', exact: true })).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toHaveAttribute('aria-busy', 'false');
   await check('details');
   await page.locator('summary').filter({ hasText: 'Photos (2)' }).click();
   await page.getByRole('button', { name: 'Open photo 1: Crossing photo 1' }).click();
@@ -37,7 +37,7 @@ test('browse, search, history, photos, settings and theme', async ({ page }, inf
   await page.goBack();
   await expect(card).toBeFocused();
   await page.goForward();
-  await expect(page.getByRole('region', { name: 'Submission details', exact: true })).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toHaveAttribute('aria-busy', 'false');
   await page.goBack();
   await page.getByRole('button', { name: 'Search address or neighborhood', exact: true }).click();
   await page.getByRole('textbox', { name: 'Search address or neighborhood' }).fill('Main');
@@ -137,13 +137,13 @@ test('empty, denied location, unavailable detail and enlarged text', async ({ pa
   const check = audit(page, info);
   await page.addInitScript(() => { window.__ux.empty = true; });
   await page.goto('/?view=list');
-  await expect(page.getByRole('heading', { name: 'No suggestions found' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No ideas yet' })).toBeVisible();
   await check('browse-empty');
-  await page.getByRole('button', { name: 'Sort by distance' }).click();
+  await page.getByRole('button', { name: 'Nearest to me' }).click();
   await check('location-denied');
   await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
   await check('enlarged-text');
   await page.goto('/suggestion/missing');
-  await expect(page.getByRole('heading', { name: 'Suggestion Not Found' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Idea unavailable' })).toBeVisible();
   await check('detail-error');
 });

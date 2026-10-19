@@ -29,7 +29,9 @@
   <Teleport to="body">
     <div class="map-menu-layer">
       <k-popover :opened="menuOpen" :target="`#${menuId}`" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
-        <div class="p-1" role="menu" aria-label="Map settings">
+        <div class="p-1" role="menu" aria-label="Map options">
+          <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Bookmarked ideas</button>
+          <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/my-actions')">My actions</button>
           <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings">
             Marker settings
             <i class="fa-solid fa-sliders" aria-hidden="true"></i>
@@ -265,6 +267,11 @@ const themeOptions = [
   { value: 'light', label: 'Light theme' },
   { value: 'dark', label: 'Dark theme' },
 ];
+function openTray(path) {
+  menuOpen.value = false;
+  menuButton.value?.focus({ preventScroll: true });
+  router.push(path);
+}
 function browseList() {
   if (props.showMapControls) emit('update:modelValue', 'list');
   else router.push({ path: '/', query: { view: 'list' } });

@@ -22,6 +22,7 @@ test.beforeEach(async ({ page }) => {
     export async function getSuggestionRepresentatives(){return [];}
     export async function getSuggestionBoundaries(){return [];}
     export async function getSuggestionRecommendedActions(){return [];}
+    export async function matchSuggestionRecommendations(){return [];}
     export async function requestPhotoUploadUrl(){return {uploadUrl:'https://uploads.test/file',publicUrl:'https://cdn.test/file'};}
     export async function uploadPhotoBinary(){}
     export async function createSuggestion(payload){window.__submittedPayload=payload;if(window.__submissionSucceeds)return items[0];throw new Error('Test submission failure');}
@@ -60,7 +61,7 @@ test('one map stays mounted across list, details, and every Submit step', async 
   await page.evaluate(() => { window.__mapNode = document.querySelector('[data-testid="persistent-map"]'); });
   const before = await mapState(page);
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  const list = page.getByRole('region', { name: 'Browse suggestions' });
+  const list = page.getByRole('region', { name: 'Browse ideas' });
   await expect(list).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Submissions', exact: true })).toHaveCount(0);
   await expect(page.locator('.map-zoom-ui')).toBeHidden();
@@ -90,7 +91,7 @@ test('one map stays mounted across list, details, and every Submit step', async 
 
 test('tray bounds, scrolling, search, sorting and map mode preserve Browse context', async ({ page }) => {
   await page.goto('/?view=list');
-  const tray = page.getByRole('region', { name: 'Browse suggestions' });
+  const tray = page.getByRole('region', { name: 'Browse ideas' });
   await expect(tray).toBeVisible();
   await page.waitForTimeout(400);
   const box = await tray.boundingBox();
@@ -127,8 +128,8 @@ test('direct details, errors, menu and read-only drafts work without another map
   await page.getByRole('menuitemradio', { name: 'Light theme', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/light/);
   await page.evaluate(() => document.querySelector('#app').__vue_app__.config.globalProperties.$router.push('/suggestion/missing'));
-  await expect(page.getByRole('heading', { name: 'Suggestion Not Found' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close Submission details' }).click();
+  await expect(page.getByRole('heading', { name: 'Idea unavailable' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close Idea details' }).click();
   expect((await mapState(page)).count).toBe(1);
 });
 
@@ -163,7 +164,7 @@ test('direct Locate initializes on map readiness and later steps lock the draft 
 test('tray dismissal, browser history and saved list scrolling remain consistent', async ({ page }) => {
   await page.goto('/?view=map');
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  const tray = page.getByRole('region', { name: 'Browse suggestions' });
+  const tray = page.getByRole('region', { name: 'Browse ideas' });
   await expect(tray).toBeVisible();
   await tray.locator('.map-tray-content').evaluate(element => { element.scrollTop = 180; });
   await page.getByText('Suggestion 8', { exact: true }).click();
@@ -177,17 +178,17 @@ test('tray dismissal, browser history and saved list scrolling remain consistent
   await page.goBack(); await expect(tray).toBeVisible();
   await page.keyboard.press('Escape'); await expect(tray).toBeHidden();
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  await page.getByRole('button', { name: 'Close Browse suggestions' }).click();
+  await page.getByRole('button', { name: 'Close Browse ideas' }).click();
   await expect(tray).toBeHidden();
 });
 
 test('map failure and denied GPS leave the list and sort controls usable', async ({ page }) => {
   await page.addInitScript(() => { window.google.maps.Map = class { constructor() { throw new Error('Maps unavailable'); } }; });
   await page.goto('/?view=list');
-  await expect(page.getByRole('region', { name: 'Browse suggestions' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('map could not be loaded');
-  await page.getByRole('button', { name: 'Sort by distance' }).click();
-  await expect(page.getByRole('button', { name: 'Sort by distance' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Nearest to me' }).click();
+  await expect(page.getByRole('button', { name: 'Nearest to me' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Suggestion 1', { exact: true })).toBeVisible();
 });
 
@@ -213,7 +214,7 @@ test('keyboard focus returns to the opening card and reduced motion disables tra
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?view=map');
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  const tray = page.getByRole('region', { name: 'Browse suggestions' });
+  const tray = page.getByRole('region', { name: 'Browse ideas' });
   await expect(tray).toBeVisible();
   const card = page.locator('[data-suggestion-id="1"]');
   await card.focus();

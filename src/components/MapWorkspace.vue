@@ -2,10 +2,10 @@
   <div class="map-workspace view-panel" :data-tray-open="trayOpen" :data-detail-loading="detailLoading" @pointerdown.capture="interruptMapMotion" @wheel.capture.passive="interruptMapMotion">
     <div ref="browseMapContainerEl" class="workspace-map-canvas" data-testid="persistent-map" :inert="detailLoading"></div>
     <div v-if="!hasGoogleMapsKey || googleMapsAuthError || mapError" class="workspace-map-status" role="status">
-      <p>{{ mapError || googleMapsAuthError || 'Google Maps is unavailable. You can still browse suggestions.' }}</p>
+      <p>{{ mapError || googleMapsAuthError || 'Google Maps is unavailable. You can still browse ideas.' }}</p>
     </div>
     <div v-else-if="!isMapReady" class="workspace-map-status" role="status">Loading Map…</div>
-    <Transition name="workspace-backdrop"><div v-if="trayOpen" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top, '--spotlight-radius': `${markerSpotlightSize / 2}px`, '--spotlight-feather': `${markerSpotlightFeather}px` } : undefined" aria-hidden="true"></div></Transition>
+    <Transition name="workspace-backdrop"><div v-if="trayOpen && !desktopSideTray" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top, '--spotlight-radius': `${markerSpotlightSize / 2}px`, '--spotlight-feather': `${markerSpotlightFeather}px` } : undefined" aria-hidden="true"></div></Transition>
     <Teleport :to="draftCrosshairPane || 'body'" :disabled="isSubmit || !draftCrosshairPane">
     <div v-if="isSubmit" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
       <svg :key="isSubmitLocate ? 'locating' : 'locked'" data-testid="suggestion-location-crosshair" viewBox="0 0 50 50" aria-hidden="true" @animationend="onCrosshairAnimationEnd">
@@ -20,9 +20,16 @@
     </div>
     </Teleport>
     <div v-if="isDetail" class="detail-map-target" :style="detailTargetPosition">
-      <div v-if="!detailLoading" ref="detailTextElement" class="detail-marker-text">
-        <div v-if="detailSummary" ref="detailSummaryElement" class="detail-marker-summary">{{ detailSummary }}</div>
-        <div ref="detailBylineElement" class="detail-marker-byline">{{ detailByline }}</div>
+        <div v-if="!detailLoading || detailTextErasing" ref="detailBylineElement" class="detail-marker-byline">
+          <span class="sr-only">{{ detailByline }}</span>
+          <span aria-hidden="true"><span class="detail-typewriter-visible">{{ revealedByline.settled }}<span v-for="character in revealedByline.leading" :key="character.index" :style="{ opacity: character.opacity }">{{ character.text }}</span></span><span class="detail-typewriter-pending">{{ revealedByline.pending }}</span></span>
+        </div>
+      <div v-if="!detailLoading || detailTextErasing" ref="detailTextElement" class="detail-marker-text">
+        <div v-if="detailSummary" ref="detailSummaryElement" class="detail-marker-summary">
+          <span class="sr-only">{{ detailSummary }}</span>
+          <span aria-hidden="true"><span class="detail-typewriter-visible">{{ revealedSummary.settled }}<span v-for="character in revealedSummary.leading" :key="character.index" :style="{ opacity: character.opacity }">{{ character.text }}</span></span><span class="detail-typewriter-pending">{{ revealedSummary.pending }}</span></span>
+        </div>
+
       </div>
     </div>
     <div v-if="isDetail && isMapReady && !mapError" class="map-ui detail-zoom-ui" role="group" aria-label="Map zoom" :inert="detailLoading">
@@ -96,7 +103,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 import { isDark } from '../services/theme';
-import { mapWorkspaceKey } from '../services/mapWorkspace';
+import { mapWorkspaceKey, detailMotionDuration } from '../services/mapWorkspace';
 import { loadWizardDraft, saveWizardDraft } from '../services/storage';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
 import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
@@ -104,6 +111,7 @@ import { createSuggestionDensityOverlay } from '../services/suggestionDensityOve
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import { clusterAppearance, createMarkerSpiderfier } from '../services/markerSpiderfier';
 import { getSuggestions } from '../services/api';
+import { bookmarks } from '../services/bookmarks';
 import { addFormattedDistances, sortSuggestionsByDistance } from '../services/geo';
 import {
   getStoredBrowseTab,
@@ -156,12 +164,18 @@ const route = useRoute();
 
 const savedTab = getStoredBrowseTab(); // 'streets' | 'satellite' | 'list'
 const suggestions = ref([]);
+const resolvedSuggestions = ref(new Map());
 const failedPhotoIds = ref(new Set());
-const isLoading = ref(false);
-const userLocation = ref(null); // { lat, lng }
+const isLoading = ref(true);
+const listError = ref('');
+const locationError = ref('');
+const restoredLocation = window.history.state?.ideaView?.location;
+const userLocation = ref(restoredLocation && Number.isFinite(restoredLocation.lat) && Number.isFinite(restoredLocation.lng)
+  && Math.abs(restoredLocation.lat) <= 90 && Math.abs(restoredLocation.lng) <= 180 ? restoredLocation : null);
 const isLocating = ref(false);
 const currentMapType = ref(getStoredMapView()?.mapType || (savedTab === 'satellite' ? 'hybrid' : 'roadmap'));
-const activeSort = ref(getStoredBrowseSort());
+let requestedSort = getStoredBrowseSort();
+const activeSort = ref(requestedSort === 2 && userLocation.value ? 2 : 1);
 const markerZoomThreshold = ref(getStoredMarkerZoomThreshold());
 const heatmapOpacity = ref(getStoredHeatmapOpacity());
 const heatmapRadius = ref(getStoredHeatmapRadius());
@@ -273,21 +287,26 @@ function scheduleDetailTextFit() {
     if (!text?.isConnected || !tray || !byline) return;
     const frame = tray.getBoundingClientRect();
     const target = text.parentElement.getBoundingClientRect();
-    text.style.width = `${frame.width}px`;
+    if (tray.classList.contains('is-reading') || tray.classList.contains('is-dragging')) return;
+    const bounds = browseMapContainerEl.value?.getBoundingClientRect();
+    const searchBottom = document.querySelector('.map-search-panel')?.getBoundingClientRect().bottom || 60;
+    byline.style.top = `${(searchBottom - target.top - byline.getBoundingClientRect().height) / 2}px`;
+    text.style.width = `${Math.max(1, frame.width - 16)}px`;
     text.style.left = `${frame.left + frame.width / 2 - target.left}px`;
-    const bylineHeight = byline.getBoundingClientRect().height;
-    text.style.top = `${Math.min(85, frame.top - target.top - bylineHeight - 18)}px`;
-    if (!summary) return;
-    const available = Math.max(1, frame.top - text.getBoundingClientRect().top - bylineHeight - 14);
-    let low = 1; let high = Math.max(1, available / 1.2);
-    // Measure real wrapping while reserving the date/author row and bottom gap.
-    for (let i = 0; i < 14; i++) {
-      const size = (low + high) / 2;
-      summary.style.fontSize = `${size}px`;
-      if (summary.getBoundingClientRect().height <= available && summary.scrollWidth <= summary.clientWidth + 1) low = size;
-      else high = size;
+    text.style.top = '69px';
+    if (!summary || !bounds) return;
+    summary.style.fontSize = '18px';
+    // Yield tray height to the full headline before reducing its readable font size.
+    const trayBottom = bounds.bottom - 88;
+    let requiredGap = 2 * (44 + summary.getBoundingClientRect().height + 22);
+    if (trayBottom - searchBottom - requiredGap < 140) {
+      summary.style.fontSize = '16px';
+      requiredGap = 2 * (44 + summary.getBoundingClientRect().height + 22);
     }
-    summary.style.fontSize = `${Math.floor(low * 10) / 10}px`;
+    const maximum = Math.max(100, trayBottom - searchBottom - requiredGap);
+    const value = `${Math.floor(maximum)}px`;
+    if (tray.style.getPropertyValue('--detail-readable-height') !== value) tray.style.setProperty('--detail-readable-height', value);
+
   });
 }
 const detailTargetPosition = ref({ left: '50%', top: '25%' });
@@ -320,6 +339,11 @@ const isSearching = ref(false);
 let searchDebounce = null;
 const searchEditing = ref(false);
 
+const bookmarkedSuggestions = computed(() => {
+  const current = new Map(suggestions.value.map(item => [String(item.id), item]));
+  return bookmarks.value.map(entry => resolvedSuggestions.value.get(entry.suggestion.id) || current.get(entry.suggestion.id) || entry.suggestion);
+});
+
 // Sorted suggestions for List View
 const sortedListSuggestions = computed(() => {
   if (activeSort.value === 2 && userLocation.value) {
@@ -346,7 +370,19 @@ function selectTab(tab) {
   }
 }
 function setTab(tab) { router.push({ path: '/', query: { view: tab === 'list' ? 'list' : 'map' } }); }
-function setSortMode(sort) { activeSort.value = sort; setStoredBrowseSort(sort); }
+function setSortMode(sort) {
+  requestedSort = sort;
+  setStoredBrowseSort(sort);
+  locationError.value = '';
+  if (sort === 2 && !userLocation.value) { requestGps(); return; }
+  if (activeSort.value === sort) return;
+  activeSort.value = sort;
+  nextTick(() => {
+    const content = document.querySelector('.idea-list-tray .map-tray-content');
+    if (content) content.scrollTop = 0;
+    saveViewState();
+  });
+}
 function setMapType(type) {
   cancelClusterZoom();
   currentMapType.value = type;
@@ -357,7 +393,7 @@ function setMapType(type) {
   saveCurrentMapView();
 }
 function saveCurrentMapView() {
-  if (!map || !isMapReady.value || isProgrammaticChange || !isBrowse.value) return;
+  if (!map || !isMapReady.value || isProgrammaticChange || (!isBrowse.value && route.name !== 'Bookmarks')) return;
   const center = map.getCenter();
   const zoom = map.getZoom();
   if (center && typeof zoom === 'number') {
@@ -367,6 +403,7 @@ function saveCurrentMapView() {
       zoom: zoom,
       mapType: currentMapType.value,
     });
+    if (viewReady) saveViewState();
   }
 }
 
@@ -589,7 +626,7 @@ async function initGoogleMap() {
     if (pendingLocation) focusLocation(pendingLocation);
   } catch (err) {
     console.warn('Google Maps BrowseView init warning:', err);
-    mapError.value = 'The map could not be loaded. You can still browse suggestions.';
+    mapError.value = 'The map could not be loaded. You can still browse ideas.';
     isMapReady.value = true;
     isProgrammaticChange = false;
     browseMapInitialization.value = 'failed';
@@ -663,7 +700,7 @@ function createInfoWindowContent(suggestion) {
 
 function openInfoWindow(suggestion, marker, autoRestore = false) {
   cancelClusterZoom();
-  if (!map || !googleMaps || trayOpen.value) return;
+  if (!map || !googleMaps || blocksMap.value) return;
   if (!infoWindow) {
     infoWindow = new googleMaps.InfoWindow();
     infoWindow.addListener('closeclick', () => {
@@ -893,6 +930,7 @@ async function selectMapSearchResult(item) {
   }
 
   if (readOnlyAddress.value) return;
+  if (lat !== undefined && lng !== undefined && (isList.value || route.name === 'Bookmarks')) await closeToMap();
   if (lat !== undefined && lng !== undefined && map) {
     map.setCenter({ lat, lng });
     map.setZoom(15);
@@ -918,14 +956,24 @@ function onCenterOnLocationClick() {
 
 // Geolocation
 function requestGps(forceCenter = false) {
-  if (!navigator.geolocation) return;
+  if (isLocating.value) return;
+  const fail = () => {
+    isLocating.value = false;
+    if (requestedSort === 2) locationError.value = userLocation.value
+      ? 'Could not update your location. Distances use your last location.'
+      : 'Your location is unavailable. Showing newest ideas.';
+  };
+  if (!navigator.geolocation) { fail(); return; }
   isLocating.value = true;
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       isLocating.value = false;
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) { fail(); return; }
       userLocation.value = { lat, lng };
+      locationError.value = '';
+      if (requestedSort === 2) setSortMode(2);
 
       if (map) {
         renderSuggestionMarkers();
@@ -941,18 +989,21 @@ function requestGps(forceCenter = false) {
       }
     },
     (err) => {
-      isLocating.value = false;
+      fail();
       console.warn('GPS error:', err);
     },
     { enableHighAccuracy: true, timeout: 8000 }
   );
 }
 
-async function refreshData() {
+async function refreshData(force = true) {
   isLoading.value = true;
+  listError.value = '';
   try {
-    suggestions.value = await getSuggestions(true);
+    suggestions.value = await getSuggestions(force, { strict: true });
     renderSuggestionMarkers();
+  } catch {
+    listError.value = 'Ideas could not be loaded. Please try again.';
   } finally {
     isLoading.value = false;
   }
@@ -982,6 +1033,62 @@ let cancelDetailMotion = null;
 const detailLocation = ref(null);
 const detailByline = ref('');
 const detailSummary = ref('');
+const detailRevealProgress = ref(1);
+const revealedSummary = computed(() => revealPrefix(detailSummary.value));
+const revealedByline = computed(() => revealPrefix(detailByline.value));
+function revealPrefix(text) {
+  const characters = Array.from(text);
+  const fadeWidth = 6;
+  const cursor = (characters.length + fadeWidth) * detailRevealProgress.value;
+  const start = Math.max(0, Math.floor(cursor - fadeWidth));
+  const end = Math.min(characters.length, Math.ceil(cursor));
+  return {
+    settled: characters.slice(0, start).join(''),
+    leading: characters.slice(start, end).map((text, offset) => ({
+      text,
+      index: start + offset,
+      opacity: Math.min(1, Math.max(0, (cursor - start - offset) / fadeWidth)),
+    })),
+    pending: characters.slice(end).join(''),
+  };
+}
+const detailTextErasing = ref(false);
+let cancelDetailTextAnimation = null;
+let detailTextEraseVersion = 0;
+function animateDetailText(target) {
+  cancelDetailTextAnimation?.();
+  const from = detailRevealProgress.value;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || from === target) {
+    detailRevealProgress.value = target;
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    let frame = 0;
+    const finish = () => { cancelAnimationFrame(frame); cancelDetailTextAnimation = null; resolve(); };
+    cancelDetailTextAnimation = finish;
+    const started = performance.now();
+    const tick = now => {
+      const progress = Math.min(1, (now - started) / (target === 0 ? 400 : 1000));
+      detailRevealProgress.value = from + (target - from) * progress;
+      if (progress < 1) frame = requestAnimationFrame(tick);
+      else finish();
+    };
+    frame = requestAnimationFrame(tick);
+  });
+}
+async function eraseDetailText() {
+  const version = ++detailTextEraseVersion;
+  detailTextErasing.value = true;
+  await animateDetailText(0);
+  if (version === detailTextEraseVersion) detailTextErasing.value = false;
+}
+watch([isDetail, detailLoading, detailSummary, detailByline], ([active, loading]) => {
+  if (active && loading && detailTextErasing.value) return;
+  cancelDetailTextAnimation?.();
+  detailRevealProgress.value = 0;
+  if (active && !loading) animateDetailText(1);
+}, { immediate: true });
+onBeforeUnmount(() => cancelDetailTextAnimation?.());
 const detailNavigation = ref({ olderId: null, newerId: null });
 let detailSuggestionId = null;
 let detailCreationTime = NaN;
@@ -1077,15 +1184,106 @@ watch(isSubmitLocate, async active => {
   }).catch(() => {});
 });
 const readOnlyAddress = computed(() => isDetail.value || (isSubmit.value && draft.value.step > 1));
-const trayOpen = computed(() => isList.value || route.name === 'SubmissionDetail' || readOnlyAddress.value);
+const trayOpen = computed(() => isList.value || route.name === 'MyActions' || route.name === 'Bookmarks' || route.name === 'SubmissionDetail' || readOnlyAddress.value);
+const wideScreen = window.matchMedia('(min-width: 1024px)');
+const isWideScreen = ref(wideScreen.matches);
+const updateWideScreen = event => { isWideScreen.value = event.matches; };
+wideScreen.addEventListener('change', updateWideScreen);
+const desktopSideTray = computed(() => isWideScreen.value && (isList.value || route.name === 'Bookmarks'));
+const blocksMap = computed(() => trayOpen.value && !desktopSideTray.value);
 const isSubmitting = inject('isSubmitting', ref(false));
 let browseOrigin = null;
-let detailOrigin = null;
 let pendingLocation = null;
 let skipRestore = false;
 let originFocus = null;
 let originFocusSelector = null;
 let browseSearch = '';
+// Persist only plain view data in each history entry. Nested return contexts
+// preserve Details -> Bookmarks -> Details without inheriting stale origins.
+let viewState = window.history.state?.ideaView || {};
+let viewPosition = window.history.state?.position;
+let incomingView = null;
+let isHistoryNavigation = false;
+let markerEntry = false;
+let restoringView = false;
+let viewReady = false;
+let viewSaveTimer;
+const viewEntries = new Map([[viewPosition, viewState]]);
+function currentTray() {
+  if (route.name === 'Browse' && !isList.value) return null;
+  const selectors = { Browse: '.idea-list-tray[aria-label="Browse ideas"]', Bookmarks: '.idea-list-tray[aria-label="Bookmarked ideas"]',
+    MyActions: '.map-tray[aria-label="My actions"]', SubmissionDetail: '.submission-detail-tray' };
+  return document.querySelector(selectors[route.name] || '.map-tray:not(.map-tray-leave-active)');
+}
+function persistViewState() {
+  clearTimeout(viewSaveTimer);
+  if (window.history.state?.position === viewPosition) window.history.replaceState({ ...window.history.state, ideaView: viewState }, '');
+}
+function getViewState() { return viewState; }
+function captureView() {
+  const content = currentTray()?.querySelector('.map-tray-content');
+  const focused = document.activeElement;
+  const row = focused?.closest('[data-suggestion-id], .idea-row')?.querySelector?.('[data-suggestion-id]') || focused?.closest('[data-suggestion-id]');
+  const firstVisible = content && [...content.querySelectorAll('[data-suggestion-id]')].find(el => el.getBoundingClientRect().bottom > content.getBoundingClientRect().top);
+  return { ...viewState, url: route.fullPath, position: viewPosition,
+    scroll: content?.scrollTop || 0, anchor: firstVisible?.dataset.suggestionId,
+    anchorOffset: firstVisible && content ? firstVisible.getBoundingClientRect().top - content.getBoundingClientRect().top : 0,
+    focusId: row?.dataset.suggestionId || null,
+    focusHref: focused?.closest('a[href]')?.getAttribute('href') || null,
+    focusLabel: focused?.closest('[role="menu"]') ? 'Menu' : focused?.getAttribute('aria-label') || null,
+    sort: activeSort.value, location: userLocation.value ? { ...userLocation.value } : null,
+    search: mapSearchQuery.value, viewport: snapshot() };
+}
+function saveViewState(immediate = false) {
+  if (restoringView || window.history.state?.position !== viewPosition) return;
+  viewState = captureView();
+  viewEntries.set(viewPosition, viewState);
+  clearTimeout(viewSaveTimer);
+  // Keep scroll events cheap and avoid excessive History API writes on mobile.
+  if (immediate === true) persistViewState();
+  else viewSaveTimer = setTimeout(persistViewState, 500);
+}
+async function restoreView(detailReturnViewport) {
+  restoringView = true;
+  const state = viewState;
+  if (state.location) userLocation.value = state.location;
+  if (state.sort) activeSort.value = state.sort === 2 && userLocation.value ? 2 : 1;
+  if (state.search != null && !isDetail.value && !isSubmit.value) mapSearchQuery.value = state.search;
+  await nextTick();
+  if (state !== viewState) { restoringView = false; return; }
+  const viewport = state.viewport || detailReturnViewport;
+  if (viewport && !isDetail.value && !isSubmit.value) restoreSnapshot(viewport, !!detailReturnViewport);
+  const content = currentTray()?.querySelector('.map-tray-content');
+  if (content && state.scroll != null) {
+    content.scrollTop = state.scroll;
+    const anchor = state.anchor && content.querySelector('[data-suggestion-id="' + CSS.escape(state.anchor) + '"]');
+    if (anchor) content.scrollTop += anchor.getBoundingClientRect().top - content.getBoundingClientRect().top - (state.anchorOffset || 0);
+  }
+  let target = state.focusId
+    ? content?.querySelector('[data-suggestion-id="' + CSS.escape(state.focusId) + '"]')
+    : state.focusLabel ? document.querySelector('button[aria-label="' + CSS.escape(state.focusLabel) + '"]')
+    : state.focusHref && content?.querySelector('a[href="' + CSS.escape(state.focusHref) + '"]');
+  if (!target && state.focusId && content) {
+    target = [...content.querySelectorAll('[data-suggestion-id]')].find(el => el.getBoundingClientRect().bottom > content.getBoundingClientRect().top)
+      || content.querySelector('a') || currentTray()?.querySelector('.map-tray-close');
+  }
+  target?.focus({ preventScroll: true });
+  restoringView = false;
+  viewReady = true;
+}
+async function returnToOrigin() {
+  const origin = viewState.returnTo;
+  if (!origin) {
+    if (route.name === 'MyActions') await router.push('/browse');
+    else await closeToMap();
+    return;
+  }
+  if (Number.isInteger(origin.position) && origin.position < viewPosition) {
+    router.go(origin.position - viewPosition);
+  } else {
+    await router.push({ path: origin.url, state: { ideaView: origin } });
+  }
+}
 function rememberFocus() {
   originFocus = document.activeElement;
   const id = originFocus?.dataset?.suggestionId;
@@ -1103,12 +1301,13 @@ function snapshot() {
   const center = map?.getCenter();
   return center ? { lat: center.lat(), lng: center.lng(), zoom: map.getZoom(), mapType: currentMapType.value } : getStoredMapView();
 }
-function restoreSnapshot(view) {
+function restoreSnapshot(view, animate = false) {
   if (!view) return;
   if (!map) { pendingLocation = { latitude: view.lat, longitude: view.lng, zoom: view.zoom, mapType: view.mapType }; return; }
   if (view.mapType) setMapType(view.mapType);
-  map.setCenter({ lat: view.lat, lng: view.lng });
-  map.setZoom(view.zoom);
+  if (map.getZoom() !== view.zoom) map.setZoom(view.zoom);
+  if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) map.panTo({ lat: view.lat, lng: view.lng });
+  else map.setCenter({ lat: view.lat, lng: view.lng });
 }
 function focusLocation(location) {
   if (!location || location.latitude == null || location.longitude == null) return;
@@ -1130,8 +1329,12 @@ function setDetailLocation(location, byline = '', summary = '', suggestionId = n
   detailCreationTime = new Date(creationDate).getTime();
   refreshDetailNavigation();
 }
+function rememberSuggestion(item) {
+  if (item?.id) resolvedSuggestions.value = new Map(resolvedSuggestions.value).set(String(item.id), item);
+}
 function updateSuggestionMarker(item) {
   if (!item?.id) return;
+  rememberSuggestion(item);
   const id = String(item.id);
   const marker = suggestionMarkersById.get(id);
   suggestions.value = suggestions.value.map(suggestion =>
@@ -1148,10 +1351,10 @@ function setDetailMarkerTarget(suggestionId) { syncDetailSuggestionMarker(sugges
 function setDetailLoading(loading) {
   const wasLoading = detailLoading.value;
   detailLoading.value = !!loading;
-  map?.setOptions({ gestureHandling: detailLoading.value || trayOpen.value ? 'none' : 'greedy', keyboardShortcuts: !detailLoading.value && !trayOpen.value });
+  map?.setOptions({ gestureHandling: detailLoading.value || blocksMap.value ? 'none' : 'greedy', keyboardShortcuts: !detailLoading.value && !blocksMap.value });
   if (wasLoading && !detailLoading.value && isDetail.value) {
     nextTick(() => requestAnimationFrame(() => {
-      if (!detailLoading.value && isDetail.value) frameDetailLocation(true);
+      if (!detailLoading.value && isDetail.value) frameDetailLocation();
     }));
   }
 }
@@ -1175,7 +1378,7 @@ function ensureDetailTargetOverlay() {
   };
   detailTargetOverlay.setMap(map);
 }
-function transitionToDetailLocation(location) {
+function transitionToDetailLocation(location, finalTrayTop, trayAnimation) {
   if (!isDetail.value || !map || !googleMaps || location?.latitude == null || location?.longitude == null) return Promise.resolve();
   const lat = Number(location.latitude), lng = Number(location.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return Promise.resolve();
@@ -1185,7 +1388,8 @@ function transitionToDetailLocation(location) {
   let target = { lat, lng };
   const projection = map.getProjection?.();
   if (projection && tray && search && bounds) {
-    const targetY = (search.getBoundingClientRect().bottom + tray.getBoundingClientRect().top) / 2;
+    // Navigation can resize the tray while panning; aim at its settled layout.
+    const targetY = (search.getBoundingClientRect().bottom + (finalTrayTop ?? tray.getBoundingClientRect().top)) / 2;
     const offset = bounds.top + bounds.height / 2 - targetY;
     const point = projection.fromLatLngToPoint(new googleMaps.LatLng(lat, lng));
     const center = projection.fromPointToLatLng(new googleMaps.Point(point.x, point.y + offset / 2 ** (map.getZoom() || 1)));
@@ -1232,10 +1436,15 @@ function transitionToDetailLocation(location) {
     };
     cancelDetailMotion = stop;
     const animate = now => {
-      const progress = Math.min(1, (now - started) / 1000);
-      const eased = progress < .5 ? 4 * progress ** 3 : 1 - ((-2 * progress + 2) ** 3) / 2;
+      if (trayAnimation?.playState === 'idle') { stop(); return; }
+      const progress = Math.min(1, (now - started) / detailMotionDuration);
+      // Use the tray's actual eased timeline, not a second approximation or
+      // clock, so both movements reach their endpoints in the same frame.
+      const eased = trayAnimation
+        ? (trayAnimation.playState === 'finished' ? 1 : trayAnimation.effect.getComputedTiming().progress ?? 0)
+        : (progress < .5 ? 4 * progress ** 3 : 1 - ((-2 * progress + 2) ** 3) / 2);
       map.setCenter({ lat: from.lat + (target.lat - from.lat) * eased, lng: from.lng + deltaLng * eased });
-      if (progress >= 1) finish();
+      if (eased >= 1) finish();
       else detailMotionFrame = requestAnimationFrame(animate);
     };
     detailMotionFrame = requestAnimationFrame(animate);
@@ -1243,6 +1452,12 @@ function transitionToDetailLocation(location) {
 }
 function cancelDetailTransition() { cancelDetailMotion?.(); }
 function refreshDetailNavigation() {
+  const order = viewState?.order;
+  if (isDetail.value && order?.length) {
+    const index = order.indexOf(String(route.params.id));
+    detailNavigation.value = { olderId: index > 0 ? order[index - 1] : null, newerId: index >= 0 ? order[index + 1] || null : null };
+    return;
+  }
   if (!isDetail.value || !detailSuggestionId || !Number.isFinite(detailCreationTime)) {
     detailNavigation.value = { olderId: null, newerId: null };
     return;
@@ -1276,12 +1491,22 @@ function frameDetailLocation(immediate = false) {
   const search = document.querySelector('.map-search-panel');
   const bounds = browseMapContainerEl.value?.getBoundingClientRect();
   if (!tray || !search || !bounds) return;
+  if (tray.classList.contains('is-reading') || tray.classList.contains('is-dragging')) return;
   const targetY = (search.getBoundingClientRect().bottom + tray.getBoundingClientRect().top) / 2;
   const offset = bounds.top + bounds.height / 2 - targetY;
   const projection = map.getProjection?.();
   if (projection) {
     const point = projection.fromLatLngToPoint(new googleMaps.LatLng(position.lat, position.lng));
     const center = projection.fromPointToLatLng(new googleMaps.Point(point.x, point.y + offset / 2 ** map.getZoom()));
+    const current = map.getCenter();
+    if (current) {
+      const currentPoint = projection.fromLatLngToPoint(current);
+      const targetPoint = projection.fromLatLngToPoint(center);
+      const scale = 2 ** map.getZoom();
+      // Loading completion and ResizeObserver can request the same framing.
+      // Avoid starting a second camera motion for subpixel rounding differences.
+      if (Math.hypot(currentPoint.x - targetPoint.x, currentPoint.y - targetPoint.y) * scale < .5) return;
+    }
     if (immediate === true || window.matchMedia('(prefers-reduced-motion: reduce)').matches) map.setCenter(center);
     else map.panTo(center);
   } else { map.setCenter(position); map.panBy?.(0, offset); }
@@ -1353,18 +1578,20 @@ function scheduleSubmissionFrame() {
     frameSubmissionLocation();
   });
 }
-function openSuggestion(item) { router.push('/suggestion/' + item.id); }
+function openSuggestion(item) { markerEntry = true; router.push('/suggestion/' + encodeURIComponent(item.id)); }
 async function closeToMap() {
   await router.push({ path: '/', query: { view: 'map' } });
   restoreFocus();
 }
 async function closeTray() {
   if (isSubmitting.value) return;
+  if (['MyActions', 'Bookmarks', 'SubmissionDetail'].includes(route.name)) {
+    await returnToOrigin();
+    return;
+  }
   if (isSubmit.value) submission.value?.saveDraft?.();
   const focusLabel = isList.value ? 'Browse' : isSubmit.value ? 'Submit' : null;
-  if (route.name === 'SubmissionDetail' && detailOrigin) {
-    await router.push(detailOrigin.url);
-  } else await closeToMap();
+  await closeToMap();
   if (focusLabel) nextTick(() => document.querySelector(`.map-toolbar button[aria-label="${focusLabel}"]`)?.focus({ preventScroll: true }));
   else restoreFocus();
 }
@@ -1401,22 +1628,81 @@ function resetSubmissionToBrowseCenter(viewport) {
     saveWizardDraft(currentDraft);
   }).catch(() => {});
 }
-const removeNavigationGuard = router.beforeEach((to, from) => {
+let detailReturnViewport = null;
+let detailExitAnimations = [];
+const removeNavigationGuard = router.beforeEach(async (to, from) => {
+  detailExitAnimations.forEach(animation => animation.cancel());
+  detailExitAnimations = [];
   cancelClusterZoom();
+  isHistoryNavigation = window.history.state?.position !== viewPosition;
+  const outgoing = captureView();
+  viewEntries.set(viewPosition, outgoing);
+  clearTimeout(viewSaveTimer);
+  saveViewState(true);
+  detailReturnViewport = null;
+  if (from.name === 'SubmissionDetail' && to.name !== 'SubmissionDetail') {
+    cancelDetailTransition();
+    detailReturnViewport = !skipRestore ? viewState.returnTo?.viewport : null;
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // Keep the detail layout and camera intact until its visual exit ends.
+      const elements = document.querySelectorAll('.submission-detail-tray, .detail-map-target, .detail-zoom-ui, .workspace-backdrop-detail');
+      const animations = [...elements].map(element => element.animate(
+        [{ opacity: 1 }, { opacity: 0 }],
+        { duration: 240, easing: 'ease-out', fill: 'forwards' },
+      ));
+      detailExitAnimations = animations;
+      await Promise.all(animations.map(animation => animation.finished.catch(() => {})));
+      // Route unmount removes these elements; retain the final opacity until then.
+    }
+  }
   const fromBrowse = from.name === 'Browse';
+  incomingView = {};
+  if (to.name === 'SubmissionDetail') {
+    if (from.name === 'SubmissionDetail') incomingView = { returnTo: viewState.returnTo, order: viewState.order };
+    else {
+      incomingView = { returnTo: outgoing };
+      if (!markerEntry && fromBrowse && isList.value) incomingView.order = sortedListSuggestions.value.map(item => String(item.id));
+      if (!markerEntry && from.name === 'Bookmarks') incomingView.order = bookmarkedSuggestions.value.map(item => String(item.id));
+    }
+  } else if (['Bookmarks', 'MyActions'].includes(to.name)) {
+    incomingView = { returnTo: outgoing };
+  }
+  markerEntry = false;
   if (fromBrowse && (to.name === 'SubmissionDetail' || to.name === 'Submit')) {
     browseOrigin = { url: from.fullPath, viewport: snapshot() };
     rememberFocus();
     browseSearch = mapSearchQuery.value;
     if (to.name === 'Submit') resetSubmissionToBrowseCenter(browseOrigin.viewport);
   }
-  if (to.name === 'SubmissionDetail' && fromBrowse) detailOrigin = browseOrigin;
   if (to.name === 'Browse' && (from.name === 'SubmissionDetail' || from.name === 'Submit')) {
     pendingLocation = null;
-    if (!skipRestore && from.name === 'SubmissionDetail') restoreSnapshot(detailOrigin?.viewport);
     skipRestore = false;
     mapSearchQuery.value = browseSearch;
   }
+});
+const removeAfterNavigation = router.afterEach((to, from, failure) => {
+  const exitAnimations = detailExitAnimations;
+  detailExitAnimations = [];
+  if (failure) { exitAnimations.forEach(animation => animation.cancel()); return; }
+  nextTick(() => {
+    for (const animation of exitAnimations) {
+      const element = animation.effect?.target;
+      // A list/submit destination can reuse the backdrop instead of unmounting it.
+      if (element?.isConnected && !element.classList.contains('workspace-backdrop-leave-active')) {
+        animation.cancel();
+        if (element.classList.contains('workspace-backdrop')) element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' });
+      }
+    }
+  });
+  viewPosition = window.history.state?.position;
+  viewState = (isHistoryNavigation && viewEntries.get(viewPosition)) || window.history.state?.ideaView || incomingView || {};
+  isHistoryNavigation = false;
+  viewEntries.set(viewPosition, viewState);
+  window.history.replaceState({ ...window.history.state, ideaView: viewState }, '');
+  incomingView = null;
+  refreshDetailNavigation();
+  restoreView(detailReturnViewport);
+  detailReturnViewport = null;
 });
 function handleEscape(event) {
   if (event.key !== 'Escape' || event.defaultPrevented) return;
@@ -1429,10 +1715,12 @@ function handleEscape(event) {
   if (trayOpen.value) { event.preventDefault(); closeTray(); }
 }
 window.addEventListener('keydown', handleEscape);
+window.addEventListener('pagehide', persistViewState);
 const workspace = {
-  setDetailLocation, setDetailMarkerTarget, setDetailLoading, transitionToDetailLocation, cancelDetailTransition, findSuggestionLocation, updateSuggestionMarker, detailLoading, detailNavigation, navigateDetail,
+  eraseDetailText, setDetailLocation, setDetailMarkerTarget, setDetailLoading, transitionToDetailLocation, cancelDetailTransition, findSuggestionLocation, updateSuggestionMarker, detailLoading, detailNavigation, navigateDetail,
   pinContinueReady,
-  suggestions, sortedListSuggestions, activeSort, setSortMode, requestGps, isLocating, refreshData,
+  suggestions, sortedListSuggestions, bookmarkedSuggestions, activeSort, setSortMode, requestGps, isLocating, refreshData,
+  isLoading, listError, locationError, saveViewState, getViewState, rememberSuggestion,
   formatBrowseAddress, formatCreationDate, getPrimaryPhoto, failedPhotoIds, onPhotoError,
   isList, trayOpen, closeTray, closeToMap, openSuggestion, focusLocation, revealLocation,
   registerSubmission: value => { submission.value = value; },
@@ -1460,7 +1748,7 @@ watch([isPopupOpen, isSpiderOpen, isMapReady], ([popupOpen, spiderOpen]) => {
   }
   popupShadeOverlay.setMap(map);
 });
-watch([trayOpen, isMapReady], ([open]) => {
+watch([blocksMap, isMapReady], ([open]) => {
   map?.setOptions({ gestureHandling: open ? 'none' : 'greedy', keyboardShortcuts: !open });
   if (open) { closeInfoWindow(); markerSpiderfier?.collapse(); }
 }, { immediate: true });
@@ -1509,6 +1797,11 @@ watch([isDetail, isMapReady, detailLocation], async (_, __, onCleanup) => {
   let observer;
   let zoomListener;
   let frameRequest = 0;
+  let settleTimer = 0;
+  const recenterAfterResize = () => {
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(recenter, 120);
+  };
   const recenter = () => {
     if (frameRequest) cancelAnimationFrame(frameRequest);
     frameRequest = requestAnimationFrame(() => {
@@ -1516,12 +1809,15 @@ watch([isDetail, isMapReady, detailLocation], async (_, __, onCleanup) => {
       if (cancelled || !isDetail.value || !map || !googleMaps) return;
       googleMaps.event?.trigger?.(map, 'resize');
       if (detailLoading.value) { detailTargetOverlay?.draw(); refreshDetailNavigation(); return; }
-      frameDetailLocation(true);
+      // Description reveals and accordion changes alter the visible map area.
+      // Ease into its new center instead of snapping after the resize settles.
+      frameDetailLocation();
       refreshDetailNavigation();
     });
   };
   onCleanup(() => {
     cancelled = true;
+    clearTimeout(settleTimer);
     observer?.disconnect();
     zoomListener?.remove();
     window.removeEventListener('resize', recenter);
@@ -1533,7 +1829,7 @@ watch([isDetail, isMapReady, detailLocation], async (_, __, onCleanup) => {
   if (!isDetail.value || !isMapReady.value || !detailLocation.value) return;
   await nextTick();
   if (cancelled) return;
-  observer = new ResizeObserver(recenter);
+  observer = new ResizeObserver(recenterAfterResize);
   zoomListener = map.addListener('zoom_changed', () => frameDetailLocation(true));
   for (const element of [document.querySelector('.submission-detail-tray'), browseMapContainerEl.value]) {
     if (element) observer.observe(element);
@@ -1545,7 +1841,7 @@ watch([isDetail, isMapReady, detailLocation], async (_, __, onCleanup) => {
 watch([isDetail, detailLocation], () => {
   if (!isDetail.value) return;
   const location = detailLocation.value;
-  mapSearchQuery.value = location?.address || 'Submission address unavailable';
+  mapSearchQuery.value = location?.address || 'Idea address unavailable';
 }, { immediate: true });
 watch(() => [isSubmitLocate.value, draft.value.location?.latitude, draft.value.location?.longitude], updateSubmissionCrosshair);
 watch([isSubmit, isMapReady, () => draft.value.step], async (_, __, onCleanup) => {
@@ -1577,7 +1873,10 @@ watch(() => [route.fullPath, draft.value.step, draft.value.location?.address, dr
   if (readOnlyAddress.value) { clearTimeout(searchDebounce); mapSearchResults.value = []; isSearching.value = false; }
 });
 watch(isList, value => { if (isBrowse.value) setStoredBrowseTab(value ? 'list' : currentMapType.value === 'hybrid' ? 'satellite' : 'streets'); });
-watch(isBrowse, value => { if (value) restoreFocus(); });
+watch(isBrowse, value => { if (value && !viewState.focusId) restoreFocus(); });
+watch(detailLoading, loading => {
+  if (!loading && viewState.url === route.fullPath) restoreView();
+});
 
 onMounted(async () => {
   window.addEventListener('resize', positionCoordinateLabel);
@@ -1587,7 +1886,8 @@ onMounted(async () => {
   if (hasGoogleMapsKey) initGoogleMap();
   else browseMapInitialization.value = 'failed';
   requestGps();
-  suggestions.value = await getSuggestions(false);
+  await refreshData(false);
+  await restoreView();
 });
 
 onBeforeUnmount(() => {
@@ -1606,6 +1906,10 @@ onBeforeUnmount(() => {
   if (submissionFrameRequest !== null) cancelAnimationFrame(submissionFrameRequest);
   markerSpiderfier?.dispose();
   removeNavigationGuard();
+  removeAfterNavigation();
+  clearTimeout(viewSaveTimer);
+  window.removeEventListener('pagehide', persistViewState);
+  wideScreen.removeEventListener('change', updateWideScreen);
   window.removeEventListener('keydown', handleEscape);
   clearTimeout(searchDebounce);
   suggestionClusterer?.clearMarkers();

@@ -5,6 +5,7 @@
 | When | Command | Work performed |
 | --- | --- | --- |
 | Active Browse development | `npm run test:feature -- browse` | One Android/light journey; assertions only |
+| Detail photo development | `npx playwright test --config=playwright.ux.config.js detail-photos --project=android-light` | Caption, viewer focus, narrow/landscape layout and targeted accessibility checks |
 | Active Submit development | `npm run test:feature -- submit` | Upload/edit/validation/recovery/persistence assertions |
 | Error-state development | `npm run test:feature -- recovery` | Empty, denied location, missing detail |
 | Audit tooling changes | `npm run test:feature -- guardrails` | Deliberate defects and write-blocking canaries |
@@ -37,6 +38,8 @@ Each checkpoint attaches a screenshot, axe violations/incomplete checks, layout 
 
 Screenshots use fixed time, deterministic data and a fake map with external traffic blocked. The fake basemap excludes remote tiles while retaining app controls. System font fallback is used when Google Fonts is unavailable; check live rendering separately. Comparisons use the same OS/device/theme. Missing baselines create review annotations, never a claim of visual equivalence. To generate candidates deliberately, set `UX_VISUAL=1` and run a selected audit with `--update-snapshots=all`; inspect every candidate before committing it. Never use this flag in CI. Linux CI baselines must be generated/reviewed on Linux; Windows images are not interchangeable.
 
+The fake basemap renders a fixed green tile layer separately from the SDK loading surface. On 2026-10-19, the Android/iPhone light toolbar comparisons differed only around their rounded corners: the production white loading-surface rule had recolored the fixture background, while toolbar interiors remained pixel-identical. Separating simulated tiles from that surface restored the existing baselines without changing production styles or reference images. `visual.spec.js` also checks both initial and switched theme surface colors so this fixture isolation cannot hide a loading-surface regression. Evidence: `test-results/toolbar-reproduce` (before), `test-results/toolbar-investigation-after` (eight passing toolbar/theme checks).
+
 CI runs core checks on PRs and before Pages deployment. Weekly Monday 13:00 UTC and manual full runs cover the expanded matrix. Artifacts last 14 days. Initially failures are reported without blocking deployment; **read the outcome and findings, not just the green workflow badge**. After triaging/fixing findings, set repository variable `UX_ENFORCE=true` to enable strict accessibility/layout gates and block deployment on failure. Local strict mode uses `UX_STRICT=1`. Resolve false positives before enabling. Differences against approved screenshot baselines fail tests even in report mode; CI initially reports those failures.
 
 CI does not invoke an AI model. AI review is on demand in this chat or a future explicitly configured automation. No paid services or API keys are required for deterministic tests.
@@ -56,3 +59,5 @@ Before release, on actual iPhone/Safari and Android/Chrome:
 - Install/open the PWA, reload offline and verify update/recovery. Do not send production submissions solely for testing.
 
 Keep `/test` secondary: existing diagram specs remain separately runnable. PWA installation/service-worker lifecycle are excluded from deterministic tests, which block service workers for network isolation.
+
+Detail-photo release check: on a physical Galaxy Z Flip6, check Chrome and Samsung Internet with mixed captioned/uncaptioned photos. Confirm horizontal photo swipes coexist with vertical tray scrolling, browser chrome changes do not obscure the viewer close button, and full captions remain readable in portrait and landscape. Automated 360px and 412px widths are approximations, not measurements of the configured device.

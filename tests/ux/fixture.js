@@ -11,7 +11,7 @@ export const items = Array.from({ length: 20 }, (_, i) => ({
 }));
 
 export const test = base.extend({
-  page: async ({ page, context }, use) => {
+  page: async ({ page, context, baseURL }, use) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.clock.setFixedTime(new Date('2026-10-19T12:00:00Z'));
@@ -19,7 +19,7 @@ export const test = base.extend({
     // are disabled in the config so they cannot bypass request interception.
     await context.route('**/*', route => {
       const url = new URL(route.request().url());
-      if (url.origin === 'http://127.0.0.1:5174' && ['GET', 'HEAD'].includes(route.request().method()) && !url.pathname.startsWith('/api/') && !url.pathname.startsWith('/__overpass')) return route.continue();
+      if (url.origin === new URL(baseURL).origin && ['GET', 'HEAD'].includes(route.request().method()) && !url.pathname.startsWith('/api/') && !url.pathname.startsWith('/__overpass')) return route.continue();
       return route.abort('blockedbyclient');
     });
     await page.addInitScript(installWorkspaceMaps);
@@ -36,11 +36,13 @@ export const test = base.extend({
       const items=${JSON.stringify(items)};
       const wait=async()=>{while(window.__ux.hold)await new Promise(resolve=>setTimeout(resolve,20));await new Promise(resolve=>setTimeout(resolve,window.__ux.delay));};
       export const API_BASE_URL='https://api.test';
-      export async function getSuggestions(){await wait();return window.__ux.empty?[]:items;}
-      export async function getSuggestionById(id){await wait();const item=items.find(x=>x.id===id);if(!item)throw Error('Suggestion not found');return item;}
+      export async function apiHeaders(headers={}) { return headers; }
+      export async function getSuggestions(){await wait();if(window.__ux.listFail)throw Error('List unavailable');return window.__ux.empty?[]:(window.__ux.items || items);}
+      export async function getSuggestionById(id){await wait();const item=items.find(x=>x.id===id);if(!item)throw Error('Suggestion not found');return {...item,...(window.__ux.author ? {author:window.__ux.author}:{}),content:{...item.content,...(window.__ux.photos ? {photos:window.__ux.photos}:{}),...(window.__ux.details !== undefined ? {details:window.__ux.details}:{})}};}
       export async function getSuggestionRepresentatives(){return [];}
       export async function getSuggestionBoundaries(){return [];}
-      export async function getSuggestionRecommendedActions(){return [];}
+      export async function getSuggestionRecommendedActions(){await wait();if(window.__ux.actionsFail)throw Error("Unable to load actions");return window.__ux.actions || [];}
+      export async function matchSuggestionRecommendations(){window.__ux.matches=(window.__ux.matches||0)+1;await wait();if(window.__ux.matchFail)throw Error("Matching failed");return window.__ux.generated || [];}
       export async function requestPhotoUploadUrl(){return {uploadUrl:'https://uploads.test/photo',publicUrl:${JSON.stringify(photo)}};}
       export async function uploadPhotoBinary(){await wait();if(window.__ux.uploadFail)throw Error('Test upload failure');}
       export async function createSuggestion(payload){await wait();window.__ux.submits++;if(window.__ux.fail)throw Error('Test submission failure');window.__submittedPayload=payload;return items[0];}

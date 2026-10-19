@@ -1,5 +1,10 @@
 <template>
-  <MapTray class="submission-detail-tray" title="Submission details" :close-disabled="isLoading" :content-disabled="isLoading" @close="goBack">
+  <MapTray ref="detailTray" @scroll="workspace.saveViewState" @click="captureAccordionPosition" @wheel.passive="releaseAccordionPosition" @pointerdown="releaseAccordionPosition" @keydown.capture="releaseAccordionPosition" class="submission-detail-tray" :class="{ 'streetmix-expanded': streetmixExpanded, 'is-reading': readingExpanded }" @touchstart.passive="startTrayGesture" @touchmove="moveTrayGesture" @touchend="endTrayGesture" @touchcancel="endTrayGesture" @wheel="wheelTray" title="Idea details" :close-disabled="isLoading" :content-disabled="isLoading" @close="goBack">
+    <template #handle>
+      <button class="detail-tray-handle" type="button" :disabled="isLoading" :title="readingExpanded ? 'Drag to resize, or click to collapse' : 'Drag to resize, or click to expand'" @mousedown="startHandleMouse" :aria-expanded="readingExpanded" :aria-label="readingExpanded ? 'Show map' : 'Expand details'" @click="toggleReading">
+        <span aria-hidden="true" class="detail-tray-grip"></span>
+      </button>
+    </template>
     <template #header>
       <div class="detail-header-navigation">
         <button type="button" class="map-ui-button" aria-label="Previous idea" data-tooltip="Previous idea" :disabled="isLoading || !workspace.detailNavigation.value.olderId" @click="workspace.navigateDetail('older')">
@@ -9,22 +14,29 @@
           <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
         </button>
       </div>
-      <div v-if="isLoading" class="detail-loading-message" role="status" aria-live="polite">{{ isRefreshing ? 'Refreshing submission, please wait...' : 'Loading next submission, please wait...' }}</div>
+      <div v-if="isLoading" class="detail-loading-message" role="status" aria-live="polite">{{ isRefreshing ? 'Refreshing idea, please wait...' : 'Loading next idea, please wait...' }}</div>
     </template>
     <template #header-actions>
-      <div class="detail-copy-link-action" :data-tooltip="copyLinkMessage || 'Copy suggestion link'">
-        <button type="button" class="map-ui-button detail-copy-link-button" aria-label="Copy suggestion link" :disabled="isLoading || !suggestion" @click="copySuggestionLink">
+      <BookmarkButton v-if="suggestion" :item="suggestion" :disabled="isLoading" />
+      <div class="detail-copy-link-action" :data-tooltip="copyLinkMessage || 'Copy idea link'">
+        <button type="button" class="map-ui-button detail-copy-link-button" aria-label="Copy idea link" :disabled="isLoading || !suggestion" @click="copySuggestionLink">
           <i class="fa-solid fa-link" aria-hidden="true"></i>
         </button>
         <span v-if="copyLinkMessage" class="detail-copy-link-status" role="status">{{ copyLinkMessage }}</span>
       </div>
-      <button type="button" class="map-ui-button detail-refresh-button" aria-label="Refresh submission" :title="isLoading ? 'Refreshing submission…' : 'Refresh submission'" :disabled="isLoading || !suggestion" @click="refreshSuggestion">
+      <button type="button" class="map-ui-button detail-refresh-button" aria-label="Refresh idea" data-tooltip="Refresh idea" :disabled="isLoading || !suggestion" @click="refreshSuggestion">
         <i class="fa-solid fa-rotate" :class="{ 'fa-spin': isLoading }" aria-hidden="true"></i>
       </button>
     </template>
+    <div v-if="readingExpanded && suggestion" class="detail-reading-heading">
+      <h1>{{ suggestion.content?.summary || suggestion.summary }}</h1>
+      <p>{{ formattedDate }} · {{ suggestion.author?.name || 'Anonymous Contributor' }}</p>
+    </div>
+    <p v-if="bookmarkNotice" class="idea-notice" role="alert">{{ bookmarkNotice }}</p>
+    <p class="sr-only" role="status">{{ bookmarkMessage }}</p>
     <p v-if="refreshError" class="detail-refresh-error" role="alert">{{ refreshError }}</p>
     <div v-if="isLoading && !suggestion" class="detail-loading-content" aria-hidden="true">
-      <div class="detail-loading-line detail-loading-line-wide"><span>Suggestion details are loading</span></div>
+      <div class="detail-loading-line detail-loading-line-wide"><span>Idea details are loading</span></div>
       <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-medium"><span>Photos</span></div><div class="detail-loading-photo"></div></div>
       <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Neighborhoods and districts</span></div></div>
       <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Representatives</span></div></div>
@@ -39,15 +51,15 @@
       class="text-center py-12 m-0"
     >
       <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-3" aria-hidden="true"></i>
-      <h2 class="text-xl font-bold mb-2">Suggestion Not Found</h2>
+      <h2 class="text-xl font-bold mb-2">Idea unavailable</h2>
       <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-6">{{ errorMessage }}</p>
       <k-button
         component="router-link"
-        to="/browse"
+        to="/?view=list"
         :rounded="true"
         class="text-sm font-semibold"
       >
-        Browse Other Suggestions
+        Browse other ideas
       </k-button>
     </k-card>
 
@@ -63,25 +75,27 @@
           <div class="detail-description-inner">
           <!-- Description Details -->
           <p>
-            {{ displayedDetails }}
+            {{ fadingDetails.settled }}<span v-for="character in fadingDetails.leading" :key="character.index" :style="{ opacity: character.opacity }">{{ character.text }}</span><span class="detail-typewriter-pending" aria-hidden="true">{{ outgoingDetails.slice(displayedDetails.length) }}</span>
           </p>
           </div>
         </div>
 
         <details v-if="photosList.length" class="detail-accordion">
-          <summary class="cursor-pointer px-4 py-3 font-bold">Photos ({{ photosList.length }})</summary>
-          <div class="px-6 pb-6">
-            <div class="review-photo-row">
-              <button v-for="(photo, index) in photosList" :key="photo.id || index" type="button" class="review-photo-thumbnail" :aria-label="`Open photo ${index + 1}${photo.caption ? ': ' + photo.caption : ''}`" @click="previewPhoto(index)">
-                <img :src="photo.dataUrl || photo.url" :alt="photo.caption || `Photo ${index + 1}`" />
-                <span v-if="photo.caption" class="review-photo-caption">{{ photo.caption }}</span>
+          <summary class="font-bold">Photos ({{ photosList.length }})</summary>
+          <div class="detail-photo-content">
+            <div class="detail-photo-row">
+              <button v-for="(photo, index) in photosList" :key="photo.id || index" type="button" class="detail-photo-thumbnail" :aria-label="`Open photo ${index + 1}${photo.caption ? ': ' + photo.caption : ''}`" @click="previewPhoto(index, $event.currentTarget)">
+                <img :src="photo.dataUrl || photo.url" alt="" />
+                <span v-if="photo.caption" class="detail-photo-caption">{{ photo.caption }}</span>
               </button>
             </div>
           </div>
         </details>
 
+        <StreetmixPanel v-if="String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" @expanded="streetmixExpanded = $event" />
+
         <details @toggle="handleBoundariesToggle" class="detail-accordion">
-          <summary class="cursor-pointer px-4 py-3 font-bold">Neighborhoods &amp; Districts</summary>
+          <summary class="font-bold">Neighborhoods &amp; Districts</summary>
           <div class="w-full min-w-0 max-w-full overflow-x-auto pb-4">
             <div v-if="boundariesLoading" role="status" aria-live="polite" class="flex items-center gap-2 px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
               <k-preloader class="h-4 w-4" />
@@ -92,7 +106,7 @@
               <k-button :rounded="true" class="text-sm font-semibold" @click.stop="loadBoundaries">Retry</k-button>
             </div>
             <p v-else-if="boundariesLoaded && !boundaries.length" class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-              No boundaries were found for this suggestion.
+              No boundaries were found for this idea.
             </p>
             <k-block v-else-if="boundaries.length" class="w-full min-w-0 mt-0 !pl-safe !pr-safe">
               <k-table class="min-w-max">
@@ -120,7 +134,7 @@
         </details>
 
         <details @toggle="handleRepresentativesToggle" class="detail-accordion">
-          <summary class="cursor-pointer px-4 py-3 font-bold">Representatives</summary>
+          <summary class="font-bold">Representatives</summary>
           <div class="w-full min-w-0 max-w-full overflow-x-auto pb-4">
             <div v-if="representativesLoading" role="status" aria-live="polite" class="flex items-center gap-2 px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
               <k-preloader class="h-4 w-4" />
@@ -131,7 +145,7 @@
               <k-button :rounded="true" class="text-sm font-semibold" @click.stop="loadRepresentatives">Retry</k-button>
             </div>
             <p v-else-if="representativesLoaded && !representatives.length" class="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-              No current representatives were found for this suggestion.
+              No current representatives were found for this idea.
             </p>
             <k-block v-else-if="representatives.length" class="w-full min-w-0 mt-0 !pl-safe !pr-safe">
               <k-table class="min-w-max">
@@ -172,80 +186,243 @@
           </div>
         </details>
 
-        <details @toggle="handleRecommendedActionsToggle" class="detail-accordion">
-          <summary class="cursor-pointer px-4 py-3 font-bold">Recommended Actions</summary>
-          <div class="px-4 pb-4">
-            <div v-if="recommendedActionsLoading" role="status" aria-live="polite" class="flex items-center gap-2 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-              <k-preloader class="h-4 w-4" />
-              <span>Loading recommended actions…</span>
-            </div>
-            <div v-else-if="recommendedActionsError" role="alert" class="space-y-3 py-3">
-              <p class="text-sm text-red-600 dark:text-red-400">{{ recommendedActionsError }}</p>
-              <k-button :rounded="true" class="text-sm font-semibold" @click.stop="loadRecommendedActions">Retry</k-button>
-            </div>
-            <p v-else-if="recommendedActionsLoaded && !recommendedActions.length" class="py-3 text-sm text-zinc-500 dark:text-zinc-400">
-              No recommended actions are available for this suggestion.
-            </p>
-            <div v-else-if="recommendedActions.length" class="divide-y divide-zinc-200 dark:divide-zinc-700">
-              <article v-for="action in recommendedActions" :key="action.id" class="space-y-2 py-4 first:pt-2 last:pb-1">
-                <div class="flex flex-wrap items-start justify-between gap-2">
-                  <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">{{ action.summary }}</h3>
-                  <span class="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                    {{ formatActionStatus(action.status) }}
-                  </span>
-                </div>
-                <p v-if="action.instructions" class="whitespace-pre-line text-sm text-zinc-700 dark:text-zinc-300">{{ action.instructions }}</p>
-                <p v-if="action.reason" class="text-sm text-zinc-500 dark:text-zinc-400"><strong>Why:</strong> {{ action.reason }}</p>
-                <p v-if="action.expirationDate" class="text-xs text-zinc-500 dark:text-zinc-400">
-                  Expires {{ formatActionDate(action.expirationDate) }}
-                </p>
-              </article>
-            </div>
-          </div>
-        </details>
+        <RecommendedActions :suggestion="suggestion" :refresh-version="actionsRefreshVersion" />
       </div>
     </div>
 
     <!-- Image Lightbox Modal -->
-    <Teleport to="body">    <div
-      v-if="lightboxUrl"
-      class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
-      role="dialog" aria-modal="true" aria-label="Photo preview"
-      @click="lightboxUrl = ''"
-    >
-      <div class="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center">
-        <button
-          @click="lightboxUrl = ''"
-          aria-label="Close photo preview"
-          class="absolute -top-12 right-0 text-white text-2xl p-2 hover:text-zinc-300"
-        >
-          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-        </button>
-        <img :src="lightboxUrl" class="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" alt="Full size" />
-      </div>
-    </div>
+    <Teleport to="body">
+      <dialog ref="photoDialog" class="detail-photo-dialog" aria-label="Photo preview"
+        @keydown.tab.prevent="photoDialog.querySelector('button').focus()" @cancel.prevent="dismissLightbox" @click="handlePhotoBackdropClick" @close="dismissLightbox">
+        <div class="detail-photo-viewer">
+          <button type="button" class="detail-photo-close" aria-label="Close photo preview" autofocus @click="dismissLightbox">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+          <img v-if="lightboxUrl" :src="lightboxUrl" alt="Full size" :aria-describedby="lightboxCaption ? 'detail-photo-full-caption' : undefined" />
+          <p v-if="lightboxCaption" id="detail-photo-full-caption" class="detail-photo-full-caption">{{ lightboxCaption }}</p>
+        </div>
+      </dialog>
     </Teleport>
   </MapTray>
 </template>
 
 <script setup>
-import { ref, shallowRef, computed, watch, inject, onBeforeUnmount, nextTick } from 'vue';
+import { ref, shallowRef, computed, watch, inject, onBeforeUnmount, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { kBlock, kButton, kCard, kNavbar, kNavbarBackLink, kPreloader, kTable, kTableBody, kTableCell, kTableHead, kTableRow } from 'konsta/vue';
-import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries, getSuggestionRecommendedActions } from '../services/api';
+import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries } from '../services/api';
+import BookmarkButton from '../components/BookmarkButton.vue';
+import { bookmarkNotice, bookmarkMessage } from '../services/bookmarks';
 import MapTray from '../components/MapTray.vue';
-import { mapWorkspaceKey } from '../services/mapWorkspace';
+import RecommendedActions from '../components/RecommendedActions.vue';
+import StreetmixPanel from '../components/StreetmixPanel.vue';
+import { mapWorkspaceKey, detailMotionDuration } from '../services/mapWorkspace';
 import { applySubmissionShareMetadata } from '../services/submissionShareMetadata';
 
 const route = useRoute();
 const router = useRouter();
 const workspace = inject(mapWorkspaceKey);
+const actionsRefreshVersion = ref(0);
+const streetmixExpanded = ref(false);
+function updateStreetmixSummary(summary) { if (suggestion.value) suggestion.value.streetmix = summary; }
+
+const detailTray = ref(null);
+const readingExpanded = ref(false);
+let trayGesture = null;
+let suppressHandleClick = false;
+let readingAnimation = null;
+let readingAnimationRun = 0;
+function cancelReadingAnimation() {
+  readingAnimationRun++;
+  readingAnimation?.cancel();
+  readingAnimation = null;
+}
+onBeforeUnmount(cancelReadingAnimation);
+function clearDragStyle() {
+  const tray = detailTray.value?.element;
+  tray?.classList.remove('is-dragging');
+  tray?.style.removeProperty('height');
+  tray?.style.removeProperty('top');
+  tray?.style.removeProperty('max-height');
+}
+async function setReading(expanded, fromHeight) {
+  if (isLoading.value || (readingExpanded.value === expanded && fromHeight === undefined)) return;
+  releaseAccordionPosition();
+  const tray = detailTray.value?.element;
+  const previousHeight = fromHeight ?? tray?.getBoundingClientRect().height;
+  clearDragStyle();
+  cancelReadingAnimation();
+  const run = readingAnimationRun;
+  readingExpanded.value = expanded;
+  await nextTick();
+  if (run !== readingAnimationRun || !tray?.isConnected || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const height = tray.getBoundingClientRect().height;
+  if (Math.abs(height - previousHeight) < .5) return;
+  // Animate measured heights around the fixed bottom edge, including reversals.
+  // Override top/max-height only during motion so compact content can still fit naturally.
+  const animation = tray.animate([
+    { top: 'auto', maxHeight: 'none', height: `${previousHeight}px` },
+    { top: 'auto', maxHeight: 'none', height: `${height}px` },
+  ], { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+  readingAnimation = animation;
+  animation.finished.catch(() => {}).then(() => {
+    if (readingAnimation === animation) readingAnimation = null;
+  });
+}
+function toggleReading() {
+  if (suppressHandleClick) { suppressHandleClick = false; return; }
+  setReading(!readingExpanded.value);
+}
+function startHandleMouse(event) {
+  if (event.button !== 0) return;
+  startTrayGesture({ target: event.currentTarget, touches: [{ clientX: event.clientX, clientY: event.clientY }] });
+  if (!trayGesture) return;
+  event.preventDefault();
+  window.addEventListener('mousemove', moveHandleMouse);
+  window.addEventListener('mouseup', endHandleMouse);
+  window.addEventListener('blur', cancelHandleMouse);
+}
+function moveHandleMouse(event) {
+  moveTrayGesture({ touches: [{ clientX: event.clientX, clientY: event.clientY }], cancelable: event.cancelable, preventDefault: () => event.preventDefault() });
+}
+function removeMouseListeners() {
+  window.removeEventListener('mousemove', moveHandleMouse);
+  window.removeEventListener('mouseup', endHandleMouse);
+  window.removeEventListener('blur', cancelHandleMouse);
+}
+function endHandleMouse() { endTrayGesture(); removeMouseListeners(); }
+function cancelHandleMouse() { endTrayGesture({ type: 'touchcancel' }); removeMouseListeners(); }
+onBeforeUnmount(removeMouseListeners);
+function startTrayGesture(event) {
+  suppressHandleClick = false;
+  const handle = !!event.target.closest('.detail-tray-handle');
+  const content = detailTray.value?.content;
+  if (isLoading.value || event.touches.length !== 1 || (!handle && (!content?.contains(event.target)
+    || event.target.closest('button, input, textarea, select, a, .streetmix-road-map')))) return;
+  trayGesture = { x: event.touches[0].clientX, y: event.touches[0].clientY, atTop: content.scrollTop <= 0, handle, dragging: false, expanded: readingExpanded.value };
+}
+function beginTrayDrag() {
+  const tray = detailTray.value.element;
+  const current = tray.getBoundingClientRect();
+  cancelReadingAnimation();
+  releaseAccordionPosition();
+  // Measure both resting positions without painting the temporary compact layout.
+  const heading = tray.querySelector('.detail-reading-heading');
+  tray.classList.remove('is-reading');
+  if (heading) heading.style.display = 'none';
+  const compact = tray.getBoundingClientRect().height;
+  tray.classList.toggle('is-reading', readingExpanded.value);
+  if (heading) heading.style.removeProperty('display');
+  const expanded = current.bottom - tray.offsetParent.getBoundingClientRect().top - 82;
+  Object.assign(trayGesture, { dragging: true, startHeight: current.height, compact, expandedHeight: Math.max(compact, expanded) });
+  tray.classList.add('is-dragging');
+  tray.style.top = 'auto';
+  tray.style.maxHeight = 'none';
+}
+function moveTrayGesture(event) {
+  if (!trayGesture || isLoading.value) return;
+  if (event.touches.length !== 1) { endTrayGesture({ type: 'touchcancel' }); return; }
+  const dy = event.touches[0].clientY - trayGesture.y;
+  const dx = event.touches[0].clientX - trayGesture.x;
+  if (!trayGesture.dragging) {
+    if (Math.abs(dx) > Math.abs(dy)) { trayGesture = null; return; }
+    if (Math.abs(dy) < 6) return;
+    if (!trayGesture.handle && !((!readingExpanded.value && dy < 0) || (readingExpanded.value && dy > 0 && trayGesture.atTop))) return;
+    beginTrayDrag();
+  }
+  if (event.cancelable) event.preventDefault();
+  const height = Math.max(trayGesture.compact, Math.min(trayGesture.expandedHeight, trayGesture.startHeight - dy));
+  detailTray.value.element.style.height = `${height}px`;
+  suppressHandleClick = trayGesture.handle;
+}
+function endTrayGesture(event) {
+  const gesture = trayGesture;
+  trayGesture = null;
+  if (!gesture?.dragging) return;
+  const height = detailTray.value.element.getBoundingClientRect().height;
+  const expanded = event?.type === 'touchcancel' ? gesture.expanded : height > (gesture.compact + gesture.expandedHeight) / 2;
+  setReading(expanded, height);
+}
+
+function wheelTray(event) {
+  const content = detailTray.value?.content;
+  if (isLoading.value || !content?.contains(event.target) || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+  if (!readingExpanded.value && event.deltaY > 0) { event.preventDefault(); setReading(true); }
+}
+watch(() => route.params.id, () => { cancelReadingAnimation(); removeMouseListeners(); clearDragStyle(); readingExpanded.value = false; trayGesture = null; });
+let accordionPosition = null;
+let trayResizeObserver;
+let trayPositionFrame = 0;
+function releaseAccordionPosition() { accordionPosition = null; }
+function captureAccordionPosition(event) {
+  const summary = event.target.closest('summary');
+  const content = detailTray.value?.content;
+  if (summary && content?.contains(summary)) accordionPosition = { summary, scrollTop: content.scrollTop, appliedScrollTop: content.scrollTop };
+}
+function preserveAccordionPosition() {
+  cancelAnimationFrame(trayPositionFrame);
+  trayPositionFrame = requestAnimationFrame(() => {
+    const content = detailTray.value?.content;
+    const anchor = accordionPosition;
+    if (!content || !anchor?.summary.isConnected) return;
+    // A user or focus-driven scroll takes precedence over the saved accordion anchor.
+    if (Math.abs(content.scrollTop - anchor.appliedScrollTop) > 1) {
+      releaseAccordionPosition();
+      return;
+    }
+    // Keep the existing reading offset, allowing natural clamping as content shrinks.
+    content.scrollTop = anchor.scrollTop;
+    const bounds = content.getBoundingClientRect();
+    const heading = anchor.summary.getBoundingClientRect();
+    if (heading.top < bounds.top) content.scrollTop -= bounds.top - heading.top;
+    else if (heading.bottom > bounds.bottom) content.scrollTop += heading.bottom - bounds.bottom;
+    anchor.appliedScrollTop = content.scrollTop;
+  });
+}
+onMounted(() => {
+  trayResizeObserver = new ResizeObserver(preserveAccordionPosition);
+  const content = detailTray.value?.content;
+  if (content) {
+    trayResizeObserver.observe(content);
+    // Observe changing accordion bodies, including responses arriving after opening.
+    trayContentObserver.observe(content, { childList: true, subtree: true });
+    observeTrayChildren();
+  }
+});
+function observeTrayChildren() {
+  for (const child of detailTray.value?.content?.children || []) trayResizeObserver?.observe(child);
+}
+const trayContentObserver = new MutationObserver(observeTrayChildren);
+onBeforeUnmount(() => {
+  trayResizeObserver?.disconnect();
+  trayContentObserver.disconnect();
+  cancelAnimationFrame(trayPositionFrame);
+});
+watch(() => route.params.id, releaseAccordionPosition);
 
 const suggestion = ref(null);
 const isLoading = ref(true);
 const isRefreshing = ref(false);
 const displayedDetails = ref('');
+const erasingDetails = ref(false);
+const outgoingDetails = ref('');
+let cancelDetailsErase = null;
 const isRevealingDetails = ref(false);
+const detailsFadeWidth = 6;
+const detailsCursor = ref(0);
+const fadingDetails = computed(() => {
+  if (!isRevealingDetails.value && !erasingDetails.value) return { settled: displayedDetails.value, leading: [] };
+  const characters = Array.from(displayedDetails.value);
+  const start = Math.max(0, Math.floor(detailsCursor.value - detailsFadeWidth));
+  return {
+    settled: characters.slice(0, start).join(''),
+    leading: characters.slice(start).map((text, offset) => ({
+      text,
+      index: start + offset,
+      opacity: Math.min(1, Math.max(0, (detailsCursor.value - start - offset) / detailsFadeWidth)),
+    })),
+  };
+});
 const restoringSuggestion = shallowRef(null);
 let detailsRevealFrame = 0;
 const errorMessage = ref('');
@@ -253,6 +430,22 @@ const refreshError = ref('');
 const copyLinkMessage = ref('');
 let copyLinkTimeout = 0;
 const lightboxUrl = ref('');
+const lightboxCaption = ref('');
+const photoDialog = ref(null);
+let photoTrigger = null;
+watch(lightboxUrl, async url => {
+  await nextTick();
+  if (url && !photoDialog.value?.open) photoDialog.value?.showModal();
+  else if (!url && photoDialog.value?.open) {
+    photoDialog.value.close();
+    if (photoTrigger?.isConnected) photoTrigger.focus({ preventScroll: true });
+  }
+});
+function handlePhotoBackdropClick(event) {
+  if (event.target !== photoDialog.value) return;
+  const box = photoDialog.value.getBoundingClientRect();
+  if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dismissLightbox();
+}
 const representatives = ref([]);
 const representativesLoading = ref(false);
 const representativesLoaded = ref(false);
@@ -264,11 +457,7 @@ const boundariesLoading = ref(false);
 const boundariesLoaded = ref(false);
 const boundariesError = ref('');
 let boundariesRequestVersion = 0;
-const recommendedActions = ref([]);
-const recommendedActionsLoading = ref(false);
-const recommendedActionsLoaded = ref(false);
-const recommendedActionsError = ref('');
-let recommendedActionsRequestVersion = 0;
+
 
 const photosList = computed(() => {
   return suggestion.value?.content?.photos || suggestion.value?.photos || [];
@@ -304,8 +493,10 @@ const formattedDate = computed(() => {
   return date.toLocaleDateString(undefined, options);
 });
 
-function previewPhoto(index) {
+function previewPhoto(index, trigger) {
   const photo = photosList.value[index];
+  photoTrigger = trigger;
+  lightboxCaption.value = photo.caption || '';
   lightboxUrl.value = photo.dataUrl || photo.url;
 }
 
@@ -365,46 +556,6 @@ async function loadBoundaries() {
   }
 }
 
-function formatActionStatus(status) {
-  if (!status) return 'Status unavailable';
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
-function formatActionDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function handleRecommendedActionsToggle(event) {
-  if (event.currentTarget.open) loadRecommendedActions();
-}
-
-async function loadRecommendedActions() {
-  const id = suggestion.value?.id;
-  if (!id || recommendedActionsLoading.value || recommendedActionsLoaded.value) return;
-
-  const requestVersion = ++recommendedActionsRequestVersion;
-  recommendedActionsLoading.value = true;
-  recommendedActionsError.value = '';
-
-  try {
-    const result = await getSuggestionRecommendedActions(id);
-    if (requestVersion === recommendedActionsRequestVersion) {
-      recommendedActions.value = result;
-      recommendedActionsLoaded.value = true;
-    }
-  } catch (error) {
-    if (requestVersion === recommendedActionsRequestVersion) {
-      recommendedActionsError.value = error.message || 'Unable to load recommended actions.';
-    }
-  } finally {
-    if (requestVersion === recommendedActionsRequestVersion) {
-      recommendedActionsLoading.value = false;
-    }
-  }
-}
-
 function handleRepresentativesToggle(event) {
   if (event.currentTarget.open) loadRepresentatives();
 }
@@ -452,6 +603,7 @@ async function refreshSuggestion() {
   const requestVersion = ++suggestionRequestVersion;
   isLoading.value = true;
   isRefreshing.value = true;
+  actionsRefreshVersion.value++;
   refreshError.value = '';
   workspace.setDetailLoading(true);
   closeDetailAccordions();
@@ -460,16 +612,17 @@ async function refreshSuggestion() {
   try {
     const item = await getSuggestionById(id, true);
     if (requestVersion !== suggestionRequestVersion) return;
-    workspace.updateSuggestionMarker(item);
     suggestion.value = item;
+    workspace.rememberSuggestion(item);
     setDetailMetadata(item);
-    await nextTick();
-    await workspace.transitionToDetailLocation(item.location);
+    const layout = await prepareDetails(item);
+    if (requestVersion !== suggestionRequestVersion) return;
+    await Promise.all([layout.finished, workspace.transitionToDetailLocation(item.location, layout.trayTop, layout.animation)]);
     if (requestVersion !== suggestionRequestVersion) return;
     revealDetails(item);
   } catch (error) {
     if (requestVersion === suggestionRequestVersion) {
-      refreshError.value = error.message || 'Unable to refresh this submission.';
+      refreshError.value = error.message || 'Unable to refresh this idea.';
     }
   } finally {
     if (requestVersion === suggestionRequestVersion) {
@@ -503,10 +656,71 @@ function setDetailMetadata(item) {
     item?.emoji,
   );
 }
+function eraseDetails() {
+  cancelDetailsErase?.();
+  if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
+  outgoingDetails.value = displayedDetails.value;
+  detailsCursor.value = Array.from(outgoingDetails.value).length + detailsFadeWidth;
+  erasingDetails.value = true;
+  isRevealingDetails.value = false;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    displayedDetails.value = '';
+    return Promise.resolve();
+  }
+  const characters = Array.from(outgoingDetails.value);
+  return new Promise(resolve => {
+    let frame = 0;
+    const finish = () => { cancelAnimationFrame(frame); cancelDetailsErase = null; resolve(); };
+    cancelDetailsErase = finish;
+    const started = performance.now();
+    const tick = now => {
+      const progress = Math.min(1, (now - started) / 400);
+      detailsCursor.value = (characters.length + detailsFadeWidth) * (1 - progress);
+      displayedDetails.value = characters.slice(0, Math.ceil(detailsCursor.value)).join('');
+      if (progress < 1) frame = requestAnimationFrame(tick);
+      else finish();
+    };
+    frame = requestAnimationFrame(tick);
+  });
+}
+onBeforeUnmount(() => cancelDetailsErase?.());
+let trayHeightAnimation = null;
+onBeforeUnmount(() => trayHeightAnimation?.cancel());
+async function prepareDetails(item) {
+  const tray = detailTray.value?.element;
+  const previousHeight = tray?.getBoundingClientRect().height;
+  trayHeightAnimation?.cancel();
+  // Reserve the incoming description's complete layout before framing the map.
+  // The invisible suffix keeps that layout stable throughout the text reveal.
+  outgoingDetails.value = item?.content?.details || 'No detailed description provided.';
+  displayedDetails.value = '';
+  erasingDetails.value = false;
+  isRevealingDetails.value = false;
+  await nextTick();
+  // Read the final, unanimated geometry before restoring the outgoing height.
+  const bounds = tray?.isConnected ? tray.getBoundingClientRect() : null;
+  const layout = { trayTop: bounds?.top, finished: Promise.resolve() };
+  if (!bounds || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return layout;
+  const height = bounds.height;
+  if (Math.abs(height - previousHeight) < .5) return layout;
+  const animation = tray.animate(
+    [{ height: `${previousHeight}px` }, { height: `${height}px` }],
+    { duration: detailMotionDuration, easing: 'cubic-bezier(.65, 0, .35, 1)' },
+  );
+  trayHeightAnimation = animation;
+  layout.animation = animation;
+  layout.finished = animation.finished.catch(() => {}).then(() => {
+    if (trayHeightAnimation === animation) trayHeightAnimation = null;
+  });
+  return layout;
+}
 function revealDetails(item) {
+  cancelDetailsErase?.();
+  erasingDetails.value = false;
   if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
   const text = item?.content?.details || 'No detailed description provided.';
   displayedDetails.value = '';
+  detailsCursor.value = 0;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reducedMotion || !text.length) {
     displayedDetails.value = text;
@@ -514,10 +728,12 @@ function revealDetails(item) {
     return;
   }
   isRevealingDetails.value = true;
+  const characters = Array.from(text);
   const started = performance.now();
   const reveal = now => {
     const progress = Math.min(1, (now - started) / 1000);
-    displayedDetails.value = text.slice(0, Math.max(1, Math.floor(text.length * progress)));
+    detailsCursor.value = (characters.length + detailsFadeWidth) * progress;
+    displayedDetails.value = characters.slice(0, Math.ceil(detailsCursor.value)).join('');
     if (progress >= 1) {
       displayedDetails.value = text;
       isRevealingDetails.value = false;
@@ -531,6 +747,7 @@ function closeDetailAccordions() {
 }
 
 watch(() => route.params.id, async (id) => {
+  actionsRefreshVersion.value++;
   const requestVersion = ++suggestionRequestVersion;
   refreshError.value = '';
   isRefreshing.value = false;
@@ -542,8 +759,9 @@ watch(() => route.params.id, async (id) => {
     closeDetailAccordions();
     suggestion.value = restored;
     setDetailMetadata(restored);
-    await nextTick();
-    await workspace.transitionToDetailLocation(restored.location);
+    const layout = await prepareDetails(restored);
+    if (requestVersion !== suggestionRequestVersion) return;
+    await Promise.all([layout.finished, workspace.transitionToDetailLocation(restored.location, layout.trayTop, layout.animation)]);
     if (requestVersion === suggestionRequestVersion) {
       isLoading.value = false;
       workspace.setDetailLoading(false);
@@ -551,6 +769,9 @@ watch(() => route.params.id, async (id) => {
     }
     return;
   }
+  const outgoingTextFinished = previousItem
+    ? Promise.all([eraseDetails(), workspace.eraseDetailText()])
+    : Promise.resolve();
   workspace.setDetailLoading(true);
   isLoading.value = true;
   workspace.setDetailMarkerTarget(id);
@@ -570,11 +791,7 @@ watch(() => route.params.id, async (id) => {
   boundariesLoading.value = false;
   boundariesLoaded.value = false;
   boundariesError.value = '';
-  recommendedActionsRequestVersion++;
-  recommendedActions.value = [];
-  recommendedActionsLoading.value = false;
-  recommendedActionsLoaded.value = false;
-  recommendedActionsError.value = '';
+
 
   // On a direct marker click the detail tray is created by this route change.
   // Wait for it to enter the DOM before calculating the map's upper-half
@@ -583,11 +800,9 @@ watch(() => route.params.id, async (id) => {
   if (requestVersion !== suggestionRequestVersion) return;
 
   let mapTransition = null;
-  const knownLocation = workspace.findSuggestionLocation(id);
-  if (knownLocation) mapTransition = workspace.transitionToDetailLocation(knownLocation);
 
   if (!id) {
-    errorMessage.value = 'Invalid suggestion ID';
+    errorMessage.value = 'Invalid idea link';
     isLoading.value = false;
     workspace.setDetailLoading(false);
     return;
@@ -596,13 +811,15 @@ watch(() => route.params.id, async (id) => {
   try {
     const item = await getSuggestionById(id);
     if (requestVersion !== suggestionRequestVersion) return;
-    await accordionsClosed;
+    await Promise.all([accordionsClosed, outgoingTextFinished]);
     if (requestVersion !== suggestionRequestVersion) return;
     suggestion.value = item;
+    workspace.rememberSuggestion(item);
     setDetailMetadata(item);
-    await nextTick();
-    if (!mapTransition) mapTransition = workspace.transitionToDetailLocation(item.location);
-    await mapTransition;
+    const layout = await prepareDetails(item);
+    if (requestVersion !== suggestionRequestVersion) return;
+    mapTransition = workspace.transitionToDetailLocation(item.location, layout.trayTop, layout.animation);
+    await Promise.all([layout.finished, mapTransition]);
     if (requestVersion === suggestionRequestVersion) {
       isLoading.value = false;
       workspace.setDetailLoading(false);
@@ -611,13 +828,13 @@ watch(() => route.params.id, async (id) => {
   } catch (err) {
     if (requestVersion === suggestionRequestVersion) {
       console.error('Failed to load suggestion details:', err);
-      await accordionsClosed;
+      await Promise.all([accordionsClosed, outgoingTextFinished]);
       if (mapTransition) await mapTransition;
       if (previousItem && String(previousItem.id) !== String(id)) {
         restoringSuggestion.value = previousItem;
         await router.replace(`/suggestion/${encodeURIComponent(previousItem.id)}`);
       } else {
-        errorMessage.value = err.message || 'Unable to retrieve suggestion';
+        errorMessage.value = 'This idea could not be loaded. It may be unavailable, or your connection may be interrupted.';
         isLoading.value = false;
         workspace.setDetailLoading(false);
       }

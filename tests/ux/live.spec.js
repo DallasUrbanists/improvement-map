@@ -12,6 +12,6 @@ test('read-only live map integration smoke', async ({ page, context }, info) => 
   await expect(page.locator('.fake-map')).toHaveCount(0);
   await expect(page.getByRole('group', { name: 'Map view options' })).toBeVisible();
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Browse suggestions' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
   await info.attach('live-map.png', { body: await page.screenshot(), contentType: 'image/png' });
 });

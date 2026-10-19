@@ -7,7 +7,7 @@ export const API_BASE_URL =
 
 const API_KEY = import.meta.env.VITE_API_KEY;
 
-async function apiHeaders(headers = {}) {
+export async function apiHeaders(headers = {}) {
   const { getToken, getAppCheckToken, authVersion } = useAuth();
   const version = authVersion.value;
   const token = await getToken();
@@ -360,7 +360,7 @@ export async function getSuggestionBoundaries(suggestionId) {
  * @param {string|number} suggestionId
  * @returns {Promise<Array<Object>>}
  */
-export async function getSuggestionRecommendedActions(suggestionId) {
+export async function getSuggestionRecommendedActions(suggestionId, { signal } = {}) {
   const id = Number(suggestionId);
   if (!Number.isSafeInteger(id) || id < 1) {
     throw new Error('Suggestion ID must be a positive integer.');
@@ -372,7 +372,7 @@ export async function getSuggestionRecommendedActions(suggestionId) {
     const url = API_BASE_URL + '/api/public-improvements/suggestions/' + encodeURIComponent(id) + '/recommended-actions';
     const response = await fetch(url, {
       headers: await apiHeaders({ Accept: 'application/json' }),
-      signal: controller.signal,
+      signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
@@ -390,6 +390,24 @@ export async function getSuggestionRecommendedActions(suggestionId) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+/** Match approved catalog actions without attaching or persisting them on the server. */
+export async function matchSuggestionRecommendations(input, { signal } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120000);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/recommendables/match`, {
+      method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(input), signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(payload?.message || `Unable to generate recommendations (HTTP ${response.status}).`);
+    if (!Array.isArray(payload?.data)) throw new Error('The recommendations response was not a list.');
+    return payload.data;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Generating recommendations timed out. Please try again.');
+    throw error;
+  } finally { clearTimeout(timeout); }
 }
 /**
  * Request signed GCS upload URL from API

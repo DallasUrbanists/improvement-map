@@ -22,7 +22,14 @@ export function installWorkspaceMaps() {
       super(); window.__mapConstructions++; this.div = div; this.options = { ...options };
       this.center = new LatLng(options.center); this.zoom = options.zoom; this.type = options.mapTypeId;
       div.classList.add('fake-map');
-      const canvas = document.createElement('div'); canvas.className = 'gm-style'; canvas.style.cssText = 'position:absolute;inset:0;background:#4d6059'; div.append(canvas);
+      const canvas = document.createElement('div'); canvas.className = 'gm-style'; canvas.style.cssText = 'position:absolute;inset:0'; div.append(canvas);
+      // Model rendered tiles separately from the SDK's loading surface. Production
+      // theme rules may change that surface, but must not recolor our fixed basemap.
+      const tiles = document.createElement('div');
+      tiles.className = 'fake-map-tiles';
+      tiles.setAttribute('aria-hidden', 'true');
+      tiles.style.cssText = 'position:absolute;inset:0;background:#4d6059;pointer-events:none';
+      canvas.append(tiles);
       this.pane = document.createElement('div'); canvas.append(this.pane);
       this.controls = {};
       for (const position of [3, 6]) {
@@ -60,6 +67,7 @@ export function installWorkspaceMaps() {
     getPosition() { return new LatLng(this.options.position); }
     getVisible() { return true; }
     setIcon(icon) { this.options.icon = icon; }
+    setTitle(title) { this.options.title = title; }
     setVisible(visible) { this.options.visible = visible; }
     setZIndex(zIndex) { this.options.zIndex = zIndex; }
     setPosition(position) { this.options.position = position; }

@@ -771,8 +771,8 @@ test.describe('Browse Mode - Active Tab and Map View Persistence', () => {
     let sortMode = await page.evaluate(() => localStorage.getItem('improvement_map_browse_sort'));
     expect(sortMode === '1' || sortMode === null).toBeTruthy();
 
-    // Select "Sort by distance"
-    await page.getByText(/Sort by distance/i).click();
+    // Select "Nearest to me"
+    await page.getByText(/Nearest to me/i).click();
     sortMode = await page.evaluate(() => localStorage.getItem('improvement_map_browse_sort'));
     expect(sortMode).toBe('2');
 

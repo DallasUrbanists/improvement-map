@@ -131,6 +131,41 @@
       "evidence": "docs/usability-evidence/approved-fixes/settings-before.png and settings-after.png. First-control visibility assertion failed before the fix and passed afterward.",
       "decision": "User approved 2026-10-19: expand settings trays on landscape screens up to 500px tall, preserving portrait layout and toolbar clearance. Added first-control visibility and sticky close-button assertions.",
       "regression": "tests/ux/journeys.spec.js and tests/ux/audit.js; affected journeys passed on Android Chromium and iPhone WebKit, both themes. See docs/usability-evidence/approved-fixes/validation.md."
+    },
+    {
+      "id": "UX-009",
+      "fingerprint": "detail:touch-sticky-navigation-tooltip",
+      "status": "fixed",
+      "severity": "minor",
+      "states": [
+        "details",
+        "detail-loading"
+      ],
+      "devices": [
+        "Android Chromium",
+        "iPhone WebKit"
+      ],
+      "reproduction": "Tap Next or Previous on a touch screen; emulated hover could leave the tooltip visible.",
+      "evidence": "tests/ux/detail-navigation.spec.js",
+      "decision": "User requested fix. Hover tooltip now requires hover-capable fine pointer; keyboard focus-visible remains supported. Disabled controls never show a tooltip.",
+      "regression": "Navigation in both directions, locked-loading inert/disabled controls, touch tooltip dismissal, desktop hover and keyboard focus: 5 tests passed."
+    },
+    {
+      "id": "UX-010",
+      "fingerprint": "detail:loading-accordion-grey-boxes",
+      "status": "fixed",
+      "severity": "recommendation",
+      "states": [
+        "detail-loading"
+      ],
+      "devices": [
+        "mobile",
+        "desktop"
+      ],
+      "reproduction": "Navigate between submissions with a delayed response; accordion labels are replaced with gray blocks.",
+      "evidence": "docs/usability-evidence/detail-tray/loading-current.png (before); loading-updated.png (after).",
+      "decision": "User approved and implemented: readable accordion labels with unchanged row geometry, content at 85% opacity, a 3px indeterminate progress line beneath the header, and the existing loading message. Reduced motion uses a static line. Existing interaction locks preserved.",
+      "regression": "tests/ux/detail-navigation.spec.js checks readable labels, progress visibility/removal, reduced motion, disabled navigation and inert content/toolbars across Android Chromium and iPhone WebKit in both themes."
     }
   ]
 }

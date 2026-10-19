@@ -1,13 +1,15 @@
 <template>
   <TrayTransition :animate="animate">
     <section v-if="open" ref="tray" class="map-ui map-tray" role="region" :aria-label="title" :aria-busy="contentDisabled" tabindex="-1">
+      <slot name="handle" />
       <header class="map-tray-header">
         <div class="map-tray-heading"><slot name="header"><h1>{{ title }}</h1></slot></div>
         <slot name="header-actions" />
-        <button type="button" class="map-ui-button map-tray-close" :aria-label="`Close ${title}`" :disabled="closeDisabled" @click="$emit('close')">
+        <button type="button" class="map-ui-button map-tray-close" data-tooltip="Close" :aria-label="`Close ${title}`" :disabled="closeDisabled" @click="$emit('close')">
           <i class="fa-solid fa-xmark" aria-hidden="true"></i>
         </button>
       </header>
+      <div v-if="$slots.controls" class="map-tray-controls"><slot name="controls" /></div>
       <div ref="content" class="map-tray-content" :class="{ 'map-tray-content-fixed': !scrollable }" :inert="contentDisabled" @scroll="$emit('scroll', $event)">
         <slot />
       </div>
@@ -33,11 +35,16 @@ const content = ref(null);
 // so an inner Transition cannot replace the parent's enter/leave hooks.
 function TrayTransition(props, { slots }) {
   return props.animate
-    ? h(Transition, { name: 'map-tray', appear: true, onAfterEnter: focusTray }, slots)
+    ? h(Transition, { name: 'map-tray', appear: true, onAfterEnter: focusTray, onBeforeLeave: hideLeavingTray }, slots)
     : slots.default?.()[0];
 }
 TrayTransition.props = { animate: Boolean };
+function hideLeavingTray(element) {
+  element.inert = true;
+  element.setAttribute('aria-hidden', 'true');
+}
 function focusTray() {
+  if (tray.value) { tray.value.inert = false; tray.value.removeAttribute('aria-hidden'); }
   // Preserve intentional focus in search/menu during the opening transition.
   if (!tray.value?.contains(document.activeElement)
     && !document.activeElement?.closest('.map-search-overlay, [role="menu"]')) tray.value?.focus({ preventScroll: true });
