@@ -26,34 +26,43 @@
       <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
     </button>
   </div>
-  <k-popover :opened="menuOpen" :target="`#${menuId}`" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
-    <div class="p-1" role="menu" aria-label="Map settings">
-      <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings">
-        Marker settings
-        <i class="fa-solid fa-sliders" aria-hidden="true"></i>
-      </button>
-      <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openRailSettings">
-        Rail settings
-        <i class="fa-solid fa-train" aria-hidden="true"></i>
-      </button>
-      <button v-for="option in themeOptions" :key="option.value" type="button" role="menuitemradio"
-        :aria-checked="(isDark ? 'dark' : 'light') === option.value" class="map-ui-button w-full justify-between"
-        @click="selectTheme(option.value)">
-        {{ option.label }}
-        <i v-if="(isDark ? 'dark' : 'light') === option.value" class="fa-solid fa-check" aria-hidden="true"></i>
-      </button>
-    </div>
-  </k-popover>
   <Teleport to="body">
-    <dialog ref="markerSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-settings-title`"
-      @keydown.esc.stop @click.self="closeMarkerSettings" @close="menuButton?.focus()">
-      <div class="marker-settings-panel">
-        <div class="marker-settings-header">
-          <h2 :id="`${menuId}-settings-title`">Marker settings</h2>
-          <button type="button" class="map-ui-button map-icon-button" aria-label="Close marker settings" @click="closeMarkerSettings">
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+    <div class="map-menu-layer">
+      <k-popover :opened="menuOpen" :target="`#${menuId}`" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
+        <div class="p-1" role="menu" aria-label="Map settings">
+          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings">
+            Marker settings
+            <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+          </button>
+          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openRailSettings">
+            Rail settings
+            <i class="fa-solid fa-train" aria-hidden="true"></i>
+          </button>
+          <button v-for="option in themeOptions" :key="option.value" type="button" role="menuitemradio"
+            :aria-checked="(isDark ? 'dark' : 'light') === option.value" class="map-ui-button w-full justify-between"
+            @click="selectTheme(option.value)">
+            {{ option.label }}
+            <i v-if="(isDark ? 'dark' : 'light') === option.value" class="fa-solid fa-check" aria-hidden="true"></i>
           </button>
         </div>
+      </k-popover>
+    </div>
+  </Teleport>
+  <Teleport to="body">
+    <dialog ref="markerSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-settings-title`"
+      @keydown.esc.stop.prevent="closeMarkerSettings" @click.self="closeMarkerSettings" @close="!railSettingsDialog?.open && menuButton?.focus()">
+      <header class="map-tray-header marker-settings-header">
+        <div class="map-tray-heading">
+          <h2 :id="`${menuId}-settings-title`">Marker settings</h2>
+        </div>
+        <button type="button" class="map-ui-button map-tray-header-action" aria-label="Reset marker settings to defaults" title="Reset to app defaults" @click="resetMarkerSettings">
+          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="map-ui-button map-tray-close" aria-label="Close marker settings" @click="closeMarkerSettings">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      </header>
+      <div class="marker-settings-panel">
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker visibility threshold">
           <label for="map-marker-threshold">Marker threshold</label>
           <div class="map-marker-threshold-control">
@@ -159,18 +168,22 @@
           </div>
           <small>Larger radius blends suggestions across a wider area.</small>
         </div>
-        <button type="button" class="map-ui-button marker-settings-done" @click="closeMarkerSettings">Done</button>
       </div>
     </dialog>
     <dialog ref="railSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-rail-title`"
-      @keydown.esc.stop @click.self="closeRailSettings" @close="menuButton?.focus()">
-      <div class="marker-settings-panel">
-        <div class="marker-settings-header">
+      @keydown.esc.stop.prevent="closeRailSettings" @click.self="closeRailSettings" @close="!markerSettingsDialog?.open && menuButton?.focus()">
+      <header class="map-tray-header marker-settings-header">
+        <div class="map-tray-heading">
           <h2 :id="`${menuId}-rail-title`">Rail settings</h2>
-          <button type="button" class="map-ui-button map-icon-button" aria-label="Close rail settings" @click="closeRailSettings">
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-          </button>
         </div>
+        <button type="button" class="map-ui-button map-tray-header-action" aria-label="Reset rail settings to defaults" title="Reset to app defaults" @click="setRailThickness(DEFAULT_RAIL_THICKNESS)">
+          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="map-ui-button map-tray-close" aria-label="Close rail settings" @click="closeRailSettings">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      </header>
+      <div class="marker-settings-panel">
         <div class="map-marker-threshold-setting">
           <label :for="`${menuId}-rail-thickness`">Rail thickness</label>
           <div class="map-marker-threshold-control">
@@ -180,7 +193,6 @@
           </div>
           <small>Updates the map live, including lane spacing and white casing.</small>
         </div>
-        <button type="button" class="map-ui-button marker-settings-done" @click="closeRailSettings">Done</button>
       </div>
     </dialog>
   </Teleport>
@@ -190,7 +202,8 @@
 import { computed, ref, useId, watch, onDeactivated, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { kPopover } from 'konsta/vue';
-import { railThickness, setRailThickness } from '../services/railSettings.js';
+import { railThickness, setRailThickness, DEFAULT_RAIL_THICKNESS } from '../services/railSettings.js';
+import { DEFAULT_MARKER_SETTINGS } from '../services/storage.js';
 import { applyTheme, isDark } from '../services/theme';
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
@@ -200,18 +213,18 @@ const props = defineProps({
   mapType: { type: String, default: 'roadmap' },
   recenterDisabled: { type: Boolean, default: false },
   exitSubmit: { type: Boolean, default: false },
-  markerZoomThreshold: { type: Number, default: 10 },
+  markerZoomThreshold: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerZoomThreshold },
   mapZoom: { type: Number, default: 13 },
-  heatmapOpacity: { type: Number, default: 0.4 },
-  heatmapRadius: { type: Number, default: 56 },
-  markerPulseSpeed: { type: Number, default: 1.5 },
-  markerPulseScale: { type: Number, default: 1.5 },
-  markerBobAngle: { type: Number, default: 0 },
-  markerBobSpeed: { type: Number, default: 1 },
-  markerPulseEasing: { type: String, default: 'ease-in-out' },
-  markerBobEasing: { type: String, default: 'ease-in-out' },
-  markerSpotlightSize: { type: Number, default: 108 },
-  markerSpotlightFeather: { type: Number, default: 8 },
+  heatmapOpacity: { type: Number, default: DEFAULT_MARKER_SETTINGS.heatmapOpacity },
+  heatmapRadius: { type: Number, default: DEFAULT_MARKER_SETTINGS.heatmapRadius },
+  markerPulseSpeed: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerPulseSpeed },
+  markerPulseScale: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerPulseScale },
+  markerBobAngle: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerBobAngle },
+  markerBobSpeed: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerBobSpeed },
+  markerPulseEasing: { type: String, default: DEFAULT_MARKER_SETTINGS.markerPulseEasing },
+  markerBobEasing: { type: String, default: DEFAULT_MARKER_SETTINGS.markerBobEasing },
+  markerSpotlightSize: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightSize },
+  markerSpotlightFeather: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightFeather },
 });
 const emit = defineEmits(['update:modelValue', 'center', 'exit-submit', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
 const route = useRoute();
@@ -229,16 +242,23 @@ const markerEasingOptions = [
   { value: 'ease-out', label: 'Ease out' },
   { value: 'ease-in-out', label: 'Ease in and out' },
 ];
+function resetMarkerSettings() {
+  for (const [setting, value] of Object.entries(DEFAULT_MARKER_SETTINGS)) {
+    emit(`update:${setting}`, value);
+  }
+}
 async function openRailSettings() {
   menuOpen.value = false;
+  closeMarkerSettings();
   await nextTick();
-  railSettingsDialog.value?.showModal();
+  railSettingsDialog.value?.show();
 }
 function closeRailSettings() { railSettingsDialog.value?.close(); }
 async function openMarkerSettings() {
   menuOpen.value = false;
+  closeRailSettings();
   await nextTick();
-  markerSettingsDialog.value?.showModal();
+  markerSettingsDialog.value?.show();
 }
 function closeMarkerSettings() { markerSettingsDialog.value?.close(); }
 const themeOptions = [

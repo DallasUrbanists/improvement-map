@@ -19,6 +19,20 @@ const BROWSE_LIST_SCROLL_STORAGE_KEY = 'improvement_map_browse_list_scroll';
 const AUTHOR_PROFILE_STORAGE_KEY = 'improvement_map_author_profile';
 const ACTIVE_INFOWINDOW_SUGGESTION_KEY = 'improvement_map_active_infowindow_suggestion_id';
 
+export const DEFAULT_MARKER_SETTINGS = Object.freeze({
+  markerZoomThreshold: 17,
+  heatmapOpacity: 0,
+  heatmapRadius: 8,
+  markerPulseSpeed: 0.9,
+  markerPulseScale: 1.65,
+  markerBobAngle: 12,
+  markerBobSpeed: 0.7,
+  markerPulseEasing: 'ease-in-out',
+  markerBobEasing: 'ease',
+  markerSpotlightSize: 120,
+  markerSpotlightFeather: 32,
+});
+
 export function getStoredActiveInfoWindowSuggestionId() {
   try {
     return localStorage.getItem(ACTIVE_INFOWINDOW_SUGGESTION_KEY) || null;
@@ -253,8 +267,8 @@ export function getStoredMarkerZoomThreshold() {
   try {
     const raw = localStorage.getItem(MARKER_ZOOM_THRESHOLD_KEY);
     const value = raw === null ? NaN : Number(raw);
-    return Number.isInteger(value) && value >= 1 && value <= 20 ? value : 17;
-  } catch { return 17; }
+    return Number.isInteger(value) && value >= 1 && value <= 20 ? value : DEFAULT_MARKER_SETTINGS.markerZoomThreshold;
+  } catch { return DEFAULT_MARKER_SETTINGS.markerZoomThreshold; }
 }
 
 export function setStoredMarkerZoomThreshold(value) {
@@ -267,8 +281,8 @@ export function getStoredHeatmapOpacity() {
   try {
     const raw = localStorage.getItem(HEATMAP_OPACITY_KEY);
     const value = raw === null ? NaN : Number(raw);
-    return Number.isFinite(value) && value >= 0 && value <= 1 ? value : 0;
-  } catch { return 0; }
+    return Number.isFinite(value) && value >= 0 && value <= 1 ? value : DEFAULT_MARKER_SETTINGS.heatmapOpacity;
+  } catch { return DEFAULT_MARKER_SETTINGS.heatmapOpacity; }
 }
 
 export function setStoredHeatmapOpacity(value) {
@@ -280,8 +294,8 @@ export function getStoredHeatmapRadius() {
   try {
     const raw = localStorage.getItem(HEATMAP_RADIUS_KEY);
     const value = raw === null ? NaN : Number(raw);
-    return Number.isInteger(value) && value >= 8 && value <= 160 ? value : 8;
-  } catch { return 8; }
+    return Number.isInteger(value) && value >= 8 && value <= 160 ? value : DEFAULT_MARKER_SETTINGS.heatmapRadius;
+  } catch { return DEFAULT_MARKER_SETTINGS.heatmapRadius; }
 }
 
 export function setStoredHeatmapRadius(value) {
@@ -301,36 +315,31 @@ function setStoredMarkerAnimationValue(key, value, min, max) {
   if (!Number.isFinite(number) || number < min || number > max) return;
   try { localStorage.setItem(key, String(number)); } catch { /* Storage may be unavailable. */ }
 }
-export const getStoredMarkerPulseSpeed = () => getStoredMarkerAnimationValue(MARKER_PULSE_SPEED_KEY, 0.9, 0.5, 2);
+export const getStoredMarkerPulseSpeed = () => getStoredMarkerAnimationValue(MARKER_PULSE_SPEED_KEY, DEFAULT_MARKER_SETTINGS.markerPulseSpeed, 0.5, 2);
 export const setStoredMarkerPulseSpeed = value => setStoredMarkerAnimationValue(MARKER_PULSE_SPEED_KEY, value, 0.5, 2);
-export const getStoredMarkerPulseScale = () => getStoredMarkerAnimationValue(MARKER_PULSE_SCALE_KEY, 1.65, 1, 2);
+export const getStoredMarkerPulseScale = () => getStoredMarkerAnimationValue(MARKER_PULSE_SCALE_KEY, DEFAULT_MARKER_SETTINGS.markerPulseScale, 1, 2);
 export const setStoredMarkerPulseScale = value => setStoredMarkerAnimationValue(MARKER_PULSE_SCALE_KEY, value, 1, 2);
-export const getStoredMarkerBobAmount = () => getStoredMarkerAnimationValue(MARKER_BOB_AMOUNT_KEY, 12, 0, 12);
+export const getStoredMarkerBobAmount = () => getStoredMarkerAnimationValue(MARKER_BOB_AMOUNT_KEY, DEFAULT_MARKER_SETTINGS.markerBobAngle, 0, 12);
 export const setStoredMarkerBobAmount = value => setStoredMarkerAnimationValue(MARKER_BOB_AMOUNT_KEY, value, 0, 12);
-export const getStoredMarkerBobSpeed = () => getStoredMarkerAnimationValue(MARKER_BOB_SPEED_KEY, 0.7, 0.5, 2);
+export const getStoredMarkerBobSpeed = () => getStoredMarkerAnimationValue(MARKER_BOB_SPEED_KEY, DEFAULT_MARKER_SETTINGS.markerBobSpeed, 0.5, 2);
 export const setStoredMarkerBobSpeed = value => setStoredMarkerAnimationValue(MARKER_BOB_SPEED_KEY, value, 0.5, 2);
 const MARKER_EASING_OPTIONS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
-function getStoredMarkerEasing(key) {
+function getStoredMarkerEasing(key, fallback) {
   try {
     const value = localStorage.getItem(key);
-    return MARKER_EASING_OPTIONS.includes(value) ? value : 'ease-in-out';
-  } catch { return 'ease-in-out'; }
+    return MARKER_EASING_OPTIONS.includes(value) ? value : fallback;
+  } catch { return fallback; }
 }
 function setStoredMarkerEasing(key, value) {
   if (!MARKER_EASING_OPTIONS.includes(value)) return;
   try { localStorage.setItem(key, value); } catch { /* Storage may be unavailable. */ }
 }
-export const getStoredMarkerPulseEasing = () => getStoredMarkerEasing(MARKER_PULSE_EASING_KEY);
+export const getStoredMarkerPulseEasing = () => getStoredMarkerEasing(MARKER_PULSE_EASING_KEY, DEFAULT_MARKER_SETTINGS.markerPulseEasing);
 export const setStoredMarkerPulseEasing = value => setStoredMarkerEasing(MARKER_PULSE_EASING_KEY, value);
-export const getStoredMarkerBobEasing = () => {
-  try {
-    const value = localStorage.getItem(MARKER_BOB_EASING_KEY);
-    return MARKER_EASING_OPTIONS.includes(value) ? value : 'ease';
-  } catch { return 'ease'; }
-};
-export const getStoredMarkerSpotlightSize = () => getStoredMarkerAnimationValue(MARKER_SPOTLIGHT_SIZE_KEY, 120, 48, 480);
+export const getStoredMarkerBobEasing = () => getStoredMarkerEasing(MARKER_BOB_EASING_KEY, DEFAULT_MARKER_SETTINGS.markerBobEasing);
+export const getStoredMarkerSpotlightSize = () => getStoredMarkerAnimationValue(MARKER_SPOTLIGHT_SIZE_KEY, DEFAULT_MARKER_SETTINGS.markerSpotlightSize, 48, 480);
 export const setStoredMarkerSpotlightSize = value => setStoredMarkerAnimationValue(MARKER_SPOTLIGHT_SIZE_KEY, value, 48, 480);
-export const getStoredMarkerSpotlightFeather = () => getStoredMarkerAnimationValue(MARKER_SPOTLIGHT_FEATHER_KEY, 32, 0, 96);
+export const getStoredMarkerSpotlightFeather = () => getStoredMarkerAnimationValue(MARKER_SPOTLIGHT_FEATHER_KEY, DEFAULT_MARKER_SETTINGS.markerSpotlightFeather, 0, 96);
 export const setStoredMarkerSpotlightFeather = value => setStoredMarkerAnimationValue(MARKER_SPOTLIGHT_FEATHER_KEY, value, 0, 96);
 export const setStoredMarkerBobEasing = value => setStoredMarkerEasing(MARKER_BOB_EASING_KEY, value);
 
