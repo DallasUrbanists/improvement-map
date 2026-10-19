@@ -38,7 +38,7 @@ export function snapRailStopsToPaths(stops, segments, size = 480, height = size)
     if (stop.mode !== 'rail') return [stop];
     let best;
     for (const segment of segments.filter((segment) => stop.lines?.includes(segment.line))) {
-      const points = segment.sourcePoints || segment.points;
+      const points = segment.displaySourcePoints || segment.sourcePoints || segment.points;
       for (let i = 1; i < points.length; i++) {
         const a = points[i - 1]; const b = points[i]; const dx = b.x - a.x; const dy = b.y - a.y;
         const t = dx || dy ? Math.max(0, Math.min(1, ((stop.x - a.x) * dx + (stop.y - a.y) * dy) / (dx * dx + dy * dy))) : 0;

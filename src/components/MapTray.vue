@@ -1,13 +1,14 @@
 <template>
   <TrayTransition :animate="animate">
-    <section v-if="open" ref="tray" class="map-ui map-tray" role="region" :aria-label="title" tabindex="-1">
+    <section v-if="open" ref="tray" class="map-ui map-tray" role="region" :aria-label="title" :aria-busy="contentDisabled" tabindex="-1">
       <header class="map-tray-header">
         <div class="map-tray-heading"><slot name="header"><h1>{{ title }}</h1></slot></div>
-        <button type="button" class="map-ui-button map-tray-close" :aria-label="`Close ${title}`" @click="$emit('close')">
+        <slot name="header-actions" />
+        <button type="button" class="map-ui-button map-tray-close" :aria-label="`Close ${title}`" :disabled="closeDisabled" @click="$emit('close')">
           <i class="fa-solid fa-xmark" aria-hidden="true"></i>
         </button>
       </header>
-      <div ref="content" class="map-tray-content" :class="{ 'map-tray-content-fixed': !scrollable }" @scroll="$emit('scroll', $event)">
+      <div ref="content" class="map-tray-content" :class="{ 'map-tray-content-fixed': !scrollable }" :inert="contentDisabled" @scroll="$emit('scroll', $event)">
         <slot />
       </div>
       <footer v-if="$slots.footer" class="map-tray-footer"><slot name="footer" /></footer>
@@ -22,6 +23,8 @@ const props = defineProps({
   title: { type: String, required: true },
   scrollable: { type: Boolean, default: true },
   animate: { type: Boolean, default: true },
+  closeDisabled: { type: Boolean, default: false },
+  contentDisabled: { type: Boolean, default: false },
 });
 defineEmits(['close', 'scroll']);
 const tray = ref(null);

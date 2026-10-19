@@ -41,6 +41,7 @@ A wizard-style multi-step form with persistent `localStorage` draft saving:
 
 ### 3. Browse Page (`/browse`)
 - **Map View**: Full viewport Google Map with native Google Maps markers for all suggestions, Streets & Satellite view switchers, search bar overlay with Google address autocomplete, and popups containing summary, photo thumbnail, and "View suggestion" link.
+- **Suggestion Density**: The browse map replaces suggestion markers and the draft crosshair with a heatmap below the configured marker threshold (default zoom 10). The three dots menu shows the current zoom and saves a threshold from 1 to 20. The Marker settings modal saves heatmap opacity (default 40%) and radius (8 to 160 screen pixels, default 56). Markers and clusters return at the threshold and above. The canvas layer blends nearby suggestions and stays aligned while panning. Submit retains its location crosshair.
 - **List View**: Suggestion cards sorted by distance from user's current GPS location (closest first via Turf.js) or newest first if GPS permission is pending.
 
 ### Temporary location-diagram proof of concept (`/test`)
@@ -154,6 +155,24 @@ The `/test` renderer selector defaults to **Version Two** and applies to the mai
 New submissions generate their first image with Version Two (`src/services/locationDiagramVersionTwo.js`) and upload it as an SVG before any user photos. Submission Details sets Open Graph and Twitter share metadata from the submission's first image URL, summary, and details, restoring prior metadata when leaving the view. These tags are set in the browser: the current static GitHub Pages deployment does not serve submission-specific metadata in the initial HTML. Social crawlers that do not execute JavaScript need a server-rendered or prerendered share page; services that do not accept SVG preview images also need a raster preview.
 
 Google Maps instances in the shared map workspace and location previews also display the local rail catalog through `googleMapsRailOverlay.js`. A noninteractive SVG in Google's overlay pane uses the same source curves, service colors, collective white casing, and junction alignment as Version Two. The full network is cached for up to four zoom scales; pans reposition the geographic viewport without changing rail topology. Google's projection supplies the screen coordinates, with fixed pixel stroke widths and service spacing. These maps remain flat and north-up. Overlay placement updates synchronously with Google Maps draw callbacks to avoid drag-release flicker when the map rebases its panes. Map disposal removes the overlay, camera listeners, and resize observer. This layer uses local data and makes no rail geometry requests.
+
+### Scale-dependent display corridors
+
+`railDisplayCorridors.js` designates nearby parallel tracks that share a display centerline at distant scales. This is cartographic generalization, not a change to GeoJSON, track sharing, or service membership. It applies to Google Maps and Version Two diagrams; Current retains its existing rendering.
+
+| Corridor | Grouped order | Fully grouped through Maps zoom |
+|---|---|---|
+| Market Center approach–Victory–West End junction | West to east: TRE, Orange, Green | 15 |
+| West End approach–Union Station | West to east: TRE, Red, Blue | 16 |
+| M-Line southern parallel section near St. Paul | North to south: M-Line, Green, Orange, Red, Blue | 14 |
+| DFW Airport terminal approach | West to east: TEXRail, Silver, Orange | 12 |
+| North Carrollton/Frankford–Trinity Mills | West to east: A-train, Green | 14 |
+
+Geographic anchors resolve along a DART reference service using the complete catalog. Display lanes smoothly blend to their original positions over the next closer zoom level, with 40-pixel boundary tapers capped at a quarter of the corridor length. Version Two uses equivalent local meters per display pixel, so diagram size does not require a Google Maps zoom parameter. Grouped lanes retain 5.5-pixel spacing and collective white casing. Fully grouped direction variants emit a single service stroke, and station snapping follows the displayed geometry. Rendering completes before viewport clipping so pans cannot change corridor boundaries. Pass `corridors: []` to `renderSourceTransit` to disable this display generalization, or supply corridor definitions for focused fixtures; its `displayCorridors` result reports blend amounts.
+
+Terminal boundaries retain parallel lane offsets through the cap, with continuing services tapering beyond that boundary. TRE uses a continuous west-side display spine through the adjoining Victory and Union bundles to avoid crossing the DART fork. Streetcar casing and color passes sit beneath other rail; a local uncased Green color pass sits above Silver at the Carrollton crossing. The Victory and Union bundles retain the existing DART trunks; only TRE and Dallas Streetcar move into their outside lanes. TRE�s entry uses a tangent-matched curve without an inward overshoot. At zoom 12 and farther out it includes a 16-pixel run on each side of the join, fading this added run out by zoom 13, so fixed-width lanes do not create a low-scale bump when the geographic transition becomes too short.
+
+Focused coverage is in `tests/railDisplayCorridors.spec.js`, alongside the existing source-rail, geometry, and diagram-style regressions.
 
 DART lane ordering follows shared endpoint topology through bends and service splits/rejoins. Nearby station variants for Orange and Blue use the corresponding Green or Red corridor when the complete variant stays within 35 meters, retaining reference vertices and reconnecting adjoining endpoints. The downtown trunk is green, orange, red, blue from north to south. `railServiceOverrides.js` omits the nonregular Orange branch from Pearl/Arts District to Buckner from displayed geometry and station memberships, preserving Green service and regular Orange service elsewhere. The Orange service override is applied at catalog load time.
 

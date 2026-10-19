@@ -1,23 +1,26 @@
+import { watch } from 'vue';
+import { railThickness, DEFAULT_RAIL_THICKNESS } from './railSettings.js';
+import { railSvgLayers } from './railSvgLayers.js';
 import { renderSourceTransit } from './sourceRailRendering.js';
 
 const ANCHOR = { lat: 32.7767, lng: -96.797 };
 const EARTH_CIRCUMFERENCE = 2 * Math.PI * 6378137;
 const cache = new WeakMap();
 
-function geometryAtZoom(catalog, worldWidth, project) {
+function geometryAtZoom(catalog, worldWidth, project, thickness) {
+  const factor = thickness / DEFAULT_RAIL_THICKNESS;
+  const cacheKey = `${worldWidth}:${thickness}`;
   let zooms = cache.get(catalog);
   if (!zooms) { zooms = new Map(); cache.set(catalog, zooms); }
-  if (zooms.has(worldWidth)) return zooms.get(worldWidth);
-  const scale = worldWidth / (EARTH_CIRCUMFERENCE * Math.cos(ANCHOR.lat * Math.PI / 180));
+  if (zooms.has(cacheKey)) return zooms.get(cacheKey);
+  const scale = worldWidth / (EARTH_CIRCUMFERENCE * Math.cos(ANCHOR.lat * Math.PI / 180)) / factor;
+  const scaledProject = (point) => { const pixel = project(point); return { x: pixel.x / factor, y: pixel.y / factor }; };
   // Build the complete network so panning cannot change chain endpoints, lane
   // order, or junctions. The SVG viewport clips it without changing topology.
   const transit = renderSourceTransit(catalog, { lat: ANCHOR.lat, lon: ANCHOR.lng }, 0,
-    project, (point) => point, scale, { sourceSegments: catalog.segments, clip: false });
-  const casing = transit.paths.map((path) => path.replace('data-transit-line=', 'data-rail-casing=')
-    .replace(/stroke="[^"]+"/, 'stroke="#fff"')).join('');
-  const markup = `<g data-layer="rail-casing" fill="none" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round">${casing}</g>`
-    + `<g data-layer="rail-lines" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">${transit.paths.join('')}</g>`;
-  zooms.set(worldWidth, markup);
+    scaledProject, (point) => point, scale, { sourceSegments: catalog.segments, clip: false, displayPixelRatio: factor });
+  const markup = `<g transform="scale(${factor})">${railSvgLayers(transit)}</g>`;
+  zooms.set(cacheKey, markup);
   // Fractional zooms must not leave an unbounded cache behind.
   if (zooms.size > 4) zooms.delete(zooms.keys().next().value);
   return markup;
@@ -32,6 +35,7 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
   svg.style.cssText = 'position:absolute;pointer-events:none;overflow:hidden;';
   const anchor = new maps.LatLng(ANCHOR.lat, ANCHOR.lng);
   let worldWidth = null;
+  let paintedThickness = null;
   let disposed = false;
 
   overlay.onAdd = () => overlay.getPanes().overlayLayer.appendChild(svg);
@@ -46,14 +50,15 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
     if (!div || !container) return;
     const nextWorldWidth = projection.getWorldWidth();
     if (!Number.isFinite(nextWorldWidth) || nextWorldWidth <= 0) return;
-    if (worldWidth !== nextWorldWidth) {
+    if (worldWidth !== nextWorldWidth || paintedThickness !== railThickness.value) {
       // Use Google's own projection, not the diagram's local-meter approximation.
       const project = (point) => {
         const pixel = projection.fromLatLngToDivPixel(new maps.LatLng(point.lat, point.lon));
         return { x: pixel.x - div.x, y: pixel.y - div.y };
       };
-      svg.innerHTML = geometryAtZoom(catalog, nextWorldWidth, project);
+      svg.innerHTML = geometryAtZoom(catalog, nextWorldWidth, project, railThickness.value);
       worldWidth = nextWorldWidth;
+      paintedThickness = railThickness.value;
     }
     svg.setAttribute('width', String(width)); svg.setAttribute('height', String(height));
     svg.setAttribute('viewBox', `${-container.x} ${-container.y} ${width} ${height}`);
@@ -64,6 +69,7 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
   // draw callback: deferring to requestAnimationFrame leaves the old SVG origin
   // under the new pane transform for one painted frame, causing a visible jump.
   overlay.draw = draw;
+  const stopThicknessWatch = watch(railThickness, draw, { flush: 'sync' });
   const lockCamera = () => {
     if (map.getHeading()) map.setHeading(0);
     if (map.getTilt()) map.setTilt(0);
@@ -77,6 +83,7 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
   return {
     dispose() {
       disposed = true;
+      stopThicknessWatch();
       resizeObserver?.disconnect();
       listeners.forEach((listener) => listener.remove());
       overlay.setMap(null);

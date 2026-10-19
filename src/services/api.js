@@ -161,7 +161,7 @@ function normalizeSuggestion(item) {
  * @param {boolean} forceRefresh
  * @returns {Promise<Array>}
  */
-export async function getSuggestions(forceRefresh = false) {
+export async function getSuggestions(forceRefresh = false, { strict = false } = {}) {
   const now = Date.now();
   if (!forceRefresh && suggestionsCache && (now - suggestionsCacheTimestamp) < CACHE_TTL_MS) {
     return suggestionsCache;
@@ -203,6 +203,7 @@ export async function getSuggestions(forceRefresh = false) {
 
     return result;
   } catch (error) {
+    if (strict) throw error;
     console.warn('API getSuggestions error (falling back to storage/seed cache):', error.message);
     const cached = getCachedSuggestions();
     if (cached && Array.isArray(cached.data) && cached.data.length > 0) {
@@ -219,10 +220,30 @@ export async function getSuggestions(forceRefresh = false) {
  * @param {string} id
  * @returns {Promise<Object>}
  */
-export async function getSuggestionById(id) {
+export async function getSuggestionById(id, forceRefresh = false) {
   if (!id) throw new Error('Suggestion ID is required');
 
-  if (itemCache.has(id)) {
+  // Explicit refreshes use the submissions API so only this record is fetched.
+  if (forceRefresh) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/suggestions/${encodeURIComponent(id)}`, {
+        method: 'GET',
+        headers: await apiHeaders({ 'Accept': 'application/json' }),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`Submission refresh failed (HTTP ${response.status})`);
+      const payload = await response.json();
+      const item = normalizeSuggestion(payload.submission || payload.data || payload);
+      itemCache.set(String(id), item);
+      return item;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  if (!forceRefresh && itemCache.has(id)) {
     return itemCache.get(id);
   }
 
@@ -245,6 +266,7 @@ export async function getSuggestionById(id) {
     itemCache.set(id, item);
     return item;
   } catch (error) {
+    if (forceRefresh) throw error;
     console.warn(`Error fetching suggestion ${id}, checking cached pool:`, error.message);
     const pool = await getSuggestions(false);
     const found = pool.find(item => String(item.id) === String(id));

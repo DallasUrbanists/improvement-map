@@ -4,6 +4,15 @@ const CACHE_SUGGESTIONS_KEY = 'improvement_map_cached_suggestions';
 const BROWSE_TAB_STORAGE_KEY = 'improvement_map_browse_tab';
 const MAP_VIEW_STORAGE_KEY = 'improvement_map_view';
 const BROWSE_SORT_STORAGE_KEY = 'improvement_map_browse_sort';
+const MARKER_ZOOM_THRESHOLD_KEY = 'improvement_map_marker_zoom_threshold';
+const HEATMAP_OPACITY_KEY = 'improvement_map_heatmap_opacity';
+const HEATMAP_RADIUS_KEY = 'improvement_map_heatmap_radius';
+const MARKER_PULSE_SPEED_KEY = 'improvement_map_marker_pulse_speed';
+const MARKER_PULSE_SCALE_KEY = 'improvement_map_marker_pulse_scale';
+const MARKER_BOB_AMOUNT_KEY = 'improvement_map_marker_bob_amount';
+const MARKER_BOB_SPEED_KEY = 'improvement_map_marker_bob_speed';
+const MARKER_PULSE_EASING_KEY = 'improvement_map_marker_pulse_easing';
+const MARKER_BOB_EASING_KEY = 'improvement_map_marker_bob_easing';
 const BROWSE_LIST_SCROLL_STORAGE_KEY = 'improvement_map_browse_list_scroll';
 const AUTHOR_PROFILE_STORAGE_KEY = 'improvement_map_author_profile';
 const ACTIVE_INFOWINDOW_SUGGESTION_KEY = 'improvement_map_active_infowindow_suggestion_id';
@@ -237,6 +246,87 @@ export function getStoredBrowseSort() {
   }
   return 1;
 }
+
+export function getStoredMarkerZoomThreshold() {
+  try {
+    const raw = localStorage.getItem(MARKER_ZOOM_THRESHOLD_KEY);
+    const value = raw === null ? NaN : Number(raw);
+    return Number.isInteger(value) && value >= 1 && value <= 20 ? value : 17;
+  } catch { return 17; }
+}
+
+export function setStoredMarkerZoomThreshold(value) {
+  const threshold = Number(value);
+  if (!Number.isInteger(threshold) || threshold < 1 || threshold > 20) return;
+  try { localStorage.setItem(MARKER_ZOOM_THRESHOLD_KEY, String(threshold)); } catch { /* Storage may be unavailable. */ }
+}
+
+export function getStoredHeatmapOpacity() {
+  try {
+    const raw = localStorage.getItem(HEATMAP_OPACITY_KEY);
+    const value = raw === null ? NaN : Number(raw);
+    return Number.isFinite(value) && value >= 0 && value <= 1 ? value : 0;
+  } catch { return 0; }
+}
+
+export function setStoredHeatmapOpacity(value) {
+  if (!Number.isFinite(value) || value < 0 || value > 1) return;
+  try { localStorage.setItem(HEATMAP_OPACITY_KEY, String(value)); } catch { /* Storage may be unavailable. */ }
+}
+
+export function getStoredHeatmapRadius() {
+  try {
+    const raw = localStorage.getItem(HEATMAP_RADIUS_KEY);
+    const value = raw === null ? NaN : Number(raw);
+    return Number.isInteger(value) && value >= 8 && value <= 160 ? value : 8;
+  } catch { return 8; }
+}
+
+export function setStoredHeatmapRadius(value) {
+  if (!Number.isInteger(value) || value < 8 || value > 160) return;
+  try { localStorage.setItem(HEATMAP_RADIUS_KEY, String(value)); } catch { /* Storage may be unavailable. */ }
+}
+
+function getStoredMarkerAnimationValue(key, fallback, min, max) {
+  try {
+    const raw = localStorage.getItem(key);
+    const value = raw === null ? NaN : Number(raw);
+    return Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+  } catch { return fallback; }
+}
+function setStoredMarkerAnimationValue(key, value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < min || number > max) return;
+  try { localStorage.setItem(key, String(number)); } catch { /* Storage may be unavailable. */ }
+}
+export const getStoredMarkerPulseSpeed = () => getStoredMarkerAnimationValue(MARKER_PULSE_SPEED_KEY, 0.9, 0.5, 2);
+export const setStoredMarkerPulseSpeed = value => setStoredMarkerAnimationValue(MARKER_PULSE_SPEED_KEY, value, 0.5, 2);
+export const getStoredMarkerPulseScale = () => getStoredMarkerAnimationValue(MARKER_PULSE_SCALE_KEY, 1.65, 1, 2);
+export const setStoredMarkerPulseScale = value => setStoredMarkerAnimationValue(MARKER_PULSE_SCALE_KEY, value, 1, 2);
+export const getStoredMarkerBobAmount = () => getStoredMarkerAnimationValue(MARKER_BOB_AMOUNT_KEY, 12, 0, 12);
+export const setStoredMarkerBobAmount = value => setStoredMarkerAnimationValue(MARKER_BOB_AMOUNT_KEY, value, 0, 12);
+export const getStoredMarkerBobSpeed = () => getStoredMarkerAnimationValue(MARKER_BOB_SPEED_KEY, 0.5, 0.5, 2);
+export const setStoredMarkerBobSpeed = value => setStoredMarkerAnimationValue(MARKER_BOB_SPEED_KEY, value, 0.5, 2);
+const MARKER_EASING_OPTIONS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
+function getStoredMarkerEasing(key) {
+  try {
+    const value = localStorage.getItem(key);
+    return MARKER_EASING_OPTIONS.includes(value) ? value : 'ease-in-out';
+  } catch { return 'ease-in-out'; }
+}
+function setStoredMarkerEasing(key, value) {
+  if (!MARKER_EASING_OPTIONS.includes(value)) return;
+  try { localStorage.setItem(key, value); } catch { /* Storage may be unavailable. */ }
+}
+export const getStoredMarkerPulseEasing = () => getStoredMarkerEasing(MARKER_PULSE_EASING_KEY);
+export const setStoredMarkerPulseEasing = value => setStoredMarkerEasing(MARKER_PULSE_EASING_KEY, value);
+export const getStoredMarkerBobEasing = () => {
+  try {
+    const value = localStorage.getItem(MARKER_BOB_EASING_KEY);
+    return MARKER_EASING_OPTIONS.includes(value) ? value : 'ease';
+  } catch { return 'ease'; }
+};
+export const setStoredMarkerBobEasing = value => setStoredMarkerEasing(MARKER_BOB_EASING_KEY, value);
 
 export function setStoredBrowseSort(sort) {
   try {

@@ -1,19 +1,35 @@
 <template>
-  <MapTray class="submission-detail-tray" :title="suggestion?.content?.summary || 'Submission details'" @close="goBack">
-    <!-- Loading state with Konsta Card & Preloader -->
-    <k-card
-      v-if="isLoading"
-      :outline="true"
-      :content-wrap="false"
-      class="animate-pulse p-8 space-y-4 m-0"
-    >
-      <div class="h-8 bg-zinc-200 dark:bg-zinc-800 rounded w-3/4 flex items-center px-4">
-        <k-preloader class="w-5 h-5 mr-3" />
+  <MapTray class="submission-detail-tray" title="Submission details" :close-disabled="isLoading" :content-disabled="isLoading" @close="goBack">
+    <template #header>
+      <div class="detail-header-navigation">
+        <button type="button" class="map-ui-button" aria-label="Previous older submission" :disabled="isLoading || !workspace.detailNavigation.value.olderId" @click="workspace.navigateDetail('older')">
+          <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="map-ui-button" aria-label="Next newer submission" :disabled="isLoading || !workspace.detailNavigation.value.newerId" @click="workspace.navigateDetail('newer')">
+          <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+        </button>
       </div>
-      <div class="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-1/3"></div>
-      <div class="h-64 bg-zinc-200 dark:bg-zinc-800 rounded-xl"></div>
-      <div class="h-20 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
-    </k-card>
+      <div v-if="isLoading" class="detail-loading-message" role="status" aria-live="polite">{{ isRefreshing ? 'Refreshing submission, please wait...' : 'Loading next submission, please wait...' }}</div>
+    </template>
+    <template #header-actions>
+      <div class="detail-copy-link-action" :data-tooltip="copyLinkMessage || 'Copy suggestion link'">
+        <button type="button" class="map-ui-button detail-copy-link-button" aria-label="Copy suggestion link" :disabled="isLoading || !suggestion" @click="copySuggestionLink">
+          <i class="fa-solid fa-link" aria-hidden="true"></i>
+        </button>
+        <span v-if="copyLinkMessage" class="detail-copy-link-status" role="status">{{ copyLinkMessage }}</span>
+      </div>
+      <button type="button" class="map-ui-button detail-refresh-button" aria-label="Refresh submission" :title="isLoading ? 'Refreshing submission…' : 'Refresh submission'" :disabled="isLoading || !suggestion" @click="refreshSuggestion">
+        <i class="fa-solid fa-rotate" :class="{ 'fa-spin': isLoading }" aria-hidden="true"></i>
+      </button>
+    </template>
+    <p v-if="refreshError" class="detail-refresh-error" role="alert">{{ refreshError }}</p>
+    <div v-if="isLoading && !suggestion" class="detail-loading-content" aria-hidden="true">
+      <div class="detail-loading-line detail-loading-line-wide"><span>Suggestion details are loading</span></div>
+      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-medium"><span>Photos</span></div><div class="detail-loading-photo"></div></div>
+      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Neighborhoods and districts</span></div></div>
+      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Representatives</span></div></div>
+      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Recommended actions</span></div></div>
+    </div>
 
     <!-- Error state with Konsta Card & Button -->
     <k-card
@@ -36,21 +52,23 @@
     </k-card>
 
     <!-- Suggestion Details View with Konsta Card -->
-    <div v-if="suggestion" class="detail-body-sections">
+    <div v-if="suggestion" class="detail-body-sections" :class="{ 'detail-content-obscured': isLoading }">
       <div
         :content-wrap="false"
         class="detail-body-sections"
       >
 
         <!-- Title and Subtitle -->
-        <div class="text-sm whitespace-pre-wrap break-words px-4 py-2">
+        <div class="detail-description text-sm whitespace-pre-wrap break-words px-4 py-2" :class="{ 'detail-description-revealing': isRevealingDetails }">
+          <div class="detail-description-inner">
           <!-- Description Details -->
           <p>
-            {{ suggestion.content?.details || 'No detailed description provided.' }}
+            {{ displayedDetails }}
           </p>
+          </div>
         </div>
 
-        <details v-if="photosList.length" open class="detail-accordion">
+        <details v-if="photosList.length" class="detail-accordion">
           <summary class="cursor-pointer px-4 py-3 font-bold">Photos ({{ photosList.length }})</summary>
           <div class="px-6 pb-6">
             <div class="review-photo-row">
@@ -211,7 +229,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, inject, onBeforeUnmount } from 'vue';
+import { ref, shallowRef, computed, watch, inject, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { kBlock, kButton, kCard, kNavbar, kNavbarBackLink, kPreloader, kTable, kTableBody, kTableCell, kTableHead, kTableRow } from 'konsta/vue';
 import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries, getSuggestionRecommendedActions } from '../services/api';
@@ -225,7 +243,15 @@ const workspace = inject(mapWorkspaceKey);
 
 const suggestion = ref(null);
 const isLoading = ref(true);
+const isRefreshing = ref(false);
+const displayedDetails = ref('');
+const isRevealingDetails = ref(false);
+const restoringSuggestion = shallowRef(null);
+let detailsRevealFrame = 0;
 const errorMessage = ref('');
+const refreshError = ref('');
+const copyLinkMessage = ref('');
+let copyLinkTimeout = 0;
 const lightboxUrl = ref('');
 const representatives = ref([]);
 const representativesLoading = ref(false);
@@ -409,6 +435,49 @@ async function loadRepresentatives() {
 }
 
 function goBack() { workspace.closeTray(); }
+async function copySuggestionLink() {
+  if (!suggestion.value) return;
+  clearTimeout(copyLinkTimeout);
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    copyLinkMessage.value = 'Link copied!';
+  } catch {
+    copyLinkMessage.value = 'Could not copy link';
+  }
+  copyLinkTimeout = setTimeout(() => { copyLinkMessage.value = ''; }, 2200);
+}
+async function refreshSuggestion() {
+  const id = route.params.id;
+  if (!id || isLoading.value) return;
+  const requestVersion = ++suggestionRequestVersion;
+  isLoading.value = true;
+  isRefreshing.value = true;
+  refreshError.value = '';
+  workspace.setDetailLoading(true);
+  closeDetailAccordions();
+  if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
+  isRevealingDetails.value = false;
+  try {
+    const item = await getSuggestionById(id, true);
+    if (requestVersion !== suggestionRequestVersion) return;
+    suggestion.value = item;
+    setDetailMetadata(item);
+    await nextTick();
+    await workspace.transitionToDetailLocation(item.location);
+    if (requestVersion !== suggestionRequestVersion) return;
+    revealDetails(item);
+  } catch (error) {
+    if (requestVersion === suggestionRequestVersion) {
+      refreshError.value = error.message || 'Unable to refresh this submission.';
+    }
+  } finally {
+    if (requestVersion === suggestionRequestVersion) {
+      isLoading.value = false;
+      isRefreshing.value = false;
+      workspace.setDetailLoading(false);
+    }
+  }
+}
 const dismissLightbox = () => {
   if (!lightboxUrl.value) return false;
   lightboxUrl.value = '';
@@ -416,17 +485,79 @@ const dismissLightbox = () => {
 };
 workspace.dismissDetail = dismissLightbox;
 onBeforeUnmount(() => {
+  clearTimeout(copyLinkTimeout);
+  if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
   if (workspace.dismissDetail === dismissLightbox) workspace.dismissDetail = null;
+  workspace.cancelDetailTransition();
   workspace.setDetailLocation(null);
+  workspace.setDetailLoading(false);
 });
-watch([suggestion, formattedDate], ([item, date]) => workspace.setDetailLocation(item?.location || null, item ? `${date} · ${item.author?.name || 'Anonymous Contributor'}` : ''));
+function setDetailMetadata(item) {
+  workspace.setDetailLocation(
+    item?.location || null,
+    item ? `${formattedDate.value} · ${item.author?.name || 'Anonymous Contributor'}` : '',
+    item?.content?.summary || item?.summary || '',
+    item?.id || route.params.id,
+    item?.creationDate || '',
+    item?.emoji,
+  );
+}
+function revealDetails(item) {
+  if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
+  const text = item?.content?.details || 'No detailed description provided.';
+  displayedDetails.value = '';
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reducedMotion || !text.length) {
+    displayedDetails.value = text;
+    isRevealingDetails.value = false;
+    return;
+  }
+  isRevealingDetails.value = true;
+  const started = performance.now();
+  const reveal = now => {
+    const progress = Math.min(1, (now - started) / 1000);
+    displayedDetails.value = text.slice(0, Math.max(1, Math.floor(text.length * progress)));
+    if (progress >= 1) {
+      displayedDetails.value = text;
+      isRevealingDetails.value = false;
+      detailsRevealFrame = 0;
+    } else detailsRevealFrame = requestAnimationFrame(reveal);
+  };
+  detailsRevealFrame = requestAnimationFrame(reveal);
+}
+function closeDetailAccordions() {
+  document.querySelectorAll('.submission-detail-tray details.detail-accordion[open]').forEach(details => { details.open = false; });
+}
 
 watch(() => route.params.id, async (id) => {
   const requestVersion = ++suggestionRequestVersion;
+  isRefreshing.value = false;
+  const previousItem = suggestion.value;
+  if (restoringSuggestion.value && String(restoringSuggestion.value.id) === String(id)) {
+    const restored = restoringSuggestion.value;
+    restoringSuggestion.value = null;
+    workspace.setDetailLoading(true);
+    closeDetailAccordions();
+    suggestion.value = restored;
+    setDetailMetadata(restored);
+    await nextTick();
+    await workspace.transitionToDetailLocation(restored.location);
+    if (requestVersion === suggestionRequestVersion) {
+      isLoading.value = false;
+      workspace.setDetailLoading(false);
+      revealDetails(restored);
+    }
+    return;
+  }
+  workspace.setDetailLoading(true);
+  isLoading.value = true;
+  workspace.setDetailMarkerTarget(id);
+  closeDetailAccordions();
+  const accordionsClosed = previousItem ? new Promise(resolve => setTimeout(resolve, 340)) : Promise.resolve();
+  if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
+  isRevealingDetails.value = false;
   representativesRequestVersion++;
   boundariesRequestVersion++;
-  suggestion.value = null;
-  isLoading.value = true;
   errorMessage.value = '';
   lightboxUrl.value = '';
   representatives.value = [];
@@ -443,22 +574,52 @@ watch(() => route.params.id, async (id) => {
   recommendedActionsLoaded.value = false;
   recommendedActionsError.value = '';
 
+  // On a direct marker click the detail tray is created by this route change.
+  // Wait for it to enter the DOM before calculating the map's upper-half
+  // target offset; chevron navigation already has the tray mounted.
+  await nextTick();
+  if (requestVersion !== suggestionRequestVersion) return;
+
+  let mapTransition = null;
+  const knownLocation = workspace.findSuggestionLocation(id);
+  if (knownLocation) mapTransition = workspace.transitionToDetailLocation(knownLocation);
+
   if (!id) {
     errorMessage.value = 'Invalid suggestion ID';
     isLoading.value = false;
+    workspace.setDetailLoading(false);
     return;
   }
 
   try {
     const item = await getSuggestionById(id);
-    if (requestVersion === suggestionRequestVersion) suggestion.value = item;
+    if (requestVersion !== suggestionRequestVersion) return;
+    await accordionsClosed;
+    if (requestVersion !== suggestionRequestVersion) return;
+    suggestion.value = item;
+    setDetailMetadata(item);
+    await nextTick();
+    if (!mapTransition) mapTransition = workspace.transitionToDetailLocation(item.location);
+    await mapTransition;
+    if (requestVersion === suggestionRequestVersion) {
+      isLoading.value = false;
+      workspace.setDetailLoading(false);
+      revealDetails(item);
+    }
   } catch (err) {
     if (requestVersion === suggestionRequestVersion) {
       console.error('Failed to load suggestion details:', err);
-      errorMessage.value = err.message || 'Unable to retrieve suggestion';
+      await accordionsClosed;
+      if (mapTransition) await mapTransition;
+      if (previousItem && String(previousItem.id) !== String(id)) {
+        restoringSuggestion.value = previousItem;
+        await router.replace(`/suggestion/${encodeURIComponent(previousItem.id)}`);
+      } else {
+        errorMessage.value = err.message || 'Unable to retrieve suggestion';
+        isLoading.value = false;
+        workspace.setDetailLoading(false);
+      }
     }
-  } finally {
-    if (requestVersion === suggestionRequestVersion) isLoading.value = false;
   }
 }, { immediate: true });
 </script>

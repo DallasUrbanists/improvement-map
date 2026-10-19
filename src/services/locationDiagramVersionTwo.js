@@ -1,3 +1,4 @@
+import { railSvgLayers } from './railSvgLayers.js';
 import { renderSourceTransit } from './sourceRailRendering.js';
 import { createStreetLabel } from './streetLabels.js';
 import { createSimpleTransitStops, snapRailStopsToPaths, placeRailStopLabels } from './simpleTransitStops.js';
@@ -145,9 +146,6 @@ export function generateVersionTwoLocationDiagram(data, { lat, lon, buildings = 
   }
   const footprints = buildings ? (data.elements || []).filter((element) => element.tags?.building && element.geometry?.length >= 4)
     .map((element) => `<path d="${d(element.geometry.map(project).map(screen))} Z"/>`).join('') : '';
-  const railPaths = transit.paths.join('');
-  const railCasingPaths = transit.paths.map((railPath) => railPath.replace('data-transit-line=', 'data-rail-casing=')
-    .replace(/stroke="[^"]+"/, 'stroke="#fff"')).join('');
   const stationLabels = placeRailStopLabels(stops, [
     { x: CENTER, y: CENTER_Y, width: 34, height: 34 },
     { x: CENTER, y: CENTER_Y, width: 48, height: 7 },
@@ -167,8 +165,7 @@ export function generateVersionTwoLocationDiagram(data, { lat, lon, buildings = 
 <g fill="#e5e5e5" stroke="#d0d0d0" stroke-width="1">${footprints}</g>
 <g data-layer="minor-paths" fill="none" stroke="#999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${minorPaths.join('')}</g>
 <g data-layer="roads" fill="none" stroke="#555" stroke-width="${ROAD_STROKE_WIDTH}" stroke-linecap="round" stroke-linejoin="round">${roadPaths.join('')}</g>
-<g data-layer="rail-casing" fill="none" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round">${railCasingPaths}</g>
-<g data-layer="rail-lines" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">${railPaths}</g>
+${railSvgLayers(transit)}
 <g data-layer="rail-stop-leaders" fill="none" stroke="#000" stroke-width="${ROAD_STROKE_WIDTH * 2}">${leaders}</g>
 <g data-layer="transit-stops">${stopsSvg}</g>
 <g data-layer="street-label-casing" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round"><g data-layer="station-label-casing" fill="#000" stroke="#000">${stationText}</g>${labels.join('')}</g>

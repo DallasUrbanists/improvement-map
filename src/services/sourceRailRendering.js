@@ -1,5 +1,8 @@
+import { carrolltonBridgePaths } from './railSvgLayers.js';
 import { railSegmentsInBounds } from './railGeometry.js';
 import { arrangeRailJunctions, offsetPolyline } from './railRendering.js';
+import { RAIL_DISPLAY_CORRIDORS } from './railDisplayCorridors.js';
+import { groupRailCorridors } from './railCorridorGrouping.js';
 
 const nodeKey = (point) => `${point.lon.toFixed(6)},${point.lat.toFixed(6)}`;
 const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
@@ -201,7 +204,7 @@ function alignStationVariants(segments, scale) {
           const dx = b.x - a.x; const dy = b.y - a.y;
           const t = dx || dy ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy))) : 0;
           const gap = distance(point, interpolate(a, b, t));
-          if (!best || gap < best.gap) best = { reference, i, t, gap };
+          if (!best || gap < best.gap - 1e-9) best = { reference, i, t, gap };
         }
         return best;
       });
@@ -245,9 +248,12 @@ function alignStationVariants(segments, scale) {
 }
 
 /** Preserve source centerlines and reconcile service lanes at shared graph nodes. */
-export function renderSourceTransit(catalog, center, halfExtent, project, screen, scale, { width = 480, height = 480, sourceSegments = null, clip = true } = {}) {
+export function renderSourceTransit(catalog, center, halfExtent, project, screen, scale, { width = 480, height = 480, sourceSegments = null, clip = true,
+  corridors = RAIL_DISPLAY_CORRIDORS, displayPixelRatio = 1 } = {}) {
   const lines = new Map((catalog?.lines || []).map((line) => [line.id, line]));
-  const chains = consolidateVariants(chainsFromSource(catalog, center, halfExtent + 40 / scale, project, screen, sourceSegments), scale);
+  const hasCorridors = corridors.some((corridor) => corridor.order.every((key) => lines.has(key)));
+  const chains = consolidateVariants(chainsFromSource(catalog, center, halfExtent + 40 / scale, project, screen,
+    sourceSegments || (hasCorridors ? catalog.segments : null)), scale);
   const junctions = arrangeRailJunctions(chains, scale, true);
   const nodes = new Map();
   for (const chain of chains) for (const end of [0, 1]) {
@@ -315,7 +321,7 @@ export function renderSourceTransit(catalog, center, halfExtent, project, screen
       }
     }
   }
-  const segments = []; const paths = []; const visible = new Set();
+  let segments = []; const paths = []; const visible = new Set();
   const intersects = (points) => points.slice(1).some((b, i) => {
     const a = points[i];
     return Math.min(a.x, b.x) <= width && Math.max(a.x, b.x) >= 0
@@ -324,14 +330,17 @@ export function renderSourceTransit(catalog, center, halfExtent, project, screen
   for (const chain of chains) for (const [key, lane] of lanes.get(chain)) {
     if (!lines.has(key)) continue;
     const adjusted = connectLane(lane, anchors.get(chain).get(key));
-    if (clip && !intersects(adjusted.points)) continue;
-    visible.add(key);
     segments.push({ line: key, points: adjusted.points, sourcePoints: chain.points, path: adjusted.path,
       offset: (chain.keys.indexOf(key) - (chain.keys.length - 1) / 2) * 5.5, orderDirection: chain.orderDirection || 1 });
   }
   alignStationVariants(segments, scale);
+  const displayCorridors = groupRailCorridors(segments, catalog, project, screen, corridors, displayPixelRatio);
+  if (clip) segments = segments.filter((segment) => intersects(segment.points));
+  for (const segment of segments) visible.add(segment.line);
   for (const segment of segments) paths.push(`<path data-transit-line="${escapeXml(segment.line)}" d="${segment.path}" stroke="${lines.get(segment.line).color}"/>`);
-  return { paths, segments, lines: [...visible].sort().map((key) => lines.get(key)),
+  const overpasses = lines.has('DART:SILVER') ? carrolltonBridgePaths(segments,
+    screen(project({ lon: -96.90864, lat: 32.95508 })), lines.get('DART:GREEN')?.color) : [];
+  return { paths, segments, displayCorridors, overpasses, lines: [...visible].sort().map((key) => lines.get(key)),
     junctions: junctions.map(({ trunk, branches }) => ({ trunkOrder: trunk.keys,
       branchOrders: branches.map((branch) => branch.chain.keys) })) };
 }

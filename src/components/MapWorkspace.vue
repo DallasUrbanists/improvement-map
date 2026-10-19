@@ -1,13 +1,13 @@
 <template>
-  <div class="map-workspace view-panel" :data-tray-open="trayOpen" @pointerdown.capture="interruptMapMotion" @wheel.capture.passive="interruptMapMotion">
-    <div ref="browseMapContainerEl" class="workspace-map-canvas" data-testid="persistent-map"></div>
+  <div class="map-workspace view-panel" :data-tray-open="trayOpen" :data-detail-loading="detailLoading" @pointerdown.capture="interruptMapMotion" @wheel.capture.passive="interruptMapMotion">
+    <div ref="browseMapContainerEl" class="workspace-map-canvas" data-testid="persistent-map" :inert="detailLoading"></div>
     <div v-if="!hasGoogleMapsKey || googleMapsAuthError || mapError" class="workspace-map-status" role="status">
       <p>{{ mapError || googleMapsAuthError || 'Google Maps is unavailable. You can still browse suggestions.' }}</p>
     </div>
     <div v-else-if="!isMapReady" class="workspace-map-status" role="status">Loading Map…</div>
-    <Transition name="workspace-backdrop"><div v-if="trayOpen" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)) }" aria-hidden="true"></div></Transition>
+    <Transition name="workspace-backdrop"><div v-if="trayOpen" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top } : undefined" aria-hidden="true"></div></Transition>
     <Teleport :to="draftCrosshairPane || 'body'" :disabled="isSubmit || !draftCrosshairPane">
-    <div v-if="!isDetail && (isSubmit || hasDraftPin)" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
+    <div v-if="!isDetail && (isSubmit || hasDraftPin) && (isSubmit || !isDensityMode)" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
       <svg :key="isSubmitLocate ? 'locating' : 'locked'" data-testid="suggestion-location-crosshair" viewBox="0 0 50 50" aria-hidden="true" @animationend="onCrosshairAnimationEnd">
         <g transform="translate(25 25)" fill="none" stroke="white" stroke-width="3">
           <circle r="9" /><path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" /><circle r="2" fill="white" stroke="none" />
@@ -19,21 +19,13 @@
       </div>
     </div>
     </Teleport>
-    <Teleport v-if="draftCrosshairPane && isPopupOpen && popupCoordinates" :to="draftCrosshairPane">
-      <div ref="popupCoordinateElement" class="popup-target-coordinates" :style="popupCoordinatePosition">
-        <button type="button" class="map-ui map-ui-button" :aria-label="`Copy latitude and longitude: ${popupCoordinates}`" @click.stop="copyCoordinates(popupCoordinates)">{{ popupCoordinates }}</button>
-        <span v-if="coordinateCopyMessage" class="map-ui crosshair-copy-tooltip" role="status">{{ coordinateCopyMessage }}</span>
+    <div v-if="isDetail" class="detail-map-target" :style="detailTargetPosition">
+      <div v-if="!detailLoading" class="detail-marker-text">
+        <div v-if="detailSummary" class="detail-marker-summary">{{ detailSummary }}</div>
+        <div class="detail-marker-byline">{{ detailByline }}</div>
       </div>
-    </Teleport>
-    <div v-if="isDetail && detailCoordinates" class="detail-map-target" :style="detailTargetPosition">
-      <img :key="route.params.id" :src="suggestionMarkerUrl" alt="Submission location" class="detail-target-icon" />
-      <div ref="coordinateLabel" class="crosshair-coordinate-label" :class="{ 'is-left': coordinateLabelOnLeft }" :style="coordinateLabelStyle">
-        <button type="button" class="map-ui map-ui-button" :aria-label="`Copy latitude and longitude: ${detailCoordinates}`" @click.stop="copyCoordinates(detailCoordinates)">{{ detailCoordinates }}</button>
-        <span v-if="coordinateCopyMessage" class="map-ui crosshair-copy-tooltip" role="status">{{ coordinateCopyMessage }}</span>
-      </div>
-      <div class="map-ui detail-marker-byline">{{ detailByline }}</div>
     </div>
-    <div v-if="isDetail && isMapReady && !mapError" class="map-ui detail-zoom-ui" role="group" aria-label="Map zoom">
+    <div v-if="isDetail && isMapReady && !mapError" class="map-ui detail-zoom-ui" role="group" aria-label="Map zoom" :inert="detailLoading">
       <button type="button" class="map-ui-button" aria-label="Zoom in" @click="zoomDetailMap(1)">+</button>
       <button type="button" class="map-ui-button" aria-label="Zoom out" @click="zoomDetailMap(-1)">−</button>
     </div>
@@ -42,7 +34,7 @@
         <keep-alive include="BrowseView,SubmitView"><component :is="Component" :key="route.name" /></keep-alive>
       </router-view>
     </div>
-      <MapSearchOverlay :query="mapSearchQuery" :has-suggestions="mapSearchResults.length > 0" :read-only="readOnlyAddress">
+      <MapSearchOverlay :query="mapSearchQuery" :has-suggestions="mapSearchResults.length > 0" :read-only="readOnlyAddress" :inert="detailLoading">
         <div
           class="map-ui map-search-panel relative flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-xl">
           <span class="pl-3 pr-2 text-zinc-400">
@@ -74,10 +66,20 @@
           </button>
         </div>
       </MapSearchOverlay>
-    <MapToolbar v-if="!isSubmitting" class="absolute bottom-8 left-1/2 -translate-x-1/2 z-40"
+    <MapToolbar v-if="!isSubmitting" class="absolute bottom-8 left-1/2 -translate-x-1/2 z-40" :inert="detailLoading"
       :model-value="trayOpen && !isSubmit ? 'list' : currentMapType === 'hybrid' ? 'satellite' : 'streets'"
       :map-type="currentMapType" :locating="isLocating || !!submission?.isLocating?.value"
-      :recenter-disabled="readOnlyAddress" :exit-submit="isSubmit" @exit-submit="closeTray" @center="onCenterOnLocationClick" @update:model-value="selectTab" />
+      :recenter-disabled="readOnlyAddress" :exit-submit="isSubmit" :marker-zoom-threshold="markerZoomThreshold" :map-zoom="mapZoom"
+      @exit-submit="closeTray" @center="onCenterOnLocationClick" @update:model-value="selectTab"
+      :heatmap-opacity="heatmapOpacity" @update:heatmap-opacity="setHeatmapOpacity"
+      :heatmap-radius="heatmapRadius" @update:heatmap-radius="setHeatmapRadius"
+      :marker-pulse-speed="markerPulseSpeed" @update:marker-pulse-speed="setMarkerPulseSpeed"
+      :marker-pulse-scale="markerPulseScale" @update:marker-pulse-scale="setMarkerPulseScale"
+      :marker-bob-angle="markerBobAngle" @update:marker-bob-angle="setMarkerBobAngle"
+      :marker-bob-speed="markerBobSpeed" @update:marker-bob-speed="setMarkerBobSpeed"
+      :marker-pulse-easing="markerPulseEasing" @update:marker-pulse-easing="setMarkerPulseEasing"
+      :marker-bob-easing="markerBobEasing" @update:marker-bob-easing="setMarkerBobEasing"
+      @update:marker-zoom-threshold="setMarkerZoomThreshold" />
   </div>
 </template>
 <script setup>
@@ -95,7 +97,8 @@ import { isDark } from '../services/theme';
 import { mapWorkspaceKey } from '../services/mapWorkspace';
 import { loadWizardDraft, saveWizardDraft } from '../services/storage';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
-import suggestionMarkerUrl from '../assets/suggestion-marker.svg';
+import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
+import { createSuggestionDensityOverlay } from '../services/suggestionDensityOverlay';
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import { clusterAppearance, createMarkerSpiderfier, shouldSpiderfy } from '../services/markerSpiderfier';
 import { getSuggestions } from '../services/api';
@@ -107,8 +110,25 @@ import {
   setStoredMapView,
   removeStoredMapView,
   getStoredBrowseSort,
+  getStoredMarkerZoomThreshold,
+  setStoredMarkerZoomThreshold,
+  getStoredHeatmapOpacity,
+  setStoredHeatmapOpacity,
+  getStoredHeatmapRadius,
+  setStoredHeatmapRadius,
+  getStoredMarkerPulseSpeed,
+  setStoredMarkerPulseSpeed,
+  getStoredMarkerPulseScale,
+  setStoredMarkerPulseScale,
+  getStoredMarkerBobAmount,
+  setStoredMarkerBobAmount,
+  getStoredMarkerBobSpeed,
+  setStoredMarkerBobSpeed,
+  getStoredMarkerPulseEasing,
+  setStoredMarkerPulseEasing,
+  getStoredMarkerBobEasing,
+  setStoredMarkerBobEasing,
   setStoredBrowseSort,
-  getStoredActiveInfoWindowSuggestionId,
   setStoredActiveInfoWindowSuggestionId,
   removeStoredActiveInfoWindowSuggestionId,
 } from '../services/storage';
@@ -136,6 +156,16 @@ const userLocation = ref(null); // { lat, lng }
 const isLocating = ref(false);
 const currentMapType = ref(getStoredMapView()?.mapType || (savedTab === 'satellite' ? 'hybrid' : 'roadmap'));
 const activeSort = ref(getStoredBrowseSort());
+const markerZoomThreshold = ref(getStoredMarkerZoomThreshold());
+const heatmapOpacity = ref(getStoredHeatmapOpacity());
+const heatmapRadius = ref(getStoredHeatmapRadius());
+const markerPulseSpeed = ref(getStoredMarkerPulseSpeed());
+const markerPulseScale = ref(getStoredMarkerPulseScale());
+const markerBobAngle = ref(getStoredMarkerBobAmount());
+const markerBobSpeed = ref(getStoredMarkerBobSpeed());
+const markerPulseEasing = ref(getStoredMarkerPulseEasing());
+const markerBobEasing = ref(getStoredMarkerBobEasing());
+const mapZoom = ref(getStoredMapView()?.zoom ?? 13);
 
 // Map & List DOM & State
 const browseMapContainerEl = ref(null);
@@ -203,22 +233,19 @@ function zoomIntoCluster(cluster) {
 const isPopupOpen = ref(false);
 const isSpiderOpen = ref(false);
 let popupShadeOverlay = null;
-const popupTarget = shallowRef(null);
-const popupCoordinateElement = ref(null);
-const popupCoordinates = ref('');
-const popupCoordinatePosition = ref({});
-let popupCoordinateOffset = null;
 const draftCrosshairPane = shallowRef(null);
 function closeInfoWindow() {
   infoWindow?.close();
   isPopupOpen.value = false;
-  popupTarget.value = null;
-  popupCoordinates.value = '';
-  popupCoordinateOffset = null;
 }
 
 let markersArray = [];
+let suggestionMarkersById = new Map();
+let suggestionMarkerData = new WeakMap();
 let suggestionClusterer = null;
+let densityOverlay = null;
+let renderedMarkerVisibility = null;
+let detailPinnedMarker = null;
 let markerSpiderfier = null;
 let userLocationMarker = null;
 let submissionCrosshairOverlay = null;
@@ -308,9 +335,118 @@ function setSuggestionMarkersVisible(visible) {
   // idle/zoom cycle. Popup state must never cause that reset.
   if (areSuggestionMarkersVisible === visible) return;
   areSuggestionMarkersVisible = visible;
-  if (!visible) markerSpiderfier?.collapse();
-  suggestionClusterer?.setMap(visible ? map : null);
-  if (!visible) closeInfoWindow();
+  syncSuggestionDisplay();
+}
+function setMarkerZoomThreshold(value) {
+  const threshold = Number(value);
+  if (!Number.isFinite(threshold)) return;
+  markerZoomThreshold.value = Math.max(1, Math.min(20, Math.round(threshold)));
+  setStoredMarkerZoomThreshold(markerZoomThreshold.value);
+}
+function syncSuggestionDisplay() {
+  const markersVisible = areSuggestionMarkersVisible && !isDensityMode.value;
+  if (renderedMarkerVisibility !== markersVisible) {
+    renderedMarkerVisibility = markersVisible;
+    if (!markersVisible) { markerSpiderfier?.collapse(); closeInfoWindow(); }
+    if (suggestionClusterer) {
+      suggestionClusterer.setMap(null);
+      if (markersVisible) {
+        // Detaching clears rendered clusters but leaves the algorithm's cached
+        // result intact. A fresh clusterer must redraw even at the same zoom.
+        suggestionClusterer.clearMarkers(true);
+        suggestionClusterer = createSuggestionClusterer(true);
+      }
+    }
+  }
+  densityOverlay?.setMap(isDensityMode.value ? map : null);
+}
+function setHeatmapOpacity(value) {
+  if (!Number.isFinite(value)) return;
+  heatmapOpacity.value = Math.max(0, Math.min(1, value));
+  densityOverlay?.setOpacity(heatmapOpacity.value);
+  setStoredHeatmapOpacity(heatmapOpacity.value);
+}
+function setHeatmapRadius(value) {
+  if (!Number.isFinite(value)) return;
+  heatmapRadius.value = Math.max(8, Math.min(160, Math.round(value)));
+  densityOverlay?.setRadius(heatmapRadius.value);
+  setStoredHeatmapRadius(heatmapRadius.value);
+}
+function suggestionMarkerIcon(suggestion, pulse = false) {
+  const size = pulse ? 128 : 80;
+  return {
+    url: createEmojiMarkerSvg(suggestion.emoji, {
+      pulse,
+      pulseSpeed: markerPulseSpeed.value,
+      pulseScale: markerPulseScale.value,
+      bobAngle: markerBobAngle.value,
+      bobSpeed: markerBobSpeed.value,
+      pulseEasing: markerPulseEasing.value,
+      bobEasing: markerBobEasing.value,
+      canvasSize: size,
+    }),
+    scaledSize: new googleMaps.Size(size, size),
+    anchor: new googleMaps.Point(size / 2, size / 2),
+  };
+}
+function updatePinnedDetailMarkerIcon() {
+  if (!detailPinnedMarker) return;
+  const suggestion = suggestionMarkerData.get(detailPinnedMarker);
+  if (suggestion) detailPinnedMarker.setIcon(suggestionMarkerIcon(suggestion, true));
+}
+function setMarkerPulseSpeed(value) {
+  markerPulseSpeed.value = Math.min(2, Math.max(.5, Number(value)));
+  setStoredMarkerPulseSpeed(markerPulseSpeed.value);
+  updatePinnedDetailMarkerIcon();
+}
+function setMarkerPulseScale(value) {
+  markerPulseScale.value = Math.min(2, Math.max(1, Number(value)));
+  setStoredMarkerPulseScale(markerPulseScale.value);
+  updatePinnedDetailMarkerIcon();
+}
+function setMarkerBobAngle(value) {
+  markerBobAngle.value = Math.min(12, Math.max(0, Number(value)));
+  setStoredMarkerBobAmount(markerBobAngle.value);
+  updatePinnedDetailMarkerIcon();
+}
+function setMarkerBobSpeed(value) {
+  markerBobSpeed.value = Math.min(2, Math.max(.5, Number(value)));
+  setStoredMarkerBobSpeed(markerBobSpeed.value);
+  updatePinnedDetailMarkerIcon();
+}
+function setMarkerPulseEasing(value) {
+  markerPulseEasing.value = value;
+  setStoredMarkerPulseEasing(value);
+  updatePinnedDetailMarkerIcon();
+}
+function setMarkerBobEasing(value) {
+  markerBobEasing.value = value;
+  setStoredMarkerBobEasing(value);
+  updatePinnedDetailMarkerIcon();
+}
+function syncDetailSuggestionMarker(targetId = isDetail.value ? route.params.id : null) {
+  if (!suggestionClusterer || !map || !googleMaps) return;
+  const target = isDetail.value && targetId != null ? suggestionMarkersById.get(String(targetId)) : null;
+  if (detailPinnedMarker === target) return;
+  if (detailPinnedMarker) {
+    const previous = detailPinnedMarker;
+    previous.setZIndex(null);
+    const item = suggestionMarkerData.get(previous);
+    if (item) previous.setIcon(suggestionMarkerIcon(item));
+    suggestionClusterer.addMarker(previous, true);
+    detailPinnedMarker = null;
+  }
+  if (target) {
+    const item = suggestionMarkerData.get(target);
+    if (item) target.setIcon(suggestionMarkerIcon(item, true));
+    target.setZIndex((googleMaps.Marker.MAX_ZINDEX || 100000) + 1);
+    suggestionClusterer.removeMarker(target, true);
+    suggestionClusterer.render();
+    target.setMap(map);
+    detailPinnedMarker = target;
+  } else {
+    suggestionClusterer.render();
+  }
 }
 
 function renderSuggestionCluster({ count, position }) {
@@ -354,6 +490,7 @@ async function initGoogleMap() {
       ? { lat: userLocation.value.lat, lng: userLocation.value.lng }
       : { lat: 32.7767, lng: -96.7970 };
     const initialZoom = savedView ? savedView.zoom : 13;
+    mapZoom.value = initialZoom;
 
     // Default Streets view (ROADMAP) or Satellite (HYBRID)
     map = new googleMaps.Map(browseMapContainerEl.value, {
@@ -365,7 +502,8 @@ async function initGoogleMap() {
       zoomControl: true,
       zoomControlOptions: { position: googleMaps.ControlPosition.TOP_RIGHT },
       mapTypeControl: false,
-      gestureHandling: 'greedy',
+      gestureHandling: detailLoading.value ? 'none' : 'greedy',
+      keyboardShortcuts: !detailLoading.value,
       clickableIcons: false,
       heading: 0,
       tilt: 0,
@@ -391,8 +529,10 @@ async function initGoogleMap() {
     map.addListener('dragstart', cancelClusterZoom);
 
     map.addListener('zoom_changed', () => {
+      mapZoom.value = map.getZoom() ?? mapZoom.value;
       saveCurrentMapView();
     });
+    map.addListener('idle', refreshDetailNavigation);
 
     isMapReady.value = true;
     renderSuggestionMarkers();
@@ -486,10 +626,6 @@ function openInfoWindow(suggestion, marker, autoRestore = false) {
   }
 
   setStoredActiveInfoWindowSuggestionId(suggestion.id);
-  popupTarget.value = marker;
-  popupCoordinateOffset = null;
-  const position = marker.getPosition?.() || marker.get('position');
-  popupCoordinates.value = `${position.lat().toFixed(6)}, ${position.lng().toFixed(6)}`;
   const contentEl = createInfoWindowContent(suggestion);
   infoWindow.setContent(contentEl);
   infoWindow.open({
@@ -507,13 +643,36 @@ function openInfoWindow(suggestion, marker, autoRestore = false) {
   }, 400);
 }
 
+function createSuggestionClusterer(visible) {
+  return new MarkerClusterer({
+    map: visible ? map : null,
+    markers: markersArray.filter(marker => marker !== detailPinnedMarker),
+    algorithm: new SuperClusterAlgorithm({ radius: 64, maxZoom: 30 }),
+    renderer: { render: renderSuggestionCluster },
+    onClusterClick: (_event, cluster) => {
+      cancelClusterZoom();
+      closeInfoWindow();
+      if (shouldSpiderfy(cluster.markers, map)) {
+        markerSpiderfier.expand(cluster.markers, cluster.position);
+      } else {
+        markerSpiderfier.collapse();
+        zoomIntoCluster(cluster);
+      }
+    },
+  });
+}
+
 function renderSuggestionMarkers() {
   if (!map || !googleMaps) return;
   markerSpiderfier?.dispose();
   const markerSuggestions = new WeakMap();
-  markerSpiderfier = createMarkerSpiderfier(map, googleMaps, (marker, anchor) => {
+  markerSpiderfier = createMarkerSpiderfier(map, googleMaps, (marker) => {
     const suggestion = markerSuggestions.get(marker);
-    if (suggestion) openInfoWindow(suggestion, anchor);
+    if (suggestion) {
+      closeInfoWindow();
+      removeStoredActiveInfoWindowSuggestionId();
+      openSuggestion(suggestion);
+    }
   }, () => { isSpiderOpen.value = false; closeInfoWindow(); }, () => { isSpiderOpen.value = true; }, () => {
     closeInfoWindow();
     removeStoredActiveInfoWindowSuggestionId();
@@ -528,10 +687,9 @@ function renderSuggestionMarkers() {
   suggestionClusterer = null;
   markersArray.forEach((m) => m.setMap(null));
   markersArray = [];
-
-  const storedActiveId = getStoredActiveInfoWindowSuggestionId();
-  let markerToRestore = null;
-  let suggestionToRestore = null;
+  suggestionMarkersById = new Map();
+  suggestionMarkerData = new WeakMap();
+  detailPinnedMarker = null;
 
   // Add Google Maps markers for each suggestion
   suggestions.value.forEach((s) => {
@@ -541,49 +699,30 @@ function renderSuggestionMarkers() {
       const gMarker = new googleMaps.Marker({
         position: { lat: Number(lat), lng: Number(lng) },
         title: s.content?.summary || 'Suggestion',
-        icon: {
-          url: suggestionMarkerUrl,
-          scaledSize: new googleMaps.Size(40, 48),
-          anchor: new googleMaps.Point(20, 18),
-        },
+        icon: suggestionMarkerIcon(s),
         optimized: false,
-        animation: googleMaps.Animation?.DROP,
       });
 
       gMarker.addListener('click', () => {
-        openInfoWindow(s, gMarker);
+        closeInfoWindow();
+        removeStoredActiveInfoWindowSuggestionId();
+        openSuggestion(s);
       });
 
       markersArray.push(gMarker);
+      suggestionMarkersById.set(String(s.id), gMarker);
+      suggestionMarkerData.set(gMarker, s);
       markerSuggestions.set(gMarker, s);
 
-      if (storedActiveId && String(s.id) === String(storedActiveId)) {
-        markerToRestore = gMarker;
-        suggestionToRestore = s;
-      }
     }
   });
 
-  suggestionClusterer = new MarkerClusterer({
-    map: areSuggestionMarkersVisible ? map : null,
-    markers: markersArray,
-    algorithm: new SuperClusterAlgorithm({ radius: 64, maxZoom: 30 }),
-    renderer: { render: renderSuggestionCluster },
-    onClusterClick: (_event, cluster) => {
-      cancelClusterZoom();
-      closeInfoWindow();
-      if (shouldSpiderfy(cluster.markers, map)) {
-        markerSpiderfier.expand(cluster.markers, cluster.position);
-      } else {
-        markerSpiderfier.collapse();
-        zoomIntoCluster(cluster);
-      }
-    },
-  });
-
-  if (markerToRestore && suggestionToRestore) {
-    openInfoWindow(suggestionToRestore, markerToRestore, true);
-  }
+  suggestionClusterer = createSuggestionClusterer(areSuggestionMarkersVisible && !isDensityMode.value);
+  renderedMarkerVisibility = areSuggestionMarkersVisible && !isDensityMode.value;
+  if (!densityOverlay) densityOverlay = createSuggestionDensityOverlay(map, googleMaps, { opacity: heatmapOpacity.value, radius: heatmapRadius.value });
+  densityOverlay.setData(markersArray.map(marker => marker.getPosition()));
+  densityOverlay.setMap(isDensityMode.value ? map : null);
+  syncDetailSuggestionMarker();
 
   // Render user location marker if available
   if (userLocation.value) {
@@ -765,26 +904,29 @@ watch(
   () => suggestions.value,
   () => {
     renderSuggestionMarkers();
+    refreshDetailNavigation();
   },
   { deep: true }
 );
 
 
 const isBrowse = computed(() => route.name === 'Browse');
+const isDensityMode = computed(() => isBrowse.value && !isList.value && mapZoom.value < markerZoomThreshold.value);
 const isList = computed(() => isBrowse.value && (route.query.view === 'list' || (!route.query.view && savedTab === 'list')));
 const submission = shallowRef(null);
 const initialDraft = loadWizardDraft();
 const draft = computed(() => submission.value?.draft || initialDraft);
 const isSubmit = computed(() => route.name === 'Submit');
 const isDetail = computed(() => route.name === 'SubmissionDetail');
+const detailLoading = ref(false);
+let detailMotionFrame = 0;
+let cancelDetailMotion = null;
 const detailLocation = ref(null);
 const detailByline = ref('');
-const detailCoordinates = computed(() => {
-  const location = detailLocation.value;
-  if (location?.latitude == null || location?.longitude == null) return '';
-  const lat = Number(location.latitude), lng = Number(location.longitude);
-  return Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '';
-});
+const detailSummary = ref('');
+const detailNavigation = ref({ olderId: null, newerId: null });
+let detailSuggestionId = null;
+let detailCreationTime = NaN;
 const isSubmitLocate = computed(() => isSubmit.value && draft.value.step === 1);
 const hasDraftPin = computed(() => draft.value.location?.latitude != null && draft.value.location?.longitude != null);
 const submissionCoordinates = computed(() => {
@@ -832,7 +974,7 @@ function positionCoordinateLabel() {
     transformOrigin: `${centerX - labelX}px ${centerY - labelY}px`,
   };
 }
-watch([submissionCoordinates, submissionCrosshairPosition, isSubmitLocate, detailCoordinates, detailTargetPosition], () => nextTick(positionCoordinateLabel), { flush: 'post' });
+watch([submissionCoordinates, submissionCrosshairPosition, isSubmitLocate], () => nextTick(positionCoordinateLabel), { flush: 'post' });
 watch(coordinateLabel, (element, _, onCleanup) => {
   if (!element) return;
   const observer = new ResizeObserver(positionCoordinateLabel);
@@ -921,10 +1063,130 @@ function focusLocation(location) {
   map.setZoom(location.zoom ?? 16);
   pendingLocation = null;
 }
-function setDetailLocation(location, byline = '') {
+function setDetailLocation(location, byline = '', summary = '', suggestionId = null, creationDate = '') {
   detailLocation.value = location;
   detailByline.value = byline;
-  if (location && isDetail.value) focusLocation(location);
+  detailSummary.value = summary;
+  detailSuggestionId = suggestionId == null ? null : String(suggestionId);
+  syncDetailSuggestionMarker(detailSuggestionId);
+  detailCreationTime = new Date(creationDate).getTime();
+  refreshDetailNavigation();
+}
+function setDetailMarkerTarget(suggestionId) { syncDetailSuggestionMarker(suggestionId); }
+function setDetailLoading(loading) {
+  detailLoading.value = !!loading;
+  map?.setOptions({ gestureHandling: detailLoading.value || trayOpen.value ? 'none' : 'greedy', keyboardShortcuts: !detailLoading.value && !trayOpen.value });
+}
+function findSuggestionLocation(id) {
+  const item = suggestions.value.find(suggestion => String(suggestion.id) === String(id));
+  return item?.location || (item?.latitude != null && item?.longitude != null ? { latitude: item.latitude, longitude: item.longitude } : null);
+}
+function ensureDetailTargetOverlay() {
+  if (detailTargetOverlay || !map || !googleMaps) return;
+  detailTargetOverlay = new googleMaps.OverlayView();
+  detailTargetOverlay.onAdd = () => {};
+  detailTargetOverlay.onRemove = () => {};
+  detailTargetOverlay.draw = () => {
+    const location = detailLocation.value;
+    if (!isDetail.value || !location) return;
+    const point = detailTargetOverlay.getProjection()?.fromLatLngToContainerPixel(new googleMaps.LatLng(Number(location.latitude), Number(location.longitude)));
+    if (point) detailTargetPosition.value = { left: `${point.x}px`, top: `${point.y}px` };
+  };
+  detailTargetOverlay.setMap(map);
+}
+function transitionToDetailLocation(location) {
+  if (!isDetail.value || !map || !googleMaps || location?.latitude == null || location?.longitude == null) return Promise.resolve();
+  const lat = Number(location.latitude), lng = Number(location.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return Promise.resolve();
+  const tray = document.querySelector('.submission-detail-tray');
+  const search = document.querySelector('.map-search-panel');
+  const bounds = browseMapContainerEl.value?.getBoundingClientRect();
+  let target = { lat, lng };
+  const projection = map.getProjection?.();
+  if (projection && tray && search && bounds) {
+    const targetY = (search.getBoundingClientRect().bottom + tray.getBoundingClientRect().top) / 2;
+    const offset = bounds.top + bounds.height / 2 - targetY;
+    const point = projection.fromLatLngToPoint(new googleMaps.LatLng(lat, lng));
+    const center = projection.fromPointToLatLng(new googleMaps.Point(point.x, point.y + offset / 2 ** (map.getZoom() || 1)));
+    target = { lat: center.lat(), lng: center.lng() };
+  }
+  ensureDetailTargetOverlay();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    map.setCenter(target);
+    detailTargetOverlay?.draw();
+    return Promise.resolve();
+  }
+  if (cancelDetailMotion) cancelDetailMotion();
+  const center = map.getCenter();
+  if (!center) { map.setCenter(target); return Promise.resolve(); }
+  const from = { lat: center.lat(), lng: center.lng() };
+  let deltaLng = target.lng - from.lng;
+  if (deltaLng > 180) deltaLng -= 360;
+  if (deltaLng < -180) deltaLng += 360;
+  if (Math.abs(target.lat - from.lat) < 1e-7 && Math.abs(deltaLng) < 1e-7) {
+    map.setCenter(target);
+    detailTargetOverlay?.draw();
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    const started = performance.now();
+    let finished = false;
+    const stop = () => {
+      if (finished) return;
+      finished = true;
+      if (detailMotionFrame) cancelAnimationFrame(detailMotionFrame);
+      detailMotionFrame = 0;
+      cancelDetailMotion = null;
+      resolve();
+    };
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (detailMotionFrame) cancelAnimationFrame(detailMotionFrame);
+      detailMotionFrame = 0;
+      cancelDetailMotion = null;
+      map.setCenter(target);
+      detailTargetOverlay?.draw();
+      resolve();
+    };
+    cancelDetailMotion = stop;
+    const animate = now => {
+      const progress = Math.min(1, (now - started) / 1000);
+      const eased = progress < .5 ? 4 * progress ** 3 : 1 - ((-2 * progress + 2) ** 3) / 2;
+      map.setCenter({ lat: from.lat + (target.lat - from.lat) * eased, lng: from.lng + deltaLng * eased });
+      if (progress >= 1) finish();
+      else detailMotionFrame = requestAnimationFrame(animate);
+    };
+    detailMotionFrame = requestAnimationFrame(animate);
+  });
+}
+function cancelDetailTransition() { cancelDetailMotion?.(); }
+function refreshDetailNavigation() {
+  if (!isDetail.value || !map || !googleMaps || !detailSuggestionId || !Number.isFinite(detailCreationTime)) {
+    detailNavigation.value = { olderId: null, newerId: null };
+    return;
+  }
+  const bounds = map.getBounds?.();
+  if (!bounds) return;
+  const inView = suggestions.value.flatMap((item) => {
+    const latitude = Number(item.location?.latitude ?? item.latitude);
+    const longitude = Number(item.location?.longitude ?? item.longitude);
+    const created = new Date(item.creationDate || 0).getTime();
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(created)) return [];
+    if (!bounds.contains(new googleMaps.LatLng(latitude, longitude))) return [];
+    return [{ id: String(item.id), created }];
+  }).sort((a, b) => a.created - b.created || a.id.localeCompare(b.id));
+  const older = inView.filter((item) => item.created < detailCreationTime).at(-1);
+  const newer = inView.find((item) => item.created > detailCreationTime);
+  detailNavigation.value = {
+    olderId: older?.id || null,
+    newerId: newer?.id || null,
+  };
+}
+function navigateDetail(direction) {
+  if (detailLoading.value) return;
+  const id = direction === 'older' ? detailNavigation.value.olderId : detailNavigation.value.newerId;
+  if (id) router.push(`/suggestion/${encodeURIComponent(id)}`);
 }
 function frameDetailLocation(immediate = false) {
   if (!isDetail.value || !map || !googleMaps || !detailLocation.value) return;
@@ -945,18 +1207,7 @@ function frameDetailLocation(immediate = false) {
     if (immediate === true || window.matchMedia('(prefers-reduced-motion: reduce)').matches) map.setCenter(center);
     else map.panTo(center);
   } else { map.setCenter(position); map.panBy?.(0, offset); }
-  if (!detailTargetOverlay) {
-    detailTargetOverlay = new googleMaps.OverlayView();
-    detailTargetOverlay.onAdd = () => {};
-    detailTargetOverlay.onRemove = () => {};
-    detailTargetOverlay.draw = () => {
-      const location = detailLocation.value;
-      if (!isDetail.value || !location) return;
-      const point = detailTargetOverlay.getProjection()?.fromLatLngToContainerPixel(new googleMaps.LatLng(Number(location.latitude), Number(location.longitude)));
-      if (point) detailTargetPosition.value = { left: `${point.x}px`, top: `${point.y}px` };
-    };
-    detailTargetOverlay.setMap(map);
-  }
+  ensureDetailTargetOverlay();
   detailTargetOverlay.draw();
 }
 function zoomDetailMap(direction) {
@@ -1004,29 +1255,6 @@ function updateSubmissionCrosshair() {
     pane.style.top = `${origin.y}px`;
     pane.style.width = `${browseMapContainerEl.value.clientWidth}px`;
     pane.style.height = `${browseMapContainerEl.value.clientHeight}px`;
-    if (isPopupOpen.value && popupTarget.value) {
-      const point = projection.fromLatLngToContainerPixel(popupTarget.value.getPosition?.() || popupTarget.value.get('position'));
-      if (!point) return;
-      const width = popupCoordinateElement.value?.offsetWidth || 220;
-      const height = popupCoordinateElement.value?.offsetHeight || 30;
-      const viewportWidth = browseMapContainerEl.value.clientWidth;
-      const viewportHeight = browseMapContainerEl.value.clientHeight;
-      if (!popupCoordinateOffset) {
-        const spider = markerSpiderfier?.getScreenBounds();
-        const rightX = Math.max(point.x + 20, spider ? spider.right + 12 : -Infinity);
-        const leftX = Math.min(point.x - 20 - width, spider ? spider.left - 12 - width : Infinity);
-        let x = rightX + width <= viewportWidth - 12 ? rightX : leftX;
-        let y = point.y - height / 2;
-        if (spider && (x < 12 || x + width > viewportWidth - 12)) {
-          y = spider.bottom + 12 + height <= viewportHeight - 12 ? spider.bottom + 12 : spider.top - height - 12;
-          x = point.x - width / 2;
-        }
-        popupCoordinateOffset = { x: x - point.x, y: y - point.y };
-      }
-      // Keep the label attached to its geographic marker, even offscreen.
-      popupCoordinatePosition.value = { left: `${point.x + popupCoordinateOffset.x}px`,
-        top: `${point.y + popupCoordinateOffset.y}px`, transform: 'none' };
-    }
   }
   if (isSubmitLocate.value) {
     const center = map?.getCenter();
@@ -1114,6 +1342,7 @@ const removeNavigationGuard = router.beforeEach((to, from) => {
 });
 function handleEscape(event) {
   if (event.key !== 'Escape' || event.defaultPrevented) return;
+  if (detailLoading.value) { event.preventDefault(); return; }
   if (isPopupOpen.value) { closeInfoWindow(); removeStoredActiveInfoWindowSuggestionId(); event.preventDefault(); return; }
   const openMenu = document.querySelector('.map-toolbar[data-menu-open="true"]');
   if (openMenu) { openMenu.querySelector('[aria-label="Menu"]')?.click(); event.preventDefault(); return; }
@@ -1123,7 +1352,7 @@ function handleEscape(event) {
 }
 window.addEventListener('keydown', handleEscape);
 const workspace = {
-  setDetailLocation,
+  setDetailLocation, setDetailMarkerTarget, setDetailLoading, transitionToDetailLocation, cancelDetailTransition, findSuggestionLocation, detailLoading, detailNavigation, navigateDetail,
   pinContinueReady,
   suggestions, sortedListSuggestions, activeSort, setSortMode, requestGps, isLocating, refreshData,
   formatBrowseAddress, formatCreationDate, getPrimaryPhoto, failedPhotoIds, onPhotoError,
@@ -1158,8 +1387,11 @@ watch([trayOpen, isMapReady], ([open]) => {
   if (open) { closeInfoWindow(); markerSpiderfier?.collapse(); }
 }, { immediate: true });
 watch([isSubmit, isDetail, isMapReady], () => {
-  setSuggestionMarkersVisible(!isSubmit.value && !isDetail.value);
+  if (!isDetail.value) syncDetailSuggestionMarker(null);
+  setSuggestionMarkersVisible(!isSubmit.value);
+  if (isDetail.value) syncDetailSuggestionMarker(route.params.id);
 }, { immediate: true });
+watch([isDensityMode, isMapReady], syncSuggestionDisplay, { immediate: true });
 watch([isSubmit, isDetail, isMapReady, hasDraftPin, isPopupOpen], () => {
   if (isSubmit.value) focusLocation(draft.value.location);
   if ((isSubmit.value || hasDraftPin.value || isPopupOpen.value) && map && googleMaps && !submissionCrosshairOverlay) {
@@ -1184,25 +1416,46 @@ watch([isDetail, isMapReady, detailLocation], async (_, __, onCleanup) => {
   let cancelled = false;
   let observer;
   let zoomListener;
-  onCleanup(() => { cancelled = true; observer?.disconnect(); zoomListener?.remove(); detailTargetOverlay?.setMap(null); detailTargetOverlay = null; });
+  let frameRequest = 0;
+  const recenter = () => {
+    if (frameRequest) cancelAnimationFrame(frameRequest);
+    frameRequest = requestAnimationFrame(() => {
+      frameRequest = 0;
+      if (cancelled || !isDetail.value || !map || !googleMaps) return;
+      googleMaps.event?.trigger?.(map, 'resize');
+      if (detailLoading.value) { detailTargetOverlay?.draw(); refreshDetailNavigation(); return; }
+      frameDetailLocation(true);
+      refreshDetailNavigation();
+    });
+  };
+  onCleanup(() => {
+    cancelled = true;
+    observer?.disconnect();
+    zoomListener?.remove();
+    window.removeEventListener('resize', recenter);
+    window.visualViewport?.removeEventListener('resize', recenter);
+    if (frameRequest) cancelAnimationFrame(frameRequest);
+    detailTargetOverlay?.setMap(null);
+    detailTargetOverlay = null;
+  });
   if (!isDetail.value || !isMapReady.value || !detailLocation.value) return;
   await nextTick();
   if (cancelled) return;
-  observer = new ResizeObserver(frameDetailLocation);
+  observer = new ResizeObserver(recenter);
   zoomListener = map.addListener('zoom_changed', () => frameDetailLocation(true));
   for (const element of [document.querySelector('.submission-detail-tray'), browseMapContainerEl.value]) {
     if (element) observer.observe(element);
   }
-  frameDetailLocation();
+  window.addEventListener('resize', recenter);
+  window.visualViewport?.addEventListener('resize', recenter);
+  recenter();
 }, { immediate: true });
 watch([isDetail, detailLocation], () => {
   if (!isDetail.value) return;
   const location = detailLocation.value;
-  mapSearchQuery.value = location?.address || (location?.latitude != null ? `${Number(location.latitude).toFixed(5)}, ${Number(location.longitude).toFixed(5)}` : 'Submission address unavailable');
+  mapSearchQuery.value = location?.address || 'Submission address unavailable';
 }, { immediate: true });
 watch(() => [isSubmitLocate.value, draft.value.location?.latitude, draft.value.location?.longitude], updateSubmissionCrosshair);
-watch(popupTarget, () => nextTick(updateSubmissionCrosshair));
-watch(popupCoordinateElement, () => nextTick(updateSubmissionCrosshair));
 watch([isSubmit, isMapReady, () => draft.value.step], async (_, __, onCleanup) => {
   let cancelled = false;
   let observer;
@@ -1248,6 +1501,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   cancelClusterZoom();
   popupShadeOverlay?.setMap(null);
+  densityOverlay?.setMap(null);
   detailTargetOverlay?.setMap(null);
   crosshairTravelAnimation?.cancel();
   if (crosshairTravelFrame !== null) cancelAnimationFrame(crosshairTravelFrame);
