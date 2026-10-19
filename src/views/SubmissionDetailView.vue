@@ -2,10 +2,10 @@
   <MapTray class="submission-detail-tray" title="Submission details" :close-disabled="isLoading" :content-disabled="isLoading" @close="goBack">
     <template #header>
       <div class="detail-header-navigation">
-        <button type="button" class="map-ui-button" aria-label="Previous older submission" :disabled="isLoading || !workspace.detailNavigation.value.olderId" @click="workspace.navigateDetail('older')">
+        <button type="button" class="map-ui-button" aria-label="Previous idea" data-tooltip="Previous idea" :disabled="isLoading || !workspace.detailNavigation.value.olderId" @click="workspace.navigateDetail('older')">
           <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
         </button>
-        <button type="button" class="map-ui-button" aria-label="Next newer submission" :disabled="isLoading || !workspace.detailNavigation.value.newerId" @click="workspace.navigateDetail('newer')">
+        <button type="button" class="map-ui-button" aria-label="Next idea" data-tooltip="Next idea" :disabled="isLoading || !workspace.detailNavigation.value.newerId" @click="workspace.navigateDetail('newer')">
           <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
         </button>
       </div>
@@ -460,6 +460,7 @@ async function refreshSuggestion() {
   try {
     const item = await getSuggestionById(id, true);
     if (requestVersion !== suggestionRequestVersion) return;
+    workspace.updateSuggestionMarker(item);
     suggestion.value = item;
     setDetailMetadata(item);
     await nextTick();
@@ -531,6 +532,7 @@ function closeDetailAccordions() {
 
 watch(() => route.params.id, async (id) => {
   const requestVersion = ++suggestionRequestVersion;
+  refreshError.value = '';
   isRefreshing.value = false;
   const previousItem = suggestion.value;
   if (restoringSuggestion.value && String(restoringSuggestion.value.id) === String(id)) {

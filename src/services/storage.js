@@ -13,6 +13,8 @@ const MARKER_BOB_AMOUNT_KEY = 'improvement_map_marker_bob_amount';
 const MARKER_BOB_SPEED_KEY = 'improvement_map_marker_bob_speed';
 const MARKER_PULSE_EASING_KEY = 'improvement_map_marker_pulse_easing';
 const MARKER_BOB_EASING_KEY = 'improvement_map_marker_bob_easing';
+const MARKER_SPOTLIGHT_SIZE_KEY = 'improvement_map_marker_spotlight_size';
+const MARKER_SPOTLIGHT_FEATHER_KEY = 'improvement_map_marker_spotlight_feather';
 const BROWSE_LIST_SCROLL_STORAGE_KEY = 'improvement_map_browse_list_scroll';
 const AUTHOR_PROFILE_STORAGE_KEY = 'improvement_map_author_profile';
 const ACTIVE_INFOWINDOW_SUGGESTION_KEY = 'improvement_map_active_infowindow_suggestion_id';
@@ -305,7 +307,7 @@ export const getStoredMarkerPulseScale = () => getStoredMarkerAnimationValue(MAR
 export const setStoredMarkerPulseScale = value => setStoredMarkerAnimationValue(MARKER_PULSE_SCALE_KEY, value, 1, 2);
 export const getStoredMarkerBobAmount = () => getStoredMarkerAnimationValue(MARKER_BOB_AMOUNT_KEY, 12, 0, 12);
 export const setStoredMarkerBobAmount = value => setStoredMarkerAnimationValue(MARKER_BOB_AMOUNT_KEY, value, 0, 12);
-export const getStoredMarkerBobSpeed = () => getStoredMarkerAnimationValue(MARKER_BOB_SPEED_KEY, 0.5, 0.5, 2);
+export const getStoredMarkerBobSpeed = () => getStoredMarkerAnimationValue(MARKER_BOB_SPEED_KEY, 0.7, 0.5, 2);
 export const setStoredMarkerBobSpeed = value => setStoredMarkerAnimationValue(MARKER_BOB_SPEED_KEY, value, 0.5, 2);
 const MARKER_EASING_OPTIONS = ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'];
 function getStoredMarkerEasing(key) {
@@ -326,6 +328,10 @@ export const getStoredMarkerBobEasing = () => {
     return MARKER_EASING_OPTIONS.includes(value) ? value : 'ease';
   } catch { return 'ease'; }
 };
+export const getStoredMarkerSpotlightSize = () => getStoredMarkerAnimationValue(MARKER_SPOTLIGHT_SIZE_KEY, 120, 48, 480);
+export const setStoredMarkerSpotlightSize = value => setStoredMarkerAnimationValue(MARKER_SPOTLIGHT_SIZE_KEY, value, 48, 480);
+export const getStoredMarkerSpotlightFeather = () => getStoredMarkerAnimationValue(MARKER_SPOTLIGHT_FEATHER_KEY, 32, 0, 96);
+export const setStoredMarkerSpotlightFeather = value => setStoredMarkerAnimationValue(MARKER_SPOTLIGHT_FEATHER_KEY, value, 0, 96);
 export const setStoredMarkerBobEasing = value => setStoredMarkerEasing(MARKER_BOB_EASING_KEY, value);
 
 export function setStoredBrowseSort(sort) {

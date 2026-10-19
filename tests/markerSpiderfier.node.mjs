@@ -56,7 +56,7 @@ test('spiderfies coincident and sub-touch-distance groups; spread-out groups sti
 });
 
 class Element {
-  constructor(tag) { this.tag = tag; this.children = []; this.style = {}; this.attributes = {}; this.events = {}; }
+  constructor(tag) { this.tag = tag; this.children = []; this.style = {}; this.attributes = {}; this.events = {}; this.animations = []; }
   get isConnected() { return this === document.body || Boolean(this.parent?.isConnected); }
   appendChild(child) { child.remove(); this.children.push(child); child.parent = this; return child; }
   replaceChildren(...children) { [...this.children].forEach(child => child.remove()); children.forEach(child => this.appendChild(child)); }
@@ -65,31 +65,74 @@ class Element {
   addEventListener(name, callback) { this.events[name] = callback; }
   focus() { document.activeElement = this; this.events.focus?.(); }
   click() { assert.ok(!this.disabled); this.events.click?.(); }
+  animate(keyframes, options) {
+    const animation = { keyframes, options, cancelled: false, cancel() { this.cancelled = true; } };
+    this.animations.push(animation);
+    return animation;
+  }
+  getAnimations() { return this.animations.filter(animation => !animation.cancelled); }
 }
-test('paged fan selection, focus, viewport positioning, collapse, and disposal', () => {
+test('emoji fan pages switch instantly with fixed controls and leaders below markers across reopenings', () => {
   const oldDocument = globalThis.document;
   const oldWindow = globalThis.window;
   const keyboard = new Map();
+  let reducedMotion = false;
+  let scheduledTimeouts = 0;
   globalThis.document = { body: new Element('body'), createElement: tag => new Element(tag), createElementNS: (_ns, tag) => new Element(tag) };
-  globalThis.window = { addEventListener: (name, callback) => keyboard.set(name, callback), removeEventListener: name => keyboard.delete(name) };
+  globalThis.window = {
+    addEventListener: (name, callback) => keyboard.set(name, callback), removeEventListener: name => keyboard.delete(name),
+    matchMedia: () => ({ matches: reducedMotion }),
+    setTimeout: (...args) => { scheduledTimeouts++; return setTimeout(...args); }, clearTimeout,
+  };
   try {
+    const leaderPane = document.body.appendChild(new Element('div'));
     const trigger = document.body.appendChild(new Element('button'));
     trigger.focus();
+    let spiderOverlay;
     class OverlayView {
+      constructor() { spiderOverlay = this; }
       static preventMapHitsAndGesturesFrom() {}
       getProjection() { return projection; }
-      getPanes() { return { floatPane: document.body }; }
-      setMap(map) { if (map) { this.onAdd(); this.draw(); } else this.onRemove(); }
+      getPanes() { return { overlayLayer: leaderPane, overlayMouseTarget: document.body }; }
+      setMap(map) {
+        if (map) {
+          this.onAdd();
+          assert.equal(document.body.children.at(-1).style.visibility, 'hidden');
+          this.draw();
+        } else this.onRemove();
+      }
     }
     class MVCObject { set(key, value) { this[key] = value; } }
     const map = fakeMap();
     let selection;
-    const fan = createMarkerSpiderfier(map, { OverlayView, MVCObject, Point: class { constructor(x, y) { this.x = x; this.y = y; } } }, (...args) => { selection = args; });
+    const fan = createMarkerSpiderfier(map, { OverlayView, MVCObject, Point: class { constructor(x, y) { this.x = x; this.y = y; } } }, (...args) => { selection = args; }, undefined, undefined, undefined, item => item.emoji);
     const group = Array.from({ length: 18 }, (_, index) => marker(200, 200, `Idea ${index}`));
+    group[0].emoji = '🦆';
+    group[1].emoji = '👩‍👩‍👧‍👦';
+    group[2].emoji = '';
+    group[3].emoji = '  ';
     fan.expand(group, new LatLng(200, 200));
     let root = document.body.children.at(-1);
     const targets = () => root.children.filter(child => child.className === 'spiderfied-suggestion');
     assert.equal(targets().length, 8);
+    assert.equal(root.style.visibility, 'visible');
+    // Delayed targets and leaders must stay at their invisible starting state
+    // until their stagger begins, rather than flash at the final position.
+    const entranceTargets = [...targets(), ...leaderPane.children[0].children];
+    for (const target of entranceTargets) {
+      assert.equal(target.animations.length, 1);
+      const animation = target.animations[0];
+      assert.equal(animation.keyframes[0].opacity, 0);
+      assert.equal(animation.options.fill, 'backwards');
+    }
+    assert.ok(targets()[1].animations[0].options.delay > 0);
+    spiderOverlay.draw();
+    fan.expand([...group].reverse(), new LatLng(200, 200));
+    assert.deepEqual(targets(), entranceTargets.slice(0, 8));
+    assert.ok(entranceTargets.every(target => target.animations.length === 1));
+    assert.deepEqual(targets().slice(0, 5).map(target => target.children[0].textContent), ['🦆', '👩‍👩‍👧‍👦', '💡', '💡', '💡']);
+    assert.equal(leaderPane.children.length, 1);
+    assert.equal(root.children.some(child => child.tag === 'svg'), false);
     assert.equal(document.activeElement, targets()[0]);
     targets()[0].events.keydown({ key: 'ArrowRight', preventDefault() {} });
     assert.equal(document.activeElement, targets()[1]);
@@ -97,18 +140,43 @@ test('paged fan selection, focus, viewport positioning, collapse, and disposal',
       assert.ok(parseFloat(target.style.left) >= 22 && parseFloat(target.style.left) <= 368);
     }
     const controls = () => root.children.find(child => child.className === 'map-ui');
+    const controlsPosition = { left: controls().style.left, top: controls().style.top };
+    assert.equal(controls().animations.length, 0);
     controls().children.find(child => child.attributes['aria-label'] === 'Next overlapping suggestions').click();
+    assert.equal(targets()[0].attributes['aria-label'], 'Idea 8, 9 of 18');
+    assert.equal(targets()[0].animations.length, 0);
     controls().children.find(child => child.attributes['aria-label'] === 'Next overlapping suggestions').click();
     assert.equal(targets().length, 2);
+    assert.deepEqual({ left: controls().style.left, top: controls().style.top }, controlsPosition);
+    assert.equal(controls().animations.length, 0);
+    assert.equal(scheduledTimeouts, 0);
     targets()[1].click();
     assert.equal(selection[0], group[17]);
     assert.ok(selection[1].position instanceof LatLng);
+    reducedMotion = true;
     keyboard.get('keydown')({ key: 'Escape', preventDefault() {}, stopImmediatePropagation() {} });
-    assert.equal(document.body.children.length, 1);
+    assert.equal(document.body.children.length, 2);
+    assert.equal(leaderPane.children.length, 0);
     assert.equal(document.activeElement, trigger);
+    reducedMotion = false;
+    for (let cycle = 0; cycle < 5; cycle++) {
+      fan.expand(group, new LatLng(200, 200));
+      root = document.body.children.at(-1);
+      assert.equal(leaderPane.children.length, 1);
+      controls().children.find(child => child.attributes['aria-label'] === 'Next overlapping suggestions').click();
+      controls().children.find(child => child.attributes['aria-label'] === 'Previous overlapping suggestions').click();
+      assert.equal(controls().animations.length, 0);
+      assert.equal(targets()[0].animations.length, 0);
+      assert.equal(leaderPane.children[0].children.length, 8);
+      fan.collapse(false, false);
+      assert.equal(leaderPane.children.length, 0);
+      assert.equal(root.isConnected, false);
+    }
+    reducedMotion = true;
     fan.expand(group, new LatLng(200, 200));
     root = document.body.children.at(-1);
-    map.listeners.get('zoom_changed')();
+    assert.equal(targets()[0].animations.length, 0);
+    map.listeners.get('click')();
     assert.equal(root.isConnected, false);
     fan.dispose();
     assert.equal(map.listeners.size, 0);

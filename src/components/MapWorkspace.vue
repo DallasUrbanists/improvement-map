@@ -5,7 +5,7 @@
       <p>{{ mapError || googleMapsAuthError || 'Google Maps is unavailable. You can still browse suggestions.' }}</p>
     </div>
     <div v-else-if="!isMapReady" class="workspace-map-status" role="status">Loading Map…</div>
-    <Transition name="workspace-backdrop"><div v-if="trayOpen" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top } : undefined" aria-hidden="true"></div></Transition>
+    <Transition name="workspace-backdrop"><div v-if="trayOpen" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top, '--spotlight-radius': `${markerSpotlightSize / 2}px`, '--spotlight-feather': `${markerSpotlightFeather}px` } : undefined" aria-hidden="true"></div></Transition>
     <Teleport :to="draftCrosshairPane || 'body'" :disabled="isSubmit || !draftCrosshairPane">
     <div v-if="!isDetail && (isSubmit || hasDraftPin) && (isSubmit || !isDensityMode)" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
       <svg :key="isSubmitLocate ? 'locating' : 'locked'" data-testid="suggestion-location-crosshair" viewBox="0 0 50 50" aria-hidden="true" @animationend="onCrosshairAnimationEnd">
@@ -20,9 +20,9 @@
     </div>
     </Teleport>
     <div v-if="isDetail" class="detail-map-target" :style="detailTargetPosition">
-      <div v-if="!detailLoading" class="detail-marker-text">
-        <div v-if="detailSummary" class="detail-marker-summary">{{ detailSummary }}</div>
-        <div class="detail-marker-byline">{{ detailByline }}</div>
+      <div v-if="!detailLoading" ref="detailTextElement" class="detail-marker-text">
+        <div v-if="detailSummary" ref="detailSummaryElement" class="detail-marker-summary">{{ detailSummary }}</div>
+        <div ref="detailBylineElement" class="detail-marker-byline">{{ detailByline }}</div>
       </div>
     </div>
     <div v-if="isDetail && isMapReady && !mapError" class="map-ui detail-zoom-ui" role="group" aria-label="Map zoom" :inert="detailLoading">
@@ -79,6 +79,8 @@
       :marker-bob-speed="markerBobSpeed" @update:marker-bob-speed="setMarkerBobSpeed"
       :marker-pulse-easing="markerPulseEasing" @update:marker-pulse-easing="setMarkerPulseEasing"
       :marker-bob-easing="markerBobEasing" @update:marker-bob-easing="setMarkerBobEasing"
+      :marker-spotlight-size="markerSpotlightSize" @update:marker-spotlight-size="setMarkerSpotlightSize"
+      :marker-spotlight-feather="markerSpotlightFeather" @update:marker-spotlight-feather="setMarkerSpotlightFeather"
       @update:marker-zoom-threshold="setMarkerZoomThreshold" />
   </div>
 </template>
@@ -100,7 +102,7 @@ import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrow
 import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
 import { createSuggestionDensityOverlay } from '../services/suggestionDensityOverlay';
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
-import { clusterAppearance, createMarkerSpiderfier, shouldSpiderfy } from '../services/markerSpiderfier';
+import { clusterAppearance, createMarkerSpiderfier } from '../services/markerSpiderfier';
 import { getSuggestions } from '../services/api';
 import { addFormattedDistances, sortSuggestionsByDistance } from '../services/geo';
 import {
@@ -128,6 +130,10 @@ import {
   setStoredMarkerPulseEasing,
   getStoredMarkerBobEasing,
   setStoredMarkerBobEasing,
+  getStoredMarkerSpotlightSize,
+  setStoredMarkerSpotlightSize,
+  getStoredMarkerSpotlightFeather,
+  setStoredMarkerSpotlightFeather,
   setStoredBrowseSort,
   setStoredActiveInfoWindowSuggestionId,
   removeStoredActiveInfoWindowSuggestionId,
@@ -165,6 +171,8 @@ const markerBobAngle = ref(getStoredMarkerBobAmount());
 const markerBobSpeed = ref(getStoredMarkerBobSpeed());
 const markerPulseEasing = ref(getStoredMarkerPulseEasing());
 const markerBobEasing = ref(getStoredMarkerBobEasing());
+const markerSpotlightSize = ref(getStoredMarkerSpotlightSize());
+const markerSpotlightFeather = ref(getStoredMarkerSpotlightFeather());
 const mapZoom = ref(getStoredMapView()?.zoom ?? 13);
 
 // Map & List DOM & State
@@ -250,6 +258,38 @@ let markerSpiderfier = null;
 let userLocationMarker = null;
 let submissionCrosshairOverlay = null;
 let detailTargetOverlay = null;
+const detailTextElement = ref(null);
+const detailSummaryElement = ref(null);
+const detailBylineElement = ref(null);
+let detailTextFrame = 0;
+function scheduleDetailTextFit() {
+  if (detailTextFrame) return;
+  detailTextFrame = requestAnimationFrame(() => {
+    detailTextFrame = 0;
+    const text = detailTextElement.value;
+    const summary = detailSummaryElement.value;
+    const byline = detailBylineElement.value;
+    const tray = document.querySelector('.submission-detail-tray');
+    if (!text?.isConnected || !tray || !byline) return;
+    const frame = tray.getBoundingClientRect();
+    const target = text.parentElement.getBoundingClientRect();
+    text.style.width = `${frame.width}px`;
+    text.style.left = `${frame.left + frame.width / 2 - target.left}px`;
+    const bylineHeight = byline.getBoundingClientRect().height;
+    text.style.top = `${Math.min(85, frame.top - target.top - bylineHeight - 18)}px`;
+    if (!summary) return;
+    const available = Math.max(1, frame.top - text.getBoundingClientRect().top - bylineHeight - 14);
+    let low = 1; let high = Math.max(1, available / 1.2);
+    // Measure real wrapping while reserving the date/author row and bottom gap.
+    for (let i = 0; i < 14; i++) {
+      const size = (low + high) / 2;
+      summary.style.fontSize = `${size}px`;
+      if (summary.getBoundingClientRect().height <= available && summary.scrollWidth <= summary.clientWidth + 1) low = size;
+      else high = size;
+    }
+    summary.style.fontSize = `${Math.floor(low * 10) / 10}px`;
+  });
+}
 const detailTargetPosition = ref({ left: '50%', top: '25%' });
 const submissionCrosshairPosition = ref({ left: '50%', top: '50%' });
 const submissionCrosshairElement = ref(null);
@@ -424,6 +464,14 @@ function setMarkerBobEasing(value) {
   setStoredMarkerBobEasing(value);
   updatePinnedDetailMarkerIcon();
 }
+function setMarkerSpotlightSize(value) {
+  markerSpotlightSize.value = Math.min(480, Math.max(48, Number(value)));
+  setStoredMarkerSpotlightSize(markerSpotlightSize.value);
+}
+function setMarkerSpotlightFeather(value) {
+  markerSpotlightFeather.value = Math.min(96, Math.max(0, Number(value)));
+  setStoredMarkerSpotlightFeather(markerSpotlightFeather.value);
+}
 function syncDetailSuggestionMarker(targetId = isDetail.value ? route.params.id : null) {
   if (!suggestionClusterer || !map || !googleMaps) return;
   const target = isDetail.value && targetId != null ? suggestionMarkersById.get(String(targetId)) : null;
@@ -457,7 +505,7 @@ function renderSuggestionCluster({ count, position }) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity=".45"/></filter></defs><circle cx="${center}" cy="${center}" r="${radius}" fill="${fill}" stroke="#d8c394" stroke-width="2" filter="url(#s)"/><text x="${center}" y="${center}" text-anchor="middle" dominant-baseline="central" fill="${text}" font-family="Roboto,Arial,sans-serif" font-size="15" font-weight="700">${count}</text></svg>`;
   return new googleMaps.Marker({
     position,
-    title: `${count} suggestions in this area. Select to zoom or expand.`,
+    title: `${count} suggestions in this area. Select to expand.`,
     optimized: false,
     icon: {
       url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
@@ -652,12 +700,7 @@ function createSuggestionClusterer(visible) {
     onClusterClick: (_event, cluster) => {
       cancelClusterZoom();
       closeInfoWindow();
-      if (shouldSpiderfy(cluster.markers, map)) {
-        markerSpiderfier.expand(cluster.markers, cluster.position);
-      } else {
-        markerSpiderfier.collapse();
-        zoomIntoCluster(cluster);
-      }
+      markerSpiderfier.expand(cluster.markers, cluster.position);
     },
   });
 }
@@ -665,9 +708,8 @@ function createSuggestionClusterer(visible) {
 function renderSuggestionMarkers() {
   if (!map || !googleMaps) return;
   markerSpiderfier?.dispose();
-  const markerSuggestions = new WeakMap();
   markerSpiderfier = createMarkerSpiderfier(map, googleMaps, (marker) => {
-    const suggestion = markerSuggestions.get(marker);
+    const suggestion = suggestionMarkerData.get(marker);
     if (suggestion) {
       closeInfoWindow();
       removeStoredActiveInfoWindowSuggestionId();
@@ -676,7 +718,7 @@ function renderSuggestionMarkers() {
   }, () => { isSpiderOpen.value = false; closeInfoWindow(); }, () => { isSpiderOpen.value = true; }, () => {
     closeInfoWindow();
     removeStoredActiveInfoWindowSuggestionId();
-  });
+  }, marker => suggestionMarkerData.get(marker)?.emoji);
 
   // Clear existing markers & close infoWindow
   if (infoWindow) {
@@ -706,13 +748,12 @@ function renderSuggestionMarkers() {
       gMarker.addListener('click', () => {
         closeInfoWindow();
         removeStoredActiveInfoWindowSuggestionId();
-        openSuggestion(s);
+        openSuggestion(suggestionMarkerData.get(gMarker) || s);
       });
 
       markersArray.push(gMarker);
       suggestionMarkersById.set(String(s.id), gMarker);
       suggestionMarkerData.set(gMarker, s);
-      markerSuggestions.set(gMarker, s);
 
     }
   });
@@ -1072,10 +1113,30 @@ function setDetailLocation(location, byline = '', summary = '', suggestionId = n
   detailCreationTime = new Date(creationDate).getTime();
   refreshDetailNavigation();
 }
+function updateSuggestionMarker(item) {
+  if (!item?.id) return;
+  const id = String(item.id);
+  const marker = suggestionMarkersById.get(id);
+  suggestions.value = suggestions.value.map(suggestion =>
+    String(suggestion.id) === id ? { ...suggestion, ...item } : suggestion,
+  );
+  refreshDetailNavigation();
+  if (!marker) return;
+  const updated = suggestions.value.find(suggestion => String(suggestion.id) === id) || item;
+  suggestionMarkerData.set(marker, updated);
+  marker.setTitle(updated.content?.summary || updated.summary || 'Suggestion');
+  marker.setIcon(suggestionMarkerIcon(updated, marker === detailPinnedMarker));
+}
 function setDetailMarkerTarget(suggestionId) { syncDetailSuggestionMarker(suggestionId); }
 function setDetailLoading(loading) {
+  const wasLoading = detailLoading.value;
   detailLoading.value = !!loading;
   map?.setOptions({ gestureHandling: detailLoading.value || trayOpen.value ? 'none' : 'greedy', keyboardShortcuts: !detailLoading.value && !trayOpen.value });
+  if (wasLoading && !detailLoading.value && isDetail.value) {
+    nextTick(() => requestAnimationFrame(() => {
+      if (!detailLoading.value && isDetail.value) frameDetailLocation(true);
+    }));
+  }
 }
 function findSuggestionLocation(id) {
   const item = suggestions.value.find(suggestion => String(suggestion.id) === String(id));
@@ -1090,7 +1151,10 @@ function ensureDetailTargetOverlay() {
     const location = detailLocation.value;
     if (!isDetail.value || !location) return;
     const point = detailTargetOverlay.getProjection()?.fromLatLngToContainerPixel(new googleMaps.LatLng(Number(location.latitude), Number(location.longitude)));
-    if (point) detailTargetPosition.value = { left: `${point.x}px`, top: `${point.y}px` };
+    if (point) {
+      detailTargetPosition.value = { left: `${point.x}px`, top: `${point.y}px` };
+      scheduleDetailTextFit();
+    }
   };
   detailTargetOverlay.setMap(map);
 }
@@ -1162,22 +1226,19 @@ function transitionToDetailLocation(location) {
 }
 function cancelDetailTransition() { cancelDetailMotion?.(); }
 function refreshDetailNavigation() {
-  if (!isDetail.value || !map || !googleMaps || !detailSuggestionId || !Number.isFinite(detailCreationTime)) {
+  if (!isDetail.value || !detailSuggestionId || !Number.isFinite(detailCreationTime)) {
     detailNavigation.value = { olderId: null, newerId: null };
     return;
   }
-  const bounds = map.getBounds?.();
-  if (!bounds) return;
-  const inView = suggestions.value.flatMap((item) => {
-    const latitude = Number(item.location?.latitude ?? item.latitude);
-    const longitude = Number(item.location?.longitude ?? item.longitude);
+  const compare = (a, b) => a.created - b.created || a.id.localeCompare(b.id);
+  const available = suggestions.value.flatMap((item) => {
     const created = new Date(item.creationDate || 0).getTime();
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(created)) return [];
-    if (!bounds.contains(new googleMaps.LatLng(latitude, longitude))) return [];
+    if (!Number.isFinite(created)) return [];
     return [{ id: String(item.id), created }];
-  }).sort((a, b) => a.created - b.created || a.id.localeCompare(b.id));
-  const older = inView.filter((item) => item.created < detailCreationTime).at(-1);
-  const newer = inView.find((item) => item.created > detailCreationTime);
+  }).sort(compare);
+  const current = { id: detailSuggestionId, created: detailCreationTime };
+  const older = available.filter(item => item.id !== current.id && compare(item, current) < 0).at(-1);
+  const newer = available.find(item => item.id !== current.id && compare(item, current) > 0);
   detailNavigation.value = {
     olderId: older?.id || null,
     newerId: newer?.id || null,
@@ -1352,7 +1413,7 @@ function handleEscape(event) {
 }
 window.addEventListener('keydown', handleEscape);
 const workspace = {
-  setDetailLocation, setDetailMarkerTarget, setDetailLoading, transitionToDetailLocation, cancelDetailTransition, findSuggestionLocation, detailLoading, detailNavigation, navigateDetail,
+  setDetailLocation, setDetailMarkerTarget, setDetailLoading, transitionToDetailLocation, cancelDetailTransition, findSuggestionLocation, updateSuggestionMarker, detailLoading, detailNavigation, navigateDetail,
   pinContinueReady,
   suggestions, sortedListSuggestions, activeSort, setSortMode, requestGps, isLocating, refreshData,
   formatBrowseAddress, formatCreationDate, getPrimaryPhoto, failedPhotoIds, onPhotoError,
@@ -1412,6 +1473,20 @@ watch([isSubmit, isDetail, isMapReady, hasDraftPin, isPopupOpen], () => {
   }
   updateSubmissionCrosshair();
 }, { immediate: true });
+watch([isDetail, detailLoading, detailSummary, detailByline, detailTextElement, detailTargetPosition], (_, __, onCleanup) => {
+  const observer = new ResizeObserver(scheduleDetailTextFit);
+  if (detailTextElement.value) {
+    for (const element of [document.querySelector('.submission-detail-tray'), browseMapContainerEl.value, detailBylineElement.value]) {
+      if (element) observer.observe(element);
+    }
+    scheduleDetailTextFit();
+  }
+  onCleanup(() => {
+    observer.disconnect();
+    if (detailTextFrame) cancelAnimationFrame(detailTextFrame);
+    detailTextFrame = 0;
+  });
+}, { flush: 'post' });
 watch([isDetail, isMapReady, detailLocation], async (_, __, onCleanup) => {
   let cancelled = false;
   let observer;

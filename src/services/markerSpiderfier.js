@@ -1,3 +1,5 @@
+import { submissionEmoji } from './emojiMapMarker.js';
+
 const PAGE_SIZE = 8;
 const TRANSITION_MS = 220;
 
@@ -36,18 +38,19 @@ export function shouldSpiderfy(markers, map) {
   ) * scale < 44;
 }
 
-export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {}, onExpand = () => {}, onPageChange = () => {}) {
+export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {}, onExpand = () => {}, onPageChange = () => {}, getEmoji = () => undefined) {
   const overlay = new maps.OverlayView();
   const root = document.createElement('div');
   root.style.cssText = 'position:absolute;pointer-events:none;isolation:isolate;z-index:1;';
   root.setAttribute('role', 'group');
   root.setAttribute('aria-label', 'Overlapping suggestions');
   const lines = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  lines.style.cssText = 'position:absolute;overflow:visible;pointer-events:none;width:1px;height:1px;z-index:0;';
+  lines.style.cssText = 'position:absolute;overflow:visible;pointer-events:none;width:1px;height:1px;z-index:1;';
+  lines.setAttribute('aria-hidden', 'true');
   const centerBadge = button('Collapse overlapping suggestions', '', () => collapse(true));
   const controls = document.createElement('div');
   controls.className = 'map-ui';
-  controls.style.cssText = 'position:absolute;display:flex;align-items:center;transform:translateX(-50%);pointer-events:auto;white-space:nowrap;';
+  controls.style.cssText = 'position:absolute;z-index:3;display:flex;align-items:center;transform:translateX(-50%);pointer-events:auto;white-space:nowrap;';
   let markers = [];
   let center = null;
   let page = 0;
@@ -101,6 +104,7 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
     markers = [];
     transitioning = true;
     onCollapse();
+    controls.remove();
     const duration = animateOut && !prefersReducedMotion() ? TRANSITION_MS : 0;
     if (duration) {
       leavingNodes.forEach((entry, index) => {
@@ -114,7 +118,6 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
         { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
         { transform: 'translate(-50%,-50%) scale(.45)', opacity: 0 },
       ], { duration: 160, fill: 'forwards' });
-      animate(controls, [{ opacity: 1, transform: 'translateX(-50%) translateY(0)' }, { opacity: 0, transform: 'translateX(-50%) translateY(8px)' }], { duration: 150, fill: 'forwards' });
     }
     const finish = () => {
       if (token !== transitionToken) return;
@@ -131,39 +134,21 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
   function changePage(nextPage) {
     if (transitioning || nextPage < 0 || nextPage * PAGE_SIZE >= markers.length) return;
     onPageChange();
-    const direction = nextPage > page ? 1 : -1;
-    const leavingNodes = [...nodes];
-    const token = ++transitionToken;
-    const duration = prefersReducedMotion() ? 0 : 115;
-    transitioning = true;
-    if (duration) {
-      leavingNodes.forEach(entry => {
-        animate(entry.node, [
-          { transform: 'translate(-50%,-50%) translateX(0)', opacity: 1 },
-          { transform: `translate(-50%,-50%) translateX(${-direction * 26}px)`, opacity: 0 },
-        ], { duration, fill: 'forwards' });
-        animate(entry.line, [{ opacity: 0.9 }, { opacity: 0 }], { duration, fill: 'forwards' });
-      });
-      animate(controls, [{ opacity: 1 }, { opacity: 0 }], { duration, fill: 'forwards' });
-    }
-    const render = () => {
-      if (token !== transitionToken) return;
-      transitionTimer = null;
-      page = nextPage;
-      transitioning = false;
-      entrance = direction;
-      renderPage(true);
-    };
-    if (duration) transitionTimer = window.setTimeout(render, duration);
-    else render();
+    page = nextPage;
+    entrance = null;
+    renderPage(true);
   }
 
   function renderPage(focus = true) {
+    // Maps can attach the overlay before its first draw. Do not show the final
+    // fan positions before the entrance animations have been initialized.
+    root.style.visibility = 'hidden';
+    lines.style.visibility = 'hidden';
     // Reused elements may still have a filled exit animation from a prior open.
     for (const element of [centerBadge, controls, lines]) {
       element.getAnimations?.().forEach(animation => animation.cancel());
     }
-    root.replaceChildren(lines, centerBadge);
+    root.replaceChildren(centerBadge);
     const appearance = clusterAppearance(markers.length);
     centerBadge.textContent = String(markers.length);
     centerBadge.style.cssText = `position:absolute;z-index:2;width:${appearance.diameter}px;height:${appearance.diameter}px;border:2px solid #d8c394;border-radius:50%;background:${appearance.fill};color:${appearance.text};font:700 15px Roboto,sans-serif;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;box-shadow:0 3px 6px #0009;`;
@@ -193,10 +178,11 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
         nodes[next].node.focus();
       });
       node.style.cssText = 'position:absolute;z-index:1;width:44px;height:44px;padding:0;border:0;background:transparent;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;border-radius:50%;';
-      const circle = document.createElement('span');
-      circle.style.cssText = 'display:flex;align-items:center;justify-content:center;min-width:24px;width:max-content;height:24px;padding:0 3px;margin:auto;border-radius:50%;background:#fff0ce;color:#24282b;font:700 11px Roboto,sans-serif;box-shadow:0 3px 6px #0009;';
-      circle.textContent = String(start + index + 1);
-      node.appendChild(circle);
+      const emoji = document.createElement('span');
+      emoji.setAttribute('aria-hidden', 'true');
+      emoji.style.cssText = 'display:block;text-align:center;font:32px/44px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;filter:drop-shadow(0 2px 2px #0009);pointer-events:none;';
+      emoji.textContent = submissionEmoji(getEmoji(marker));
+      node.appendChild(emoji);
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       line.setAttribute('stroke', '#d8c394');
       line.setAttribute('stroke-width', '1.5');
@@ -210,7 +196,7 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
       controls.appendChild(previous);
       pageStatus = document.createElement('span');
       pageStatus.setAttribute('role', 'status');
-      pageStatus.style.cssText = 'font:600 12px Roboto,sans-serif;padding:0 4px;';
+      pageStatus.style.cssText = `font:600 12px Roboto,sans-serif;font-variant-numeric:tabular-nums;padding:0 4px;text-align:center;min-width:${3 * String(markers.length).length + 4}ch;`;
       pageStatus.textContent = `${start + 1}–${start + slice.length} of ${markers.length}`;
       controls.appendChild(pageStatus);
       const next = button('Next overlapping suggestions', '›', () => changePage(page + 1));
@@ -223,16 +209,22 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
     overlay.draw();
   }
 
-  // InfoWindows use floatPane, which must remain above the entire spider.
-  overlay.onAdd = () => overlay.getPanes().overlayMouseTarget.appendChild(root);
-  overlay.onRemove = () => root.remove();
+  // Keep leaders in the map pane below native markers. Reopening or animating
+  // the fan can never promote a line above the cluster's center marker.
+  // Interactive targets stay in overlayMouseTarget; InfoWindows use floatPane.
+  overlay.onAdd = () => {
+    const panes = overlay.getPanes();
+    panes.overlayLayer.appendChild(lines);
+    panes.overlayMouseTarget.appendChild(root);
+  };
+  overlay.onRemove = () => { root.remove(); lines.remove(); };
   overlay.draw = () => {
     const projection = overlay.getProjection();
     if (!markers.length || !projection || !root.isConnected) return;
     const origin = projection.fromLatLngToDivPixel(center);
     const screen = projection.fromLatLngToContainerPixel(center);
     if (!origin || !screen) return;
-    const radius = Math.max(58, nodes.length * 48 / (2 * Math.PI));
+    const radius = Math.max(58, Math.min(PAGE_SIZE, markers.length) * 48 / (2 * Math.PI));
     const clamp = (value, min, max) => max >= min ? Math.min(max, Math.max(min, value)) : (min + max) / 2;
     const cx = origin.x + clamp(screen.x, radius + 28, map.getDiv().clientWidth - radius - 28) - screen.x;
     const cy = origin.y + clamp(screen.y, radius + 100, map.getDiv().clientHeight - radius - 140) - screen.y;
@@ -251,29 +243,27 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
     controls.style.left = `${cx}px`;
     controls.style.top = `${cy + radius + 28}px`;
     if (entrance && !prefersReducedMotion()) {
-      const mode = entrance;
       entrance = null;
       nodes.forEach((entry, index) => {
-        const fromTransform = mode === 'center'
-          ? `translate(-50%,-50%) translate(${-entry.offset.x}px,${-entry.offset.y}px) scale(.2)`
-          : `translate(-50%,-50%) translateX(${mode * 26}px)`;
         animate(entry.node, [
-          { transform: fromTransform, opacity: 0 },
+          { transform: `translate(-50%,-50%) translate(${-entry.offset.x}px,${-entry.offset.y}px) scale(.2)`, opacity: 0 },
           { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
-        ], { delay: mode === 'center' ? Math.min(index * 14, 98) : Math.min(index * 8, 56) });
+        ], { delay: Math.min(index * 14, 98), fill: 'backwards' });
         animate(entry.line, [{ opacity: 0 }, { opacity: 0.9 }], {
-          delay: mode === 'center' ? Math.min(index * 14, 98) : Math.min(index * 8, 56),
+          delay: Math.min(index * 14, 98),
           duration: 170,
+          fill: 'backwards',
         });
       });
       animate(centerBadge, [
         { transform: 'translate(-50%,-50%) scale(.55)', opacity: 0 },
         { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
       ], { duration: 200 });
-      animate(controls, [{ opacity: 0, transform: 'translateX(-50%) translateY(8px)' }, { opacity: 1, transform: 'translateX(-50%) translateY(0)' }], { delay: mode === 'center' ? 90 : 0, duration: 180 });
     } else {
       entrance = null;
     }
+    root.style.visibility = 'visible';
+    lines.style.visibility = 'visible';
     if (focusAfterDraw) { focusAfterDraw = false; nodes[0]?.node.focus({ preventScroll: true }); }
   };
   maps.OverlayView.preventMapHitsAndGesturesFrom(root);
@@ -304,10 +294,12 @@ export function createMarkerSpiderfier(map, maps, onSelect, onCollapse = () => {
       };
     },
     expand(group, position) {
+      // Repeated requests for an open group must not restart its entrance.
+      if (markers.length === group.length && group.every(marker => markers.includes(marker))) return;
       cancelPendingTransition();
       overlay.setMap(null);
       nodes = [];
-      root.replaceChildren(lines);
+      root.replaceChildren();
       lines.replaceChildren();
       controls.replaceChildren();
       entrance = 'center';

@@ -12,8 +12,7 @@ test('missing or blank submission emoji falls back to the light bulb', () => {
 test('emoji marker SVG keeps joined and variation-selector sequences intact', () => {
   for (const emoji of ['❤️', '👩‍👩‍👧‍👦', '🏳️‍🌈']) {
     const svg = decodeURIComponent(createEmojiMarkerSvg(emoji).split(',')[1]);
-    assert.ok(svg.includes(`<text class="marker"`));
-    assert.ok(svg.includes(`>${emoji}</text>`));
+    assert.equal(svg.match(/<text\b[^>]*>([^<]*)<\/text>/)?.[1], emoji);
   }
 });
 

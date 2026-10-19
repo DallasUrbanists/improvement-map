@@ -273,11 +273,11 @@ body {
 .workspace-route-layer { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
 .workspace-backdrop { position: absolute; inset: 0; z-index: 10; background: #00000059; backdrop-filter: blur(3px); }
 .workspace-backdrop-sharp { backdrop-filter: none; }
-.workspace-backdrop-detail { pointer-events: none; -webkit-mask-image: radial-gradient(circle 62px at var(--target-x, 50%) var(--target-y, 25%), transparent 0 54px, #000 62px); mask-image: radial-gradient(circle 62px at var(--target-x, 50%) var(--target-y, 25%), transparent 0 54px, #000 62px); }
+.workspace-backdrop-detail { pointer-events: none; -webkit-mask-image: radial-gradient(circle calc(var(--spotlight-radius, 54px) + var(--spotlight-feather, 8px)) at var(--target-x, 50%) var(--target-y, 25%), transparent 0 var(--spotlight-radius, 54px), #000 calc(var(--spotlight-radius, 54px) + var(--spotlight-feather, 8px))); mask-image: radial-gradient(circle calc(var(--spotlight-radius, 54px) + var(--spotlight-feather, 8px)) at var(--target-x, 50%) var(--target-y, 25%), transparent 0 var(--spotlight-radius, 54px), #000 calc(var(--spotlight-radius, 54px) + var(--spotlight-feather, 8px))); }
 .detail-map-target { position: absolute; width: 50px; height: 50px; transform: translate(-50%, -50%); z-index: 15; pointer-events: none; }
-.detail-marker-text { position: absolute; top: 85px; left: 50%; transform: translateX(-50%); display: flex; width: 62.5vw; flex-direction: column; align-items: center; gap: 2px; color: #fff; text-align: center; pointer-events: none; }
+.detail-marker-text { position: absolute; top: 85px; left: 50%; transform: translateX(-50%); display: flex; width: calc(100vw - 24px); box-sizing: border-box; padding-inline: 12px; flex-direction: column; align-items: center; gap: 2px; color: #fff; text-align: center; pointer-events: none; }
 .detail-marker-byline { max-width: 100%; color: #fff; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; text-shadow: 0 1px 3px rgba(0, 0, 0, .9), 0 0 6px rgba(0, 0, 0, .75); }
-.detail-marker-summary { max-width: 100%; color: #fff; font-size: 18px; font-weight: 700; line-height: 1.2; text-align: center; text-wrap: balance; overflow-wrap: anywhere; -webkit-text-stroke: .45px #111; paint-order: stroke fill; text-shadow: 0 1px 2px #111, 1px 0 1px #111, -1px 0 1px #111, 0 -1px 1px #111; }
+.detail-marker-summary { width: 100%; max-width: 100%; color: #fff; font-size: 18px; font-weight: 700; line-height: 1.2; text-align: center; text-wrap: balance; overflow-wrap: anywhere; -webkit-text-stroke: .45px #111; paint-order: stroke fill; text-shadow: 0 1px 2px #111, 1px 0 1px #111, -1px 0 1px #111, 0 -1px 1px #111; }
 .detail-marker-summary { animation: detail-summary-enter 360ms ease-out both; }
 @keyframes detail-summary-enter { from { opacity: 0; } to { opacity: 1; } }
 .detail-zoom-ui { position: absolute; top: 76px; right: 12px; z-index: 40; display: flex; flex-direction: column; width: 48px; overflow: hidden; }
@@ -331,7 +331,7 @@ body {
 .map-tray-heading h1 { padding: 10px 12px; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-header-navigation { display: flex; flex: 1; align-items: stretch; }
 .map-tray-heading:has(.detail-loading-message) .detail-header-navigation { flex: 0 0 auto; }
-.detail-header-navigation .map-ui-button { width: 44px; min-height: 44px; border-radius: 0; }
+.detail-header-navigation .map-ui-button { position: relative; width: 44px; min-height: 44px; border-radius: 0; }
 .detail-header-navigation .map-ui-button + .map-ui-button { border-left: 1px solid var(--map-control-border); }
 .detail-header-navigation .map-ui-button:last-child { border-right: 1px solid var(--map-control-border); }
 .detail-header-navigation .map-ui-button:disabled { cursor: not-allowed; opacity: .4; }
@@ -339,7 +339,9 @@ body {
 .detail-refresh-button { width: 44px; flex-shrink: 0; border-radius: 0; border-left: 1px solid var(--map-control-border); }
 .detail-copy-link-action { position: relative; display: flex; flex-shrink: 0; border-left: 1px solid var(--map-control-border); }
 .detail-copy-link-button { width: 44px; border-radius: 0; }
-.detail-copy-link-action::after { position: absolute; top: calc(100% + 6px); right: 50%; z-index: 60; padding: 6px 9px; border: 1px solid var(--map-control-border); border-radius: 6px; background: var(--map-control-bg); color: var(--map-control-text); content: attr(data-tooltip); font-size: 12px; line-height: 1.2; white-space: nowrap; opacity: 0; pointer-events: none; transform: translateX(50%); transition: opacity 120ms ease; }
+.detail-copy-link-action::after, .detail-header-navigation [data-tooltip]::after { position: absolute; top: calc(100% + 6px); right: 50%; z-index: 60; padding: 6px 9px; border: 1px solid var(--map-control-border); border-radius: 6px; background: var(--map-control-bg); color: var(--map-control-text); content: attr(data-tooltip); font-size: 12px; line-height: 1.2; white-space: nowrap; opacity: 0; pointer-events: none; transform: translateX(50%); transition: opacity 120ms ease; }
+.detail-header-navigation [data-tooltip]::after { left: 0; right: auto; transform: none; }
+.detail-header-navigation [data-tooltip]:hover::after, .detail-header-navigation [data-tooltip]:focus-visible::after { opacity: 1; }
 .detail-copy-link-action:hover::after, .detail-copy-link-action:focus-within::after, .detail-copy-link-action:has(.detail-copy-link-status)::after { opacity: 1; }
 .detail-copy-link-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 .detail-refresh-error { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--map-control-border); color: #dc2626; font-size: 13px; }
@@ -456,3 +458,12 @@ body {
   .map-tray-enter-active, .map-tray-leave-active,
   .workspace-backdrop-enter-active, .workspace-backdrop-leave-active { transition: none; }
 }
+
+/* Keep tray header text between the navigation and action buttons. */
+.map-tray-heading h1, .detail-loading-message {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.detail-loading-message { display: block; line-height: 44px; }

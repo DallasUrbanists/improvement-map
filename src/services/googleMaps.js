@@ -159,6 +159,7 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
         styles = styles.map(rule => rule.featureType === 'administrative.neighborhood' && rule.elementType === 'labels.text'
           ? { ...rule, stylers: [{ visibility: 'off' }] } : rule);
       }
+      binding.railLayer?.update({ styles, mapType: type });
       const signature = JSON.stringify(styles);
       if (signature !== binding.signature) {
         binding.signature = signature;
@@ -172,7 +173,10 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
     // Load the catalog once, and share the overlay across theme/map-type updates.
     Promise.all([import('./googleMapsRailOverlay'), import('./railCatalog')])
       .then(([{ createGoogleMapsRailOverlay }, { railCatalog }]) => {
-        if (!binding.disposed) binding.railLayer = createGoogleMapsRailOverlay(map, window.google.maps, railCatalog);
+        if (!binding.disposed) {
+          binding.railLayer = createGoogleMapsRailOverlay(map, window.google.maps, railCatalog);
+          binding.refresh();
+        }
       })
       .catch((error) => console.warn('Rail overlay could not be loaded:', error));
   }

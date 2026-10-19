@@ -120,6 +120,26 @@
           </div>
           <small>Rotate side to side in sync with the pulse.</small>
         </div>
+        <div class="map-marker-threshold-setting" role="group" aria-label="Marker spotlight size">
+          <label for="map-marker-spotlight-size">Spotlight size</label>
+          <div class="map-marker-threshold-control">
+            <input id="map-marker-spotlight-size" type="range" min="48" max="480" step="4" :value="markerSpotlightSize"
+              aria-label="Marker spotlight diameter" :aria-valuetext="`${markerSpotlightSize} pixels diameter`"
+              @input="$emit('update:markerSpotlightSize', Number($event.target.value))" />
+            <output for="map-marker-spotlight-size">{{ markerSpotlightSize }} px</output>
+          </div>
+          <small>Diameter of the clear area around the selected marker.</small>
+        </div>
+        <div class="map-marker-threshold-setting" role="group" aria-label="Marker spotlight feathering">
+          <label for="map-marker-spotlight-feather">Spotlight feathering</label>
+          <div class="map-marker-threshold-control">
+            <input id="map-marker-spotlight-feather" type="range" min="0" max="96" step="1" :value="markerSpotlightFeather"
+              aria-label="Marker spotlight feather width" :aria-valuetext="`${markerSpotlightFeather} pixels`"
+              @input="$emit('update:markerSpotlightFeather', Number($event.target.value))" />
+            <output for="map-marker-spotlight-feather">{{ markerSpotlightFeather }} px</output>
+          </div>
+          <small>Width of the fade from clear map to the shade.</small>
+        </div>
         <div class="map-marker-threshold-setting" role="group" aria-label="Heatmap appearance">
           <label for="map-heatmap-opacity">Heatmap opacity</label>
           <div class="map-marker-threshold-control">
@@ -190,8 +210,10 @@ const props = defineProps({
   markerBobSpeed: { type: Number, default: 1 },
   markerPulseEasing: { type: String, default: 'ease-in-out' },
   markerBobEasing: { type: String, default: 'ease-in-out' },
+  markerSpotlightSize: { type: Number, default: 108 },
+  markerSpotlightFeather: { type: Number, default: 8 },
 });
-const emit = defineEmits(['update:modelValue', 'center', 'exit-submit', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing']);
+const emit = defineEmits(['update:modelValue', 'center', 'exit-submit', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
 const route = useRoute();
 const router = useRouter();
 const isBrowse = computed(() => route.path === '/' || route.path === '/browse');
