@@ -21,7 +21,17 @@
     "test:ux": "node scripts/test-ux.js",
     "test:ux:full": "node scripts/test-ux.js --full",
     "test:ux:live": "playwright test --config=playwright.ux-live.config.js",
-    "test:feature": "node scripts/test-feature.js"
+    "test:feature": "node scripts/test-feature.js",
+    "test:suite": "node scripts/test-suite.js",
+    "start:feature": "node scripts/create-branch.js feature",
+    "finish:feature": "node scripts/finish-feature.js",
+    "start:fix": "node scripts/create-branch.js fix",
+    "start:hotfix": "node scripts/create-branch.js hotfix",
+    "start:release": "node scripts/create-branch.js release",
+    "start:refactor": "node scripts/create-branch.js refactor",
+    "start:docs": "node scripts/create-branch.js docs",
+    "start:test": "node scripts/create-branch.js test",
+    "start:chore": "node scripts/create-branch.js chore"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
