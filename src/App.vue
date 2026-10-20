@@ -3,7 +3,7 @@
     theme="material"
     :dark="isDark"
     :material-touch-ripple="false"
-    class="min-h-screen h-screen flex flex-col font-sans overflow-hidden"
+    class="h-dvh !min-h-0 flex flex-col font-sans overflow-hidden"
   >
     <main class="flex-grow flex flex-col min-h-0 relative overflow-hidden">
       <MapWorkspace v-if="route.name && route.name !== 'TestDiagram'" />

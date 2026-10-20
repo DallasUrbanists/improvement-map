@@ -74,6 +74,7 @@ input:is([type="text"], [type="email"], [type="search"], [type="tel"], [type="ur
 html {
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
+  overflow: hidden;
 }
 
 body {
