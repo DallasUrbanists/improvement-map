@@ -1,7 +1,16 @@
 import { ref } from 'vue';
 
 const STORAGE_KEY = 'map-rail-thickness';
+const VISIBILITY_STORAGE_KEY = 'map-rail-visible';
 export const DEFAULT_RAIL_THICKNESS = 2;
+function readVisibility() {
+  try { return localStorage.getItem(VISIBILITY_STORAGE_KEY) !== 'false'; } catch { return true; }
+}
+export const railVisible = ref(readVisibility());
+export function setRailVisible(value) {
+  railVisible.value = Boolean(value);
+  try { localStorage.setItem(VISIBILITY_STORAGE_KEY, String(railVisible.value)); } catch { /* Storage may be unavailable. */ }
+}
 function readThickness() {
   try {
     const value = Number(localStorage.getItem(STORAGE_KEY));

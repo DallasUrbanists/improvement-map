@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { createNeighborhoodLabelLayer } from './neighborhoodLabels';
+import { railVisible } from './railSettings.js';
 
 const GOOGLE_MAPS_API_KEY =
   import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
@@ -148,7 +149,7 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
   if (!map) return;
   let binding = mapThemeBindings.get(map);
   if (!binding) {
-    binding = { isDarkTheme };
+    binding = { isDarkTheme, railVisible: railVisible.value };
     const refresh = () => {
       const type = map.getMapTypeId();
       let styles = getMapStyles(binding.isDarkTheme, type, map.getZoom());
@@ -159,10 +160,11 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
         styles = styles.map(rule => rule.featureType === 'administrative.neighborhood' && rule.elementType === 'labels.text'
           ? { ...rule, stylers: [{ visibility: 'off' }] } : rule);
       }
+      binding.railLayer?.setVisible(binding.railVisible !== false);
       binding.railLayer?.update({ styles, mapType: type });
       // Labels are rendered once, in the managed label layer above all rails.
       // Keeping it in the base tiles too produces conflicting label placements.
-      if (binding.railLayer && type !== 'hybrid' && type !== 'satellite') {
+      if (binding.railLayer && binding.railVisible !== false && type !== 'hybrid' && type !== 'satellite') {
         styles = [...styles, { featureType: 'all', elementType: 'labels', stylers: [{ visibility: 'off' }] }];
       }
       const signature = JSON.stringify(styles);
@@ -187,6 +189,14 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
   }
   binding.isDarkTheme = isDarkTheme;
   binding.refresh();
+}
+
+export function setMapRailsVisible(map, visible) {
+  const binding = map && mapThemeBindings.get(map);
+  if (!binding) return;
+  binding.railVisible = Boolean(visible);
+  binding.railLayer?.setVisible(binding.railVisible);
+  binding.refresh?.();
 }
 
 export function disposeMapTheme(map) {

@@ -69,9 +69,12 @@
           </button>
         </div>
       </MapSearchOverlay>
+    <StyleSettings ref="styleSettings" :map-style="selectedMapStyle" :icon-size="suggestionIconSize"
+      :rails-visible="railVisible" :rail-thickness="railThickness" @map-style="changeMapStyle" @icon-size="setSuggestionIconSize"
+      @rails-visible="setRailVisibility" @rail-thickness="setRailThickness" @more-settings="openAdvancedMapSettings"
+      @before-open="mapToolbar?.closeMarkerSettings?.()" />
     <MapToolbar v-if="!isSubmitting" class="absolute bottom-8 left-1/2 -translate-x-1/2 z-40" :inert="detailLoading"
-      :model-value="trayOpen && !isSubmit ? 'list' : currentMapType === 'hybrid' ? 'satellite' : 'streets'"
-      :map-type="currentMapType" :locating="isLocating || !!submission?.isLocating?.value"
+      ref="mapToolbar" :model-value="trayOpen && !isSubmit ? 'list' : 'map'" :locating="isLocating || !!submission?.isLocating?.value"
       :recenter-disabled="readOnlyAddress" :exit-submit="isSubmit" :marker-zoom-threshold="markerZoomThreshold" :map-zoom="mapZoom"
       @exit-submit="closeTray" @center="onCenterOnLocationClick" @update:model-value="selectTab"
       :heatmap-opacity="heatmapOpacity" @update:heatmap-opacity="setHeatmapOpacity"
@@ -91,6 +94,7 @@
 
 import MapToolbar from './MapToolbar.vue';
 import MapSearchOverlay from './MapSearchOverlay.vue';
+import StyleSettings from './StyleSettings.vue';
 import { ref, computed, onMounted, provide, shallowRef, inject, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import dayjs from 'dayjs';
@@ -99,6 +103,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 import { isDark } from '../services/theme';
+import { railVisible, railThickness, setRailVisible, setRailThickness } from '../services/railSettings.js';
+import { suggestionIconSize, selectedMapStyle, setSuggestionIconSize, setSelectedMapStyle } from '../services/styleSettings.js';
 import { mapWorkspaceKey, detailMotionDuration } from '../services/mapWorkspace';
 import { loadWizardDraft, saveWizardDraft } from '../services/storage';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
@@ -150,6 +156,7 @@ import {
   resolveGooglePlace,
   getMapStyles,
   updateMapTheme,
+  setMapRailsVisible,
   insetMapZoomControls,
   disposeMapTheme,
   reverseGeocodeWithGoogle,
@@ -169,7 +176,9 @@ const restoredLocation = window.history.state?.ideaView?.location;
 const userLocation = ref(restoredLocation && Number.isFinite(restoredLocation.lat) && Number.isFinite(restoredLocation.lng)
   && Math.abs(restoredLocation.lat) <= 90 && Math.abs(restoredLocation.lng) <= 180 ? restoredLocation : null);
 const isLocating = ref(false);
-const currentMapType = ref(getStoredMapView()?.mapType || (savedTab === 'satellite' ? 'hybrid' : 'roadmap'));
+const currentMapType = ref(selectedMapStyle.value === 'satellite' ? 'hybrid' : 'roadmap');
+const styleSettings = ref(null);
+const mapToolbar = ref(null);
 let requestedSort = getStoredBrowseSort();
 const activeSort = ref(requestedSort === 2 && userLocation.value ? 2 : 1);
 const markerZoomThreshold = ref(getStoredMarkerZoomThreshold());
@@ -368,8 +377,6 @@ function selectTab(tab) {
     else { rememberFocus(); router.push({ path: '/', query: { view: 'list' } }); }
   } else if (trayOpen.value && !isSubmit.value) {
     closeToMap();
-  } else {
-    setMapType(tab === 'satellite' ? 'hybrid' : 'roadmap');
   }
 }
 function setTab(tab) { router.push({ path: '/', query: { view: tab === 'list' ? 'list' : 'map' } }); }
@@ -389,11 +396,24 @@ function setSortMode(sort) {
 function setMapType(type) {
   cancelClusterZoom();
   currentMapType.value = type;
+  setSelectedMapStyle(type === 'hybrid' || type === 'satellite' ? 'satellite' : 'streets');
   setStoredBrowseTab(isList.value ? 'list' : type === 'hybrid' ? 'satellite' : 'streets');
   if (!map) return;
   map.setMapTypeId(type);
   updateMapTheme(map, isDark.value, type);
   saveCurrentMapView();
+}
+function changeMapStyle(style) {
+  setSelectedMapStyle(style);
+  setMapType(style === 'satellite' ? 'hybrid' : 'roadmap');
+}
+function setRailVisibility(visible) {
+  setRailVisible(visible);
+  if (map) setMapRailsVisible(map, railVisible.value);
+}
+function openAdvancedMapSettings() {
+  styleSettings.value?.close();
+  nextTick(() => mapToolbar.value?.openMarkerSettings?.(styleSettings.value?.getOpener?.()));
 }
 function saveCurrentMapView() {
   if (!map || !isMapReady.value || isProgrammaticChange || (!isBrowse.value && route.name !== 'Bookmarks')) return;
@@ -453,7 +473,7 @@ function setHeatmapRadius(value) {
   setStoredHeatmapRadius(heatmapRadius.value);
 }
 function suggestionMarkerIcon(suggestion, pulse = false) {
-  const size = pulse ? 128 : 80;
+  const size = Math.round((pulse ? 128 : 80) * suggestionIconSize.value / 100);
   return {
     url: createEmojiMarkerSvg(suggestion.emoji, {
       pulse,
@@ -469,6 +489,14 @@ function suggestionMarkerIcon(suggestion, pulse = false) {
     anchor: new googleMaps.Point(size / 2, size / 2),
   };
 }
+function refreshSuggestionMarkerIcons() {
+  for (const marker of markersArray) {
+    const suggestion = suggestionMarkerData.get(marker);
+    if (suggestion) marker.setIcon(suggestionMarkerIcon(suggestion, marker === detailPinnedMarker));
+  }
+}
+watch(suggestionIconSize, refreshSuggestionMarkerIcons, { flush: 'sync' });
+watch(railVisible, visible => { if (map) setMapRailsVisible(map, visible); }, { flush: 'sync' });
 function updatePinnedDetailMarkerIcon() {
   if (!detailPinnedMarker) return;
   const suggestion = suggestionMarkerData.get(detailPinnedMarker);
@@ -1307,7 +1335,6 @@ function snapshot() {
 function restoreSnapshot(view, animate = false) {
   if (!view) return;
   if (!map) { pendingLocation = { latitude: view.lat, longitude: view.lng, zoom: view.zoom, mapType: view.mapType }; return; }
-  if (view.mapType) setMapType(view.mapType);
   if (map.getZoom() !== view.zoom) map.setZoom(view.zoom);
   if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) map.panTo({ lat: view.lat, lng: view.lng });
   else map.setCenter({ lat: view.lat, lng: view.lng });
@@ -1318,7 +1345,6 @@ function focusLocation(location) {
   if (!map) return;
   const lat = Number(location.latitude), lng = Number(location.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-  if (location.mapType) setMapType(location.mapType);
   map.setCenter({ lat, lng });
   map.setZoom(location.zoom ?? 16);
   pendingLocation = null;

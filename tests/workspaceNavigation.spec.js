@@ -6,7 +6,7 @@ const camera = page => page.evaluate(async () => {
   return map && { ...map.getCenter().toJSON(), zoom: map.getZoom() };
 });
 
-test('toolbar opens Browse and Submit and switches map imagery', { tag: '@critical' }, async ({ page }) => {
+test('toolbar opens Browse and Submit and Style Settings switches map imagery', { tag: '@critical' }, async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Browse ideas | Improvement Map');
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
@@ -18,30 +18,81 @@ test('toolbar opens Browse and Submit and switches map imagery', { tag: '@critic
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  await page.getByRole('button', { name: 'Switch to Satellite view' }).click();
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await page.getByRole('radio', { name: 'Satellite' }).check();
+  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await expect(page.locator('dialog.style-settings-dialog')).toBeHidden();
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Switch to Streets view' })).toBeVisible();
-  await page.getByRole('button', { name: 'Switch to Streets view' }).click();
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Satellite' })).toBeChecked();
+  await page.getByRole('radio', { name: 'Streets' }).check();
+  await page.getByRole('button', { name: 'Close Style Settings' }).click();
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Switch to Satellite view' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Style settings', exact: true })).toBeVisible();
 });
 
 test('theme follows the system until a manual choice and remembers that choice', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
   await expect(page.locator('html')).toHaveClass(/dark/);
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await expect(page.locator('.theme-choice-dark')).toHaveCount(2);
+  expect(await page.locator('.theme-choice').evaluateAll(choices => choices.map(choice => choice.textContent.trim()))).toEqual(['Light', 'Dark', 'System']);
+  await expect(page.locator('.map-style-choice').first()).toHaveCSS('background-image', /map-style-streets-dark\.png/);
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(page.locator('html')).toHaveClass(/light/);
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitemcheckbox', { name: 'Dark mode' }).click();
+  await expect(page.locator('.theme-choice-light')).toHaveCount(2);
+  expect(await page.locator('.theme-choice').evaluateAll(choices => choices.map(choice => choice.textContent.trim()))).toEqual(['System', 'Light', 'Dark']);
+  await expect(page.locator('.map-style-choice').first()).toHaveCSS('background-image', /map-style-streets-light\.png/);
+  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await page.getByRole('radio', { name: 'Dark', exact: true }).check();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/dark/);
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await page.getByRole('radio', { name: 'Light', exact: true }).check();
+  await page.getByRole('button', { name: 'Close Style Settings' }).click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitemcheckbox', { name: 'Dark mode' }).click();
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Dark mode' })).toHaveAttribute('aria-checked', 'false');
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/light/);
+});
+
+test('style settings persist marker size and rail visibility', async ({ page }) => {
+  await page.goto('/?view=map');
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await expect(page.locator('.map-style-choice').nth(1)).toHaveCSS('background-image', /map-style-satellite\.png/);
+  const styleRatio = await page.locator('.map-style-choice').first().evaluate(el => el.getBoundingClientRect().width / el.getBoundingClientRect().height);
+  expect(styleRatio).toBeCloseTo(1.5, 1);
+  await page.getByRole('button', { name: 'More map settings' }).click();
+  await expect(page.getByRole('heading', { name: 'Map settings' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close Map settings' }).click();
+  await expect(page.getByRole('button', { name: 'Style settings', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Search address or neighborhood' }).click();
+  await expect(page.getByRole('button', { name: 'Style settings', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await page.getByLabel('Icon size').fill('125');
+  await expect(page.locator('output[for="style-icon-size"]')).toHaveText('125%');
+  await page.getByRole('checkbox', { name: 'Show rail lines' }).uncheck();
+  await expect(page.getByRole('checkbox', { name: 'Show rail lines' })).toHaveCSS('border-top-width', '0px');
+  await expect(page.getByRole('checkbox', { name: 'Show rail lines' })).toHaveCSS('padding-left', '0px');
+  await expect(page.getByLabel('Rail line thickness')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await expect(page.getByLabel('Icon size')).toHaveValue('125');
+  await expect(page.getByRole('checkbox', { name: 'Show rail lines' })).not.toBeChecked();
+  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await page.goto('/suggestion/1');
+  await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await page.getByRole('radio', { name: 'Satellite' }).check();
+  await page.reload();
+  await page.getByRole('button', { name: 'Style settings', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Satellite' })).toBeChecked();
 });
 
 test('map camera persists after pan and zoom, and GPS recenters it', async ({ page }) => {
