@@ -13,12 +13,41 @@ on:
 permissions:
   contents: read
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      expensive-checks: ${{ steps.filter.outputs.expensive-checks }}
+    steps:
+      - name: Checkout pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check whether expensive checks are needed
+        id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "expensive-checks=true" >> "$GITHUB_OUTPUT"
+          else
+            result="$(bash scripts/ci-paths-changed.sh "$BASE_SHA" "$HEAD_SHA")"
+            echo "expensive-checks=$result" >> "$GITHUB_OUTPUT"
+          fi
+
   audit:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.expensive-checks == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: npm
@@ -45,7 +74,7 @@ jobs:
         run: |
           echo "## Mobile usability audit" >> "$GITHUB_STEP_SUMMARY"
           echo "Checks: $OUTCOME. Download ux-report for state screenshots, findings, coverage and failure traces. Accessibility/layout findings are annotations until UX_ENFORCE is enabled." >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ux-report

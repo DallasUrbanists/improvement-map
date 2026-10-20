@@ -21,6 +21,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      expensive-checks: ${{ steps.filter.outputs.expensive-checks }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check whether expensive checks are needed
+        id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT_NAME" != "push" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "expensive-checks=true" >> "$GITHUB_OUTPUT"
+          else
+            result="$(bash scripts/ci-paths-changed.sh "$BEFORE_SHA" "$HEAD_SHA")"
+            echo "expensive-checks=$result" >> "$GITHUB_OUTPUT"
+          fi
+
   critical-tests:
     runs-on: ubuntu-latest
     outputs:
@@ -28,7 +53,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'release' && 'main' || github.sha }}
 
@@ -37,7 +62,7 @@ jobs:
         run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
@@ -52,15 +77,17 @@ jobs:
         run: npm run test:critical
 
   extended-e2e:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.expensive-checks == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     continue-on-error: true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
@@ -75,29 +102,31 @@ jobs:
         run: npm run test:extended
 
   usability:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.expensive-checks == 'true'
     uses: ./.github/workflows/usability.yml
   build-and-deploy:
-    # needs: critical-tests temporarily disabled to allow for testing of usability workflow
+    needs: critical-tests
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ needs.critical-tests.outputs.commit }}
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
 
       - name: Setup Pages
         id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Install dependencies
         run: npm ci
@@ -126,10 +155,10 @@ jobs:
 
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: './dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
