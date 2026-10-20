@@ -58,10 +58,9 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/?view=map');
-  await page.locator('.map-zoom-ui').waitFor();
   await page.evaluate(() => { window.__mapNode = document.querySelector('[data-testid="persistent-map"]'); });
   await mapState(page);
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   const list = page.getByRole('region', { name: 'Browse ideas' });
   await expect(list).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Submissions', exact: true })).toHaveCount(0);
@@ -70,11 +69,11 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
   await page.getByRole('button', { name: 'Close Idea details', exact: true }).click();
   await expect(list).toBeVisible();
   await mapState(page);
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByTestId('pin-and-continue').click();
   await expect(page.getByRole('region', { name: 'Attach photos', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toHaveAttribute('readonly', '');
-  await expect(page.locator('.map-search-panel .fa-location-dot')).toBeVisible();
+  await expect(page.locator('.map-search-icon .fa-location-dot')).toBeVisible();
   await page.getByRole('button', { name: 'Skip photos', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Describe your idea', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
@@ -83,7 +82,7 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
   expect(await page.evaluate(() => window.__mapNode === document.querySelector('[data-testid="persistent-map"]'))).toBe(true);
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/view=map/);
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -94,7 +93,6 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
 
 test('direct Locate initializes on map readiness and later steps lock the draft address', async ({ page }) => {
   await page.goto('/submit');
-  await page.locator('.map-zoom-ui').waitFor();
   await page.evaluate(async () => {
     const { sharedBrowseMap } = await import('/src/services/sharedBrowseMap.js');
     sharedBrowseMap.value.map.setCenter({ lat: 32.82, lng: -96.74 });
@@ -161,12 +159,11 @@ test('submission failure can retry successfully without replacing the shared map
 test('a fresh submission pins the current Browse location without requiring a map drag', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({ step: 1, location: { latitude: null, longitude: null, address: '' }, photos: [] })));
   await page.goto('/?view=map');
-  await page.locator('.map-zoom-ui').waitFor();
   await page.evaluate(async () => {
     const { sharedBrowseMap } = await import('/src/services/sharedBrowseMap.js');
     sharedBrowseMap.value.map.setCenter({ lat: 32.85, lng: -96.7 });
   });
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_wizard_draft_v1')).location.latitude)).toBe(32.85);
   await page.getByTestId('pin-and-continue').click();
   await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toHaveValue('Selected address, Dallas, TX');

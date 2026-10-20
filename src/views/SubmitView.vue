@@ -103,7 +103,7 @@
           <button
             type="button"
             :disabled="!hasEnoughDetailsWords || isGrammarLoading || isClarityLoading"
-            class="map-ui-button"
+            class="map-ui-button is-primary"
             @click="validateAndNextStep3"
           >
             Next
@@ -138,19 +138,6 @@
     <!-- ================= STEP 1: LOCATE ================= -->
     <div v-if="draft.step === 1" class="flex-grow flex flex-col">
       <div ref="submitMapFrame" data-testid="submit-map-frame" class="relative flex-grow overflow-hidden">
-        <button
-          type="button"
-          data-testid="pin-and-continue"
-          @click="nextStep"
-          :class="{ 'is-visible': workspace.pinContinueReady.value }"
-          :disabled="!workspace.pinContinueReady.value"
-          :aria-hidden="!workspace.pinContinueReady.value"
-          :tabindex="workspace.pinContinueReady.value ? 0 : -1"
-          :style="pinButtonStyle"
-          class="map-ui map-ui-button pin-continue-button pointer-events-auto absolute left-1/2 z-30 w-auto -translate-x-1/2 -translate-y-1/2 whitespace-nowrap"
-        >
-          Set pin and continue
-        </button>
       </div>
 
       <!-- Describe Location Modal Dialog -->
@@ -297,7 +284,7 @@
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             Back
           </button>
-          <button type="button" class="map-ui-button" @click="nextStep">
+          <button type="button" class="map-ui-button is-primary" @click="nextStep">
             {{ draft.photos?.length ? 'Next' : 'Skip photos' }}
             <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
           </button>
@@ -729,9 +716,6 @@ const submitMapFrame = ref(null);
 const pinAndContinueTop = ref('calc(75% - 36px)');
 const isMapReady = ref(false);
 const isLocating = ref(false);
-const pinButtonStyle = computed(() => ({
-  top: pinAndContinueTop.value,
-}));
 
 const isDescModalOpen = ref(false);
 const tempDescription = ref('');
@@ -820,7 +804,7 @@ const currentStepTitle = computed(() => {
 
 function updatePinAndContinuePosition() {
   const frame = submitMapFrame.value;
-  const locationControl = document.querySelector('.map-workspace .map-toolbar');
+  const locationControl = document.querySelector('.map-workspace .map-list-fab');
   if (!frame || !locationControl) return;
 
   const frameBounds = frame.getBoundingClientRect();
@@ -828,7 +812,7 @@ function updatePinAndContinuePosition() {
   const locationButtonTop = locationButton.getBoundingClientRect().top;
   const mapCenter = frameBounds.top + frameBounds.height / 2;
   const midpoint = (mapCenter + locationButtonTop) / 2;
-  pinAndContinueTop.value = `${midpoint - frameBounds.top}px`;
+  workspace.pinContinueTop.value = `${midpoint - frameBounds.top}px`;
 }
 
 
@@ -998,7 +982,7 @@ onActivated(() => {
   nextTick(resizeDetailsInput);
   window.addEventListener('resize', resizeDetailsInput);
   focusDescriptionInput();
-  workspace.registerSubmission({ draft, updateCoordinates, requestGpsLocation, isLocating, dismissNested, saveDraft: persistDraft, editLocation: () => goToStep(1) });
+  workspace.registerSubmission({ draft, updateCoordinates, requestGpsLocation, dismissNested, saveDraft: persistDraft, editLocation: () => goToStep(1), nextStep });
   initMap();
   document.addEventListener('visibilitychange', cancelHiddenRecording);
   window.addEventListener('pagehide', speechRecorder.cancel);

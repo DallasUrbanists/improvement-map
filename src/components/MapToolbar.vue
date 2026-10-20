@@ -1,23 +1,13 @@
 <template>
-  <div v-bind="$attrs" class="map-ui map-toolbar" :data-menu-open="menuOpen" role="group" aria-label="Map view options">
-    <button v-if="showMapControls" type="button" class="map-ui-button map-icon-button map-location-button" data-testid="center-on-location-control"
-      title="Center on my location" aria-label="Center on my location" :aria-busy="locating" :disabled="recenterDisabled" @click="$emit('center')">
-      <i class="fa-solid fa-crosshairs" :class="{ 'animate-spin': locating }" aria-hidden="true"></i>
-    </button>
-    <button type="button" class="map-ui-button" aria-label="Browse" :aria-pressed="isBrowse && modelValue === 'list'"
-      @click="browseList">
-      <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
-      <span>Browse</span>
-    </button>
-    <button type="button" class="map-ui-button" :aria-label="route.path === '/submit' ? 'Close' : 'Submit'" :aria-pressed="route.path === '/submit'" @click="exitSubmit ? $emit('exit-submit') : router.push('/submit')">
-      <i class="fa-solid fa-plus transition-transform duration-200" :class="{ 'rotate-45': route.path === '/submit' }" aria-hidden="true"></i>
-      <span>{{ route.path === '/submit' ? 'Close' : 'Submit' }}</span>
-    </button>
-    <button ref="menuButton" :id="menuId" type="button" class="map-ui-button map-icon-button" aria-label="Menu" title="Menu" aria-haspopup="menu" :aria-expanded="menuOpen"
-      @click="menuOpen = !menuOpen">
-      <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
-    </button>
-  </div>
+  <button v-bind="$attrs" type="button" class="map-ui map-ui-button map-list-fab" aria-label="List" :aria-pressed="isBrowse && modelValue === 'list'"
+    @click="browseList">
+    <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
+    <span>List</span>
+  </button>
+  <button ref="menuButton" :id="menuId" type="button" class="map-ui map-ui-button map-icon-button map-menu-launch" :inert="$attrs.inert" aria-label="Menu" title="Menu" aria-haspopup="menu" :aria-expanded="menuOpen"
+    @click="menuOpen = !menuOpen">
+    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+  </button>
   <Teleport to="body">
     <div class="map-menu-layer">
       <k-popover :opened="menuOpen" :target="`#${menuId}`" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
@@ -187,9 +177,6 @@ defineOptions({ inheritAttrs: false });
 const props = defineProps({
   modelValue: { type: String, default: 'streets' },
   showMapControls: { type: Boolean, default: true },
-  locating: { type: Boolean, default: false },
-  recenterDisabled: { type: Boolean, default: false },
-  exitSubmit: { type: Boolean, default: false },
   markerZoomThreshold: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerZoomThreshold },
   mapZoom: { type: Number, default: 13 },
   heatmapOpacity: { type: Number, default: DEFAULT_MARKER_SETTINGS.heatmapOpacity },
@@ -203,7 +190,7 @@ const props = defineProps({
   markerSpotlightSize: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightSize },
   markerSpotlightFeather: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightFeather },
 });
-const emit = defineEmits(['update:modelValue', 'center', 'exit-submit', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
+const emit = defineEmits(['update:modelValue', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
 const route = useRoute();
 const router = useRouter();
 const isBrowse = computed(() => route.path === '/' || route.path === '/browse');

@@ -56,7 +56,7 @@ test('detail navigation locks loading and tooltips respect input', async ({page}
   await expect(tray).toHaveAttribute('aria-busy','true');
   await expect(next).toBeDisabled(); await expect(previous).toBeDisabled();
   await expect(tray.locator('.map-tray-content')).toHaveAttribute('inert','');
-  await expect(page.locator('.map-toolbar')).toHaveAttribute('inert','');
+  await expect(page.locator('.map-list-fab')).toHaveAttribute('inert','');
   await expect.poll(() => opacity(next)).toBe('0');
   const heading = tray.locator('summary').filter({hasText:'Representatives'});
   await expect(heading).toHaveCSS('display','flex');

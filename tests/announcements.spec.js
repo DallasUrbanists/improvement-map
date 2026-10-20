@@ -45,7 +45,7 @@ test('direct idea link defers updates until Browse and keeps the route', async (
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect(page).toHaveURL(/suggestion\/1/);
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Got it' })).toBeVisible();
 });
 test('blocked preference writes use in-memory state without reopening', async ({ page }) => {
@@ -56,7 +56,7 @@ test('blocked preference writes use in-memory state without reopening', async ({
   await page.goto('/');
   await expect(page.getByText('Preferences cannot be remembered in this browser. You can still use the app.')).toBeVisible();
   await page.getByRole('button', { name: 'Go to app' }).click();
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
 });
 test('competing dialog defers announcements and keyboard focus stays inside', async ({ page }) => {
@@ -80,7 +80,7 @@ test('submission draft is untouched and welcome waits for Browse', async ({ page
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   const draft = await page.evaluate(() => localStorage.getItem('improvement_map_wizard_draft_v1'));
   await expect(page.locator('.announcement-dialog')).not.toBeVisible();
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Go to app' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('improvement_map_wizard_draft_v1'))).toBe(draft);
 });

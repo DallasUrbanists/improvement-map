@@ -107,37 +107,6 @@ function blendLabelColor(from, to, progress) {
 }
 
 const mapThemeBindings = new WeakMap();
-const mapZoomControls = new WeakMap();
-
-// Reserve the search bar's height in the right-side control stack.
-export function insetMapZoomControls(map, maps) {
-  if (mapZoomControls.has(map)) return;
-  const control = document.createElement('div');
-  control.className = 'map-ui map-zoom-ui';
-  control.setAttribute('role', 'group');
-  control.setAttribute('aria-label', 'Map zoom');
-  const buttons = [1, -1].map(direction => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'map-ui-button';
-    button.textContent = direction > 0 ? '+' : '−';
-    button.setAttribute('aria-label', direction > 0 ? 'Zoom in' : 'Zoom out');
-    button.addEventListener('click', () => map.setZoom((map.getZoom() ?? 13) + direction));
-    control.appendChild(button);
-    return button;
-  });
-  const sync = () => {
-    const type = map.mapTypes?.get(map.getMapTypeId());
-    buttons[0].disabled = map.getZoom() >= (map.get('maxZoom') ?? type?.maxZoom ?? 22);
-    buttons[1].disabled = map.getZoom() <= (map.get('minZoom') ?? type?.minZoom ?? 0);
-  };
-  const listeners = ['zoom_changed', 'maptypeid_changed', 'minzoom_changed', 'maxzoom_changed']
-    .map(event => map.addListener(event, sync));
-  map.controls[maps.ControlPosition.RIGHT_TOP].push(control);
-  map.setOptions({ zoomControl: false });
-  sync();
-  mapZoomControls.set(map, { control, listeners, controls: map.controls[maps.ControlPosition.RIGHT_TOP] });
-}
 
 /**
  * Updates a Google Map instance styling based on theme and map type
@@ -200,14 +169,6 @@ export function setMapRailsVisible(map, visible) {
 }
 
 export function disposeMapTheme(map) {
-  const zoom = mapZoomControls.get(map);
-  if (zoom) {
-    zoom.listeners.forEach(listener => listener.remove());
-    for (let i = zoom.controls.getLength() - 1; i >= 0; i--) {
-      if (zoom.controls.getAt(i) === zoom.control) zoom.controls.removeAt(i);
-    }
-    mapZoomControls.delete(map);
-  }
   const binding = mapThemeBindings.get(map);
   if (!binding) return;
   binding.disposed = true;

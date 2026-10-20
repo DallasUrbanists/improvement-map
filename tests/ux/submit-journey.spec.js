@@ -5,6 +5,7 @@ test('submission edits, draft resume, validation, upload failure and retry', asy
   const check = audit(page, info);
   await page.goto('/submit');
   await page.getByTestId('pin-and-continue').waitFor();
+  await expect(page.getByText('Set pin and continue', { exact: true })).toBeVisible();
   await check('submit-locate');
   await page.getByTestId('pin-and-continue').click();
   await check('submit-photos-empty');
@@ -40,7 +41,7 @@ test('submission edits, draft resume, validation, upload failure and retry', asy
   await assertDraft(page, draftKey, { step: 4, details });
   await check('draft-restored');
   await page.getByRole('button', { name: 'Close Review submission' }).click();
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   await assertDraft(page, draftKey, { step: 1, details });
   await check('submit-reopened-at-locate');

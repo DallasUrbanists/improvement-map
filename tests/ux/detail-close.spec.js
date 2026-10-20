@@ -4,7 +4,7 @@ for (const motion of ['no-preference', 'reduce']) {
   test(`closing details to map retains the camera with ${motion} motion`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: motion });
     await page.goto('/?view=map');
-    await expect(page.locator('.map-zoom-ui')).toBeVisible();
+    await expect(page.locator('.map-search-panel')).toBeVisible();
     await page.evaluate(async () => {
       const { default: router } = await import('/src/router/index.js');
       await router.push('/suggestion/1');
@@ -41,7 +41,7 @@ for (const motion of ['no-preference', 'reduce']) {
   test(`closing details restores the camera after exit with ${motion} motion`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion: motion });
     await page.goto('/?view=map');
-    await page.getByRole('button', { name: 'Browse', exact: true }).click();
+    await page.getByRole('button', { name: 'List', exact: true }).click();
     const card = page.locator('[data-suggestion-id="1"]');
     await card.click();
     const tray = page.locator('.submission-detail-tray');

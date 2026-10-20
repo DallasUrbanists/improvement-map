@@ -6,18 +6,55 @@ const camera = page => page.evaluate(async () => {
   return map && { ...map.getCenter().toJSON(), zoom: map.getZoom() };
 });
 
-test('toolbar opens Browse and Submit and Style Settings switches map imagery', { tag: '@critical' }, async ({ page }) => {
+test('map controls stay in the requested positions across map views', async ({ page }) => {
+  await page.goto('/?view=map');
+  const search = page.getByRole('textbox', { name: 'Search address or neighborhood' });
+  const settings = page.getByRole('button', { name: 'Style settings', exact: true });
+  const location = page.getByRole('button', { name: 'Center on my location' });
+  const create = page.getByRole('button', { name: 'New', exact: true });
+  await expect(search).toBeVisible();
+  await expect(settings).toBeVisible();
+  await expect(page.locator('.workspace-route-layer')).toHaveCSS('z-index', '20');
+  await expect(settings).toHaveCSS('z-index', '10');
+  await expect(location).toHaveCSS('z-index', '10');
+  await expect(location.locator('i')).toHaveClass(/fa-satellite/);
+  await expect(create).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Zoom out' })).toHaveCount(0);
+  const layout = await page.evaluate(() => {
+    const box = selector => {
+      const { x, y, width, height } = document.querySelector(selector).getBoundingClientRect();
+      return { x, y, width, height };
+    };
+    return { settings: box('.style-settings-launch'), location: box('.style-location-launch'), create: box('.new-idea-fab'), searchIcon: box('.map-search-icon'), input: box('.map-search-panel input') };
+  });
+  expect(layout.settings.width).toBe(48);
+  expect(layout.settings.height).toBe(48);
+  expect(layout.location.width).toBe(48);
+  expect(layout.location.height).toBe(48);
+  expect(layout.location.y - (layout.settings.y + layout.settings.height)).toBe(12);
+  expect(layout.searchIcon.x).toBeGreaterThan(layout.input.x + layout.input.width / 2);
+  expect(layout.create.width).toBe(72);
+  expect(layout.create.height).toBe(72);
+  await page.goto('/suggestion/1');
+  await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toBeVisible();
+  await expect(create).toHaveCSS('z-index', '10');
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'New', exact: true })).toBeVisible();
+});
+
+test('map actions open Browse and New, and Style Settings switches map imagery', { tag: '@critical' }, async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Browse ideas | Improvement Map');
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel pin', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await page.getByRole('radio', { name: 'Satellite' }).check();
   await page.getByRole('button', { name: 'Close Style Settings' }).click();
@@ -70,9 +107,8 @@ test('style settings persist marker size and rail visibility', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Map settings' })).toBeVisible();
   await page.getByRole('button', { name: 'Close Map settings' }).click();
   await expect(page.getByRole('button', { name: 'Style settings', exact: true })).toBeFocused();
-  await page.getByRole('button', { name: 'Search address or neighborhood' }).click();
-  await expect(page.getByRole('button', { name: 'Style settings', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Search address or neighborhood', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await page.getByLabel('Icon size').fill('125');
   await expect(page.locator('output[for="style-icon-size"]')).toHaveText('125%');
