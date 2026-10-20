@@ -50,14 +50,16 @@ async function ask(question) {
   }
 }
 
-async function createIssue() {
+async function createIssue(issueType) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error('Creating an issue requires an interactive terminal.');
   }
   const title = await ask('New issue title: ');
   if (!title) throw new Error('Issue title cannot be empty.');
   const body = await ask('Issue description (optional): ');
-  const result = runCaptured('gh', ['issue', 'create', '--title', title, '--body', body]);
+  const args = ['issue', 'create', '--title', title, '--body', body];
+  if (issueType) args.push('--type', issueType);
+  const result = runCaptured('gh', args);
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.status !== 0) throw new Error('GitHub issue creation failed.');
   const match = result.stdout.match(/\/issues\/(\d+)/);
@@ -91,12 +93,17 @@ async function main() {
       throw new Error('Run from an interactive terminal to enter an issue number.');
     }
     issueNumber = await ask('GitHub issue number (press Enter to create one): ');
-    if (!issueNumber) issueNumber = await createIssue();
+    if (!issueNumber) issueNumber = await createIssue(type === 'feature' ? 'Feature' : undefined);
     if (!/^\d+$/.test(issueNumber)) throw new Error('Issue number must contain digits only.');
   }
 
   const issueCheck = run('gh', ['issue', 'view', issueNumber, '--json', 'number']);
   if (issueCheck.status !== 0) throw new Error(`Could not access issue #${issueNumber}.`);
+
+  if (type === 'feature') {
+    const labelResult = run('gh', ['issue', 'edit', issueNumber, '--add-label', 'enhancement']);
+    if (labelResult.status !== 0) throw new Error(`Could not add the enhancement label to issue #${issueNumber}.`);
+  }
 
   const branch = `${type}/${issueNumber}-${slug}`;
   assertBranchDoesNotExist(branch);
