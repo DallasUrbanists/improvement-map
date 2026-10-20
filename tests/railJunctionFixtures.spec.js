@@ -142,7 +142,7 @@ function verifyPreservation(before, result) {
   }
 }
 
-test('saved adjustment remains geographically scoped to location 2', () => {
+test('saved adjustment remains geographically scoped to location 2', { tag: '@unit' }, () => {
   const lanes = manualLanes();
   for (const center of [undefined, {}, { lat: NaN, lon: westEnd.center.lon },
     { ...westEnd.center, lat: westEnd.center.lat + 0.00001 },
@@ -159,7 +159,7 @@ for (const [name, options] of [
   ['smaller screen geometry with both chain directions reversed', { factor: 0.4, reverseSecond: true, reverseAll: true, shift: 200 }],
   ['larger translated screen geometry', { factor: 2, shift: -200 }],
 ]) {
-  test(`${name} preserves endpoints, lane order and smooth tangents without mutation`, () => {
+  test(`${name} preserves endpoints, lane order and smooth tangents without mutation`, { tag: '@unit' }, () => {
     const lanes = manualLanes(options);
     const snapshot = JSON.stringify([...lanes].map(([chain, services]) => [chain, [...services]]));
     for (const services of lanes.values()) for (const points of services.values()) {
@@ -174,7 +174,7 @@ for (const [name, options] of [
   });
 }
 
-test('current adaptive four-street renderer smooths both branch orientations and emits those curves', () => {
+test('current adaptive four-street renderer smooths both branch orientations and emits those curves', { tag: '@unit' }, () => {
   const diagram = generateLocationDiagram(westEnd, westEnd.center);
   expect(diagram.coverageMeters).toBeGreaterThan(368);
   expect(diagram.railJunctions).toContainEqual({ trunkOrder: trunkKeys,
@@ -184,7 +184,7 @@ test('current adaptive four-street renderer smooths both branch orientations and
   expect([...lanes.values()][0].get('DART:GREEN').length).toBeGreaterThan(2);
 });
 
-test('unrecognized, ambiguous or incomplete junction topology fails closed without partial changes', () => {
+test('unrecognized, ambiguous or incomplete junction topology fails closed without partial changes', { tag: '@unit' }, () => {
   for (const modify of [
     (lanes) => lanes.delete([...lanes.keys()][2]),
     (lanes) => { [...lanes.values()][1].get('DART:GREEN').at(-1).x += 0.001; },

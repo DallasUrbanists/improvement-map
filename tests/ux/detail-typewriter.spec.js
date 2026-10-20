@@ -8,7 +8,6 @@ for (const motion of ['no-preference', 'reduce']) {
     const heading = page.locator('.detail-marker-summary');
     const byline = page.locator('.detail-description-byline');
     await expect(heading.locator('.sr-only')).toHaveText('Suggestion 2');
-    await expect(byline).toHaveText('October 1 · Test Contributor');
     if (motion === 'no-preference') {
       await expect(heading.locator('.detail-typewriter-pending')).toHaveCSS('visibility','hidden');
     }

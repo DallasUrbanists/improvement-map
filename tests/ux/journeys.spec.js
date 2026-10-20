@@ -83,6 +83,13 @@ test('submission edits, draft resume, validation, upload failure and retry', asy
   await page.getByTestId('pin-and-continue').click();
   await check('submit-photos-empty');
   await page.locator('input[type=file]').first().setInputFiles({ name: 'crossing.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(photo.split(',')[1], 'base64') });
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'second.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(photo.split(',')[1], 'base64') });
+  await expect(page.getByText('2 / 2', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Previous photo', exact: true }).click();
+  await expect(page.getByText('1 / 2', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Next photo', exact: true }).click();
+  await expect(page.getByText('2 / 2', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove photo 2', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Caption for photo 1' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Caption for photo 1' }).fill('Busy crossing');
   await check('submit-photo-added');

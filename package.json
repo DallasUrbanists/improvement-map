@@ -11,6 +11,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
+    "test:unit": "playwright test --project=unit",
     "test:critical": "playwright test --project=chromium --grep @critical",
     "test:extended": "playwright test --grep-invert @critical",
     "test": "playwright test",

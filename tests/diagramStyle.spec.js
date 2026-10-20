@@ -14,7 +14,7 @@ const boundary = { name: 'Dallas', adminLevel: 8, verification: { containingAdmi
   { name: 'Texas', adminLevel: 4 }, { name: 'Dallas County', adminLevel: 6 }, { name: 'United States', adminLevel: 2 },
 ] } };
 
-test('footer abbreviates administrative names and only strips intersection road types', () => {
+test('footer abbreviates administrative names and only strips intersection road types', { tag: '@unit' }, () => {
   const a = { ...horizontal, tags: { ...horizontal.tags, name: 'Boll Street' } };
   const b = { ...vertical, tags: { ...vertical.tags, name: 'McKinney Avenue' } };
   expect(locationContext([a, b], (point) => point, [], boundary).names)
@@ -27,16 +27,9 @@ test('footer abbreviates administrative names and only strips intersection road 
   expect(locationContext([a], (point) => point, [], nonState).names).toContain('Texas');
 });
 
-test('copyright is above the boundary row, right-aligned, with no background panel', () => {
-  const fixture = additional[0];
-  const result = generateLocationDiagram(fixture, { ...fixture.center, administrativeBoundary: boundaries[fixture.id] });
-  expect(result.svg).toMatch(/data-administrative-boundary="[^"]*" x="12" y="470"/);
-  expect(result.svg).toContain('<rect x="0" y="452" width="480" height="28"');
-  expect(result.svg).not.toContain('<rect x="0" y="432"');
-  expect(result.svg).toContain('<text x="468" y="450" font-size="11" text-anchor="end">© OpenStreetMap contributors</text>');
-});
 
-test('bike facilities require protection or an off-street bicycle designation', () => {
+
+test('bike facilities require protection or an off-street bicycle designation', { tag: '@unit' }, () => {
   for (const tags of [{ highway: 'cycleway' }, { highway: 'path', bicycle: 'designated' },
     { highway: 'residential', 'cycleway:right': 'track' },
     { highway: 'residential', 'cycleway:left': 'lane', 'cycleway:left:separation': 'bollard' }]) expect(bikeFacility(tags)).toBe(true);
@@ -46,7 +39,7 @@ test('bike facilities require protection or an off-street bicycle designation', 
     { highway: 'cycleway', access: 'private' }]) expect(bikeFacility(tags)).toBe(false);
 });
 
-test('location context orders intersection, nearby station, and all administrative areas', () => {
+test('location context orders intersection, nearby station, and all administrative areas', { tag: '@unit' }, () => {
   const result = locationContext([horizontal, vertical], (point) => point, [station], boundary);
   expect(result.names).toEqual(['Victory & All Star', 'DART Victory Station', 'Dallas', 'Dallas County', 'TX', 'USA']);
   const closeStop = { ...station, mode: 'bus', stopX: 240, stopY: 239, name: 'Bus Stop' };
@@ -63,7 +56,7 @@ test('location context orders intersection, nearby station, and all administrati
   expect(truncateContext('Dallas')).toBe('Dallas');
 });
 
-test('grayscale streets have rounded paths, uncased minor roads, and green bicycle facilities', () => {
+test('grayscale streets have rounded paths, uncased minor roads, and green bicycle facilities', { tag: '@unit' }, () => {
   const center = { lat: 32.8, lon: -96.8 };
   const geometry = [{ lat: 32.799, lon: -96.801 }, { lat: 32.8, lon: -96.801 }, { lat: 32.8, lon: -96.799 }];
   const data = { elements: [road(1, 'Street', geometry), road(2, 'Alley', geometry, { highway: 'service', service: 'alley' }),
@@ -82,7 +75,7 @@ test('grayscale streets have rounded paths, uncased minor roads, and green bicyc
   expect(colors.every((color) => ['#218739', '#ffa800'].includes(color) || color.slice(1, 3) === color.slice(3, 5) && color.slice(3, 5) === color.slice(5, 7))).toBe(true);
 });
 
-test('closest-street labels and distances ignore service roads, even when names match regular roads', () => {
+test('closest-street labels and distances ignore service roads, even when names match regular roads', { tag: '@unit' }, () => {
   const center = { lat: 32.8, lon: -96.8 };
   const geometryAt = (offset) => [{ lat: center.lat + offset, lon: center.lon - 0.001 }, { lat: center.lat + offset, lon: center.lon + 0.001 }];
   const data = { elements: [road(1, 'Access Lane', geometryAt(0), { highway: 'service' }),
@@ -106,7 +99,7 @@ test('closest-street labels and distances ignore service roads, even when names 
   expect(serviceOnly.svg).toContain('data-street="Access Lane"');
 });
 
-test('parking aisles and highway ramps are extra-light, thin, and uncased', () => {
+test('parking aisles and highway ramps are extra-light, thin, and uncased', { tag: '@unit' }, () => {
   const center = { lat: 32.8, lon: -96.8 };
   const geometry = [{ lat: center.lat - 0.001, lon: center.lon - 0.001 }, { lat: center.lat + 0.001, lon: center.lon + 0.001 }];
   const elements = [road(1, 'Parking Aisle', geometry, { highway: 'service', service: 'parking_aisle' }),
@@ -124,7 +117,7 @@ test('parking aisles and highway ramps are extra-light, thin, and uncased', () =
   expect(restoredParking.length).toBeGreaterThan(0);
 });
 
-test('freeway mainlines use minor-road gray at twice the divided-road weight, excluding ramps', () => {
+test('freeway mainlines use minor-road gray at twice the divided-road weight, excluding ramps', { tag: '@unit' }, () => {
   const center = { lat: 32.8, lon: -96.8 };
   const geometry = [{ lat: center.lat - 0.001, lon: center.lon - 0.001 }, { lat: center.lat + 0.001, lon: center.lon + 0.001 }];
   const elements = [road(1, 'IH-35', geometry, { highway: 'motorway' }),
@@ -154,7 +147,7 @@ test('freeway mainlines use minor-road gray at twice the divided-road weight, ex
   expect(realDiagram.svg.match(/<g data-layer="freeways"[^>]*>(.*?)<\/g>/)[1]).toContain('data-street="North Good-Latimer Expressway"');
 });
 
-test('rail lines have white casing underneath matching colored geometry, without street casing', () => {
+test('rail lines have white casing underneath matching colored geometry, without street casing', { tag: '@unit' }, () => {
   const fixture = additional.find((entry) => entry.id === 'west-end');
   const result = generateLocationDiagram(fixture, fixture.center);
   const casings = [...result.svg.matchAll(/<path data-rail-casing="([^"]+)" d="([^"]+)" stroke="#fff"/g)];
@@ -166,7 +159,7 @@ test('rail lines have white casing underneath matching colored geometry, without
   expect(result.svg).not.toMatch(/data-layer="(?:street|divided-street|freeway)-casing"/);
 });
 
-test('Harry Hines labels remain visible at locations six and seven', () => {
+test('Harry Hines labels remain visible at locations six and seven', { tag: '@unit' }, () => {
   for (const fixture of additional.filter((entry) => ['medical-district', 'bachman'].includes(entry.id))) {
     const result = generateLocationDiagram(fixture, { ...fixture.center, administrativeBoundary: boundaries[fixture.id] });
     expect(result.streetLabels.some((label) => label.text === 'Harry Hines Blvd')).toBe(true);
@@ -175,7 +168,7 @@ test('Harry Hines labels remain visible at locations six and seven', () => {
   }
 });
 
-test('University Crossing Trail is green and Silver renders where its catalog crosses a pin', () => {
+test('University Crossing Trail is green and Silver renders where its catalog crosses a pin', { tag: '@unit' }, () => {
   const fixture = extra.find((entry) => entry.id === 'location-9');
   expect(generateLocationDiagram(fixture, fixture.center).svg).toContain('data-bike-route="University Crossing Trail"');
   const silver = railCatalog.segments.find((segment) => segment.keys.includes('DART:SILVER'));

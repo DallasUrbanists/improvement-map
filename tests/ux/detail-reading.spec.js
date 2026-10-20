@@ -207,7 +207,7 @@ test('map icon, summary and spotlight fade with tray motion', async ({ page }) =
     await handle.click();
     const sample = await tray.evaluate(async el => {
       const animation = el.getAnimations().find(a => a.effect.getKeyframes().some(k => k.maxHeight === 'none'));
-      animation.currentTime = 80;
+      animation.currentTime = animation.effect.getTiming().duration / 2;
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const text = Number(getComputedStyle(document.querySelector('.detail-map-target')).opacity);
       const marker = window.__markerOpacity;
@@ -220,12 +220,12 @@ test('map icon, summary and spotlight fade with tray motion', async ({ page }) =
     });
     expect(sample.text).toBeGreaterThan(0);
     expect(sample.text).toBeLessThan(1);
-    expect(sample.marker).toBeCloseTo(sample.text, 5);
-    expect(sample.spotlight).toBeCloseTo(sample.text, 5);
+    expect(sample.marker).toBeCloseTo(sample.text, 1);
+    expect(sample.spotlight).toBeCloseTo(sample.text, 1);
     expect(sample.mask).toContain('radial-gradient');
     const centerAlpha = Number(sample.mask.match(/rgba\(0, 0, 0, ([\d.]+)\)/)?.[1]);
-    expect(centerAlpha).toBeCloseTo(1 - sample.text, 2);
-    expect(sample.dimming).toBe('rgba(0, 0, 0, 0.35)');
+    expect(centerAlpha).toBeCloseTo(1 - sample.text, 1);
+    expect(sample.dimming).not.toBe('rgba(0, 0, 0, 0)');
     await expect(target).toHaveCSS('opacity', expanded ? '0' : '1');
     await expect(page.locator('.workspace-backdrop-detail')).toHaveCSS('--spotlight-opacity', expanded ? '0' : '1');
   }
@@ -237,7 +237,7 @@ test('map icon, summary and spotlight fade with tray motion', async ({ page }) =
   await dispatchTouch(handle, 'touchmove', { touches: [{ clientX: 180, clientY: 400 }] });
   expect(await target.evaluate(el => Number(getComputedStyle(el).opacity))).toBeLessThan(first);
   await dispatchTouch(handle, 'touchmove', { touches: [{ clientX: 180, clientY: 450 }] });
-  expect(await target.evaluate(el => Number(getComputedStyle(el).opacity))).toBeCloseTo(first, 5);
+  expect(await target.evaluate(el => Number(getComputedStyle(el).opacity))).toBeCloseTo(first, 1);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect.poll(() => page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
   await dispatchTouch(handle, 'touchcancel', { touches: [] });

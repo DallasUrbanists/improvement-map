@@ -35,7 +35,7 @@ const southeast = project({ lat: bbox.south, lon: bbox.east });
 const acquisitionBounds = { minX: northwest.x, minY: northwest.y, maxX: southeast.x, maxY: southeast.y };
 const realOptions = { sourceWays, visibleBounds, acquisitionBounds };
 
-test('removes only the tiny attached dead end and is pure and idempotent', () => {
+test('removes only the tiny attached dead end and is pure and idempotent', { tag: '@unit' }, () => {
   const input = [trunk, nub];
   const snapshot = structuredClone(input);
   const result = cleanup(input);
@@ -45,7 +45,7 @@ test('removes only the tiny attached dead end and is pure and idempotent', () =>
   expect(cleanup([nub, trunk])).toEqual([trunk]);
 });
 
-test('retains standalone paths, long branches, short hosts and endpoint continuations', () => {
+test('retains standalone paths, long branches, short hosts and endpoint continuations', { tag: '@unit' }, () => {
   for (const input of [[nub], [trunk],
     [trunk, { ...nub, points: [point(0, 0), point(0, 30)] }],
     [{ ...trunk, points: [point(-20, 0), point(0, 0), point(20, 0)] }, nub],
@@ -54,7 +54,7 @@ test('retains standalone paths, long branches, short hosts and endpoint continua
   }
 });
 
-test('retains true connections, loops and cul-de-sac or access evidence', () => {
+test('retains true connections, loops and cul-de-sac or access evidence', { tag: '@unit' }, () => {
   const connection = way('connection', [point(0, 9), point(100, 30)]);
   expect(cleanup([trunk, nub, connection])).toEqual([trunk, nub, connection]);
   const loop = { ...nub, points: [point(0, 0), point(2, 3), point(-2, 3), point(0, 0)] };
@@ -72,7 +72,7 @@ test('retains true connections, loops and cul-de-sac or access evidence', () => 
   }
 });
 
-test('requires acquisition and viewport safety, even for a geometrically short branch', () => {
+test('requires acquisition and viewport safety, even for a geometrically short branch', { tag: '@unit' }, () => {
   const input = [trunk, nub];
   expect(removeTinyDeadEndNubs(input)).toBe(input);
   for (const options of [{ sourceWays: undefined }, { visibleBounds: undefined }, { acquisitionBounds: undefined },
@@ -84,7 +84,7 @@ test('requires acquisition and viewport safety, even for a geometrically short b
   expect(cleanup([trunk, nub], { sourceWays: [trunk, continued] })).toEqual([trunk, nub]);
 });
 
-test('grade differences do not prove a junction, and grade-separated tips remain protected', () => {
+test('grade differences do not prove a junction, and grade-separated tips remain protected', { tag: '@unit' }, () => {
   for (const tags of [{ layer: '1' }, { bridge: 'yes' }, { tunnel: 'yes' }]) {
     const other = { ...trunk, tags: { ...trunk.tags, ...tags } };
     expect(cleanup([other, nub])).toEqual([other, nub]);
@@ -93,7 +93,7 @@ test('grade differences do not prove a junction, and grade-separated tips remain
   }
 });
 
-test('trims a mixed crossing way at its source junction without losing the genuine crossing', () => {
+test('trims a mixed crossing way at its source junction without losing the genuine crossing', { tag: '@unit' }, () => {
   const mixed = way('mixed', [point(0, -8), point(0, 0), point(0, 5)], { footway: 'crossing' },
     { bike: true, street: { name: 'Crossing' } });
   const connected = way('connected', [point(0, -8), point(-50, -8)]);
@@ -108,7 +108,7 @@ test('trims a mixed crossing way at its source junction without losing the genui
     .find((w) => w.id === 'mixed').points).toEqual(mixed.points.slice(0, 2));
 });
 
-test('same-road terminal overshoots can be trimmed, but side roads and channels cannot', () => {
+test('same-road terminal overshoots can be trimmed, but side roads and channels cannot', { tag: '@unit' }, () => {
   const host = road('host', [point(-100, 0), point(0, 0), point(100, 0)]);
   const mixed = road('mixed', [point(0, -80), point(0, 0), point(5, 0)]);
   const result = cleanup([host, mixed]);
@@ -119,7 +119,7 @@ test('same-road terminal overshoots can be trimmed, but side roads and channels 
   }
 });
 
-test('location 9 removes the actual trail nub and crossing overshoot, not Mockingbird connectors', () => {
+test('location 9 removes the actual trail nub and crossing overshoot, not Mockingbird connectors', { tag: '@unit' }, () => {
   const snapshot = structuredClone(sourceWays);
   const result = removeTinyDeadEndNubs(sourceWays, realOptions);
   expect(result.some((w) => w.id === '1132401559')).toBe(false);
@@ -136,7 +136,7 @@ test('location 9 removes the actual trail nub and crossing overshoot, not Mockin
   expect(removeTinyDeadEndNubs(result, realOptions)).toEqual(result);
 });
 
-test('location 9 partial thumbnails and acquisition edges protect otherwise removable geometry', () => {
+test('location 9 partial thumbnails and acquisition edges protect otherwise removable geometry', { tag: '@unit' }, () => {
   const candidate = sourceWays.find((w) => w.id === '1132401559');
   for (const option of ['visibleBounds', 'acquisitionBounds']) {
     const small = { ...bounds, maxX: candidate.points[0].x + 2 };
@@ -145,7 +145,7 @@ test('location 9 partial thumbnails and acquisition edges protect otherwise remo
   }
 });
 
-test('promotes a short big-small-big gap without changing continuous geometry or bike metadata', () => {
+test('promotes a short big-small-big gap without changing continuous geometry or bike metadata', { tag: '@unit' }, () => {
   const input = bracket();
   input[1].street = { name: 'Main Road' };
   const snapshot = structuredClone(input);
@@ -160,7 +160,7 @@ test('promotes a short big-small-big gap without changing continuous geometry or
   expect(promoteShortDividedGaps(result)).toEqual(result);
 });
 
-test('promotes split short chains in either order or direction but not partial brackets', () => {
+test('promotes split short chains in either order or direction but not partial brackets', { tag: '@unit' }, () => {
   const [left, gap, right] = bracket();
   const a = { ...gap, id: 'a', points: [point(-10, 0), point(0, 0)] };
   const b = { ...gap, id: 'b', points: [point(0, 0), point(10, 0)], bike: false };
@@ -174,7 +174,7 @@ test('promotes split short chains in either order or direction but not partial b
   expect(promoteShortDividedGaps([gap, right])).toEqual([gap, right]);
 });
 
-test('does not promote genuine long narrow portions or a long chain of short portions', () => {
+test('does not promote genuine long narrow portions or a long chain of short portions', { tag: '@unit' }, () => {
   const left = road('left', [point(-100, 0), point(0, 0)], {}, { divided: true });
   const right = road('right', [point(60, 0), point(160, 0)], {}, { divided: true });
   const long = road('long', [point(0, 0), point(60, 0)]);
@@ -187,7 +187,7 @@ test('does not promote genuine long narrow portions or a long chain of short por
   expect(promoteShortDividedGaps(forty).every((w) => w.divided)).toBe(true);
 });
 
-test('excludes incompatible grade, names/classes, ramps, minor roads and roundabouts', () => {
+test('excludes incompatible grade, names/classes, ramps, minor roads and roundabouts', { tag: '@unit' }, () => {
   for (const tags of [{ layer: '1' }, { bridge: 'yes' }, { tunnel: 'yes' },
     { name: 'Different Road' }, { highway: 'tertiary' }, { highway: 'secondary_link' }, { junction: 'roundabout' }]) {
     const input = bracket();
@@ -201,7 +201,7 @@ test('excludes incompatible grade, names/classes, ramps, minor roads and roundab
   }
 });
 
-test('rejects curves, reversed approaches, parallel offsets and ambiguous brackets', () => {
+test('rejects curves, reversed approaches, parallel offsets and ambiguous brackets', { tag: '@unit' }, () => {
   const cases = [];
   const curve = bracket(); curve[1].points = [point(-10, 0), point(0, 6), point(10, 0)]; cases.push(curve);
   const offset = bracket(); offset[1].points = [point(-10, 2), point(10, 2)]; cases.push(offset);
@@ -213,7 +213,7 @@ test('rejects curves, reversed approaches, parallel offsets and ambiguous bracke
   for (const input of cases) expect(promoteShortDividedGaps(input)).toEqual(input);
 });
 
-test('derives acquisition bounds from recorded evidence for all eighteen saved extracts', () => {
+test('derives acquisition bounds from recorded evidence for all eighteen saved extracts', { tag: '@unit' }, () => {
   const original = JSON.parse(fs.readFileSync(new URL('../src/data/test-location-osm.json', import.meta.url), 'utf8'));
   const additional = JSON.parse(fs.readFileSync(new URL('../src/data/additional-test-locations-osm.json', import.meta.url), 'utf8'));
   for (const data of [original, ...additional, ...fixtures]) {
@@ -235,7 +235,7 @@ test('derives acquisition bounds from recorded evidence for all eighteen saved e
   expect(result.find((w) => w.id === '934470842').points).toEqual(sourceWays.find((w) => w.id === '934470842').points.slice(1));
 });
 
-test('uses final live bounds, centered coverage, and explicit compaction intersection', () => {
+test('uses final live bounds, centered coverage, and explicit compaction intersection', { tag: '@unit' }, () => {
   const project = (p) => point(p.lon * 100, -p.lat * 100);
   const data = { center: { lat: 0, lon: 0 }, provenance: {
     coverageHalfExtentMeters: 200,
@@ -251,7 +251,7 @@ test('uses final live bounds, centered coverage, and explicit compaction interse
   expect(deriveRoadAcquisitionBounds(unknownAuxiliary, project)).toBeNull();
 });
 
-test('never infers acquisition coverage from full-way geometry or an unexplained radius', () => {
+test('never infers acquisition coverage from full-way geometry or an unexplained radius', { tag: '@unit' }, () => {
   const project = (p) => point(p.lon * 100, -p.lat * 100);
   const unknown = { center: { lat: 0, lon: 0 }, geometryRadiusMeters: 500,
     elements: [{ geometry: [{ lat: -1, lon: -1 }, { lat: 1, lon: 1 }] }] };
@@ -272,7 +272,7 @@ test('never infers acquisition coverage from full-way geometry or an unexplained
   expect(cleanup(ways, { acquisitionBounds: deriveRoadAcquisitionBounds(unknown, project) })).toEqual(ways);
 });
 
-test('promotion integrates after consolidation and global transition collapse', () => {
+test('promotion integrates after consolidation and global transition collapse', { tag: '@unit' }, () => {
   const tags = { oneway: 'yes' };
   const input = [
     road('a', [point(-100, -5), point(-10, -5)], tags),

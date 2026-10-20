@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createSimpleTransitStops, snapRailStopsToPaths, placeRailStopLabels } from '../src/services/simpleTransitStops.js';
 
-test('keeps nearby and coincident bus and rail source stops separate and at their actual positions', () => {
+test('keeps nearby and coincident bus and rail source stops separate and at their actual positions', { tag: '@unit' }, () => {
   const transitStops = [
     { type: 'node', id: 1, lat: 1, lon: 2, tags: { name: 'Bus A', highway: 'bus_stop' } },
     { type: 'node', id: 2, lat: 1, lon: 2.01, tags: { name: 'Bus B', highway: 'bus_stop' } },
@@ -25,7 +25,7 @@ test('keeps nearby and coincident bus and rail source stops separate and at thei
   expect(result[2].name).toBe('Catalog Rail A');
 });
 
-test('snaps a station to its matching source rail, not a closer unrelated or offset colored line', () => {
+test('snaps a station to its matching source rail, not a closer unrelated or offset colored line', { tag: '@unit' }, () => {
   const station = { id: 'station', mode: 'rail', x: 50, y: 60, lines: ['A'] };
   const bus = { id: 'bus', mode: 'bus', x: 20, y: 30 };
   const result = snapRailStopsToPaths([station, bus], [
@@ -38,7 +38,7 @@ test('snaps a station to its matching source rail, not a closer unrelated or off
   expect(snapRailStopsToPaths([station], [])).toEqual([]);
 });
 
-test('streetcar stops keep small R icons and are exempt from station labels', () => {
+test('streetcar stops keep small R icons and are exempt from station labels', { tag: '@unit' }, () => {
   const result = createSimpleTransitStops({ transitStops: [] }, (point) => ({ x: point.lon, y: point.lat }), 480, {
     lines: [{ id: 'TROLLEY', mode: 'streetcar' }, { id: 'TRAIN', mode: 'rail' }],
     stops: [
@@ -51,7 +51,7 @@ test('streetcar stops keep small R icons and are exempt from station labels', ()
   expect(placeRailStopLabels(result).map((label) => label.stopId)).toEqual(['rail']);
 });
 
-test('excludes OSM rail platforms and catalog stops outside the frame without falling back to OSM', () => {
+test('excludes OSM rail platforms and catalog stops outside the frame without falling back to OSM', { tag: '@unit' }, () => {
   const result = createSimpleTransitStops({
     transitStops: [
       { type: 'way', id: 7, lat: 1, lon: 2, tags: { public_transport: 'platform' } },
@@ -62,7 +62,7 @@ test('excludes OSM rail platforms and catalog stops outside the frame without fa
   expect(result).toHaveLength(0);
 });
 
-test('each fixed rail marker gets its own nearby name and leader ending on the circle edge', () => {
+test('each fixed rail marker gets its own nearby name and leader ending on the circle edge', { tag: '@unit' }, () => {
   const stops = [
     { id: 'geojson:1', mode: 'rail', name: 'WEST END STATION', x: 220, y: 150, radius: 9 },
     { id: 'geojson:2', mode: 'rail', name: 'AKARD STATION', x: 260, y: 160, radius: 9 },
@@ -80,7 +80,7 @@ test('each fixed rail marker gets its own nearby name and leader ending on the c
   }
 });
 
-test('labels prefer clear positions but allow overlaps on a crowded canvas while leaders stay straight', () => {
+test('labels prefer clear positions but allow overlaps on a crowded canvas while leaders stay straight', { tag: '@unit' }, () => {
   const stops = [
     { id: 'A', mode: 'rail', name: 'FIRST STATION', x: 140, y: 180, radius: 10.5 },
     { id: 'B', mode: 'rail', name: 'SECOND STATION', x: 320, y: 180, radius: 10.5 },

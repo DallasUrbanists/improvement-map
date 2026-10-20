@@ -9,7 +9,7 @@ const render = (segments) => renderSourceTransit({
   segments: segments.map(([a, b, keys], i) => ({ id: String(i), geometry: [geo(a), geo(b)], keys })),
 }, { lat: 0, lon: 0 }, 240, project, screen, 1);
 
-test('preserves every source vertex along a curve without straightening or shortcuts', () => {
+test('preserves every source vertex along a curve without straightening or shortcuts', { tag: '@unit' }, () => {
   const points = [[40, 160], [70, 168], [100, 190], [130, 220], [160, 245], [190, 260], [220, 265]];
   const result = render(points.slice(1).map((point, i) => [points[i], point, ['A']]));
   expect(result.segments).toHaveLength(1);
@@ -20,14 +20,14 @@ test('preserves every source vertex along a curve without straightening or short
   }
 });
 
-test('does not join unrelated endpoints even when they are only four meters apart', () => {
+test('does not join unrelated endpoints even when they are only four meters apart', { tag: '@unit' }, () => {
   const result = render([[[40, 160], [120, 160], ['A']], [[124, 160], [200, 190], ['A']]]);
   expect(result.segments).toHaveLength(2);
   expect(result.segments[0].points.at(-1).x).toBeCloseTo(120, 8);
   expect(result.segments[1].points[0].x).toBeCloseTo(124, 8);
 });
 
-test('equivalent route variants keep all service lanes apart through their shared corridor', () => {
+test('equivalent route variants keep all service lanes apart through their shared corridor', { tag: '@unit' }, () => {
   const result = render([
     [[40, 200], [120, 200], ['A', 'B', 'C']],
     [[120, 200], [200, 202], ['A', 'B']], [[200, 202], [280, 200], ['A', 'B']],
@@ -48,7 +48,7 @@ test('equivalent route variants keep all service lanes apart through their share
   }
 });
 
-test('matches same-color junction endpoints and retains geometry away from local transitions', () => {
+test('matches same-color junction endpoints and retains geometry away from local transitions', { tag: '@unit' }, () => {
   const result = render([
     [[240, 240], [310, 240], ['A', 'B']], [[310, 240], [400, 260], ['A', 'B']],
     [[40, 120], [100, 150], ['A']], [[100, 150], [160, 210], ['A']], [[160, 210], [240, 240], ['A']],

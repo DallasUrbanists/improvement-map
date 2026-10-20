@@ -44,7 +44,13 @@ test('custom coordinates update preview, comparison link, download, and reset wi
   await routeProviders(page, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) }));
   await page.goto('/test');
   await page.getByLabel('Renderer').selectOption('current');
+  await page.waitForFunction(() => {
+    const image = document.querySelector('[data-testid="diagram-preview"]');
+    return image?.complete && image.naturalWidth === 480 && image.naturalHeight === 480;
+  });
   const original = await page.getByTestId('diagram-preview').getAttribute('src');
+  const originalCoordinates = await page.getByLabel('Coordinates (latitude, longitude)').inputValue();
+  const originalGallery = await page.getByTestId('additional-diagram-preview').evaluateAll((images) => images.map((image) => image.getAttribute('src')));
   await page.getByLabel('Coordinates (latitude, longitude)').fill(`${center.lat}, ${center.lon}`);
   await page.getByRole('button', { name: 'Generate diagram', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Generated diagram for');
@@ -57,12 +63,13 @@ test('custom coordinates update preview, comparison link, download, and reset wi
   expect(svg).toContain(`The crosshair marks ${center.lat}, ${center.lon}`);
   expect(svg).toContain('Live Bus Stop');
   expect(svg).toContain('Dallas');
-  await expect(page.getByTestId('additional-diagram-preview')).toHaveCount(19);
+  expect(await page.getByTestId('additional-diagram-preview').evaluateAll((images) => images.map((image) => image.getAttribute('src')))).toEqual(originalGallery);
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('link', { name: 'Download SVG', exact: true }).first().click()]);
   expect(fs.readFileSync(await download.path(), 'utf8')).toContain(`The crosshair marks ${center.lat}, ${center.lon}`);
   await page.getByRole('button', { name: 'Reset example' }).click();
   await expect(page.getByTestId('diagram-preview')).toHaveAttribute('src', original);
-  await expect(page.getByLabel('Coordinates (latitude, longitude)')).toHaveValue('32.78145881782909, -96.7994967769097');
+  await expect(page.getByLabel('Coordinates (latitude, longitude)')).toHaveValue(originalCoordinates);
+  expect(await page.getByTestId('additional-diagram-preview').evaluateAll((images) => images.map((image) => image.getAttribute('src')))).toEqual(originalGallery);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

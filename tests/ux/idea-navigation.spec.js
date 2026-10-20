@@ -76,7 +76,7 @@ test('My actions is a Details origin and Escape dismisses the inner layer first'
     localStorage.setItem('improvement_map_actions_v1', JSON.stringify({ version: 1, saved: { a: { action: { key: 'a', summary: 'Contact the city', instructions: '', reason: '', sourceUrl: '' }, suggestionId: '2', suggestionSummary: 'Suggestion 2', savedAt: new Date().toISOString() } }, hidden: {}, generated: {} }));
   });
   await page.goto('/my-actions');
-  await page.getByRole('link', { name: 'View suggestion', exact: true }).click();
+  await page.getByRole('link', { name: 'Suggestion 2', exact: true }).click();
   await ready(page);
   await page.locator('summary').filter({ hasText: 'Photos (2)' }).click();
   await page.getByRole('button', { name: 'Open photo 1: Crossing photo 1' }).click();

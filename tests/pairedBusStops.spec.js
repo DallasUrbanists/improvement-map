@@ -23,7 +23,7 @@ for (const [first, second] of [
   ['Elm @ Avenue E - W - NS', 'Elm @ Avenue E - E - FS'],
   ['Elm @ Akard WB NS', 'Elm @ Akard EB FS'],
 ]) {
-  test(`normalizes complementary bus identities: ${first}`, () => {
+  test(`normalizes complementary bus identities: ${first}`, { tag: '@unit' }, () => {
     const result = render([stop('a', first, 100, 92), stop('b', second, 120, 108)], [road()]);
     expect(result.markers).toHaveLength(1);
     expect(result.markers[0]).toMatchObject({ id: 'bus-pair:node:a|node:b', mode: 'bus',
@@ -35,7 +35,7 @@ for (const [first, second] of [
   });
 }
 
-test('projects the actual midpoint onto the rendered road, independently of badge placement', () => {
+test('projects the actual midpoint onto the rendered road, independently of badge placement', { tag: '@unit' }, () => {
   const result = render([stop('a', 'Elm @ Akard - W - NS', 230, 222),
     stop('b', 'Elm @ Akard - E - NS', 250, 255)], [road('Elm', [{ x: 80, y: 240 }, { x: 400, y: 240 }])]);
   expect(result.pairs[0].midpoint).toEqual({ x: 240, y: 238.5 });
@@ -43,7 +43,7 @@ test('projects the actual midpoint onto the rendered road, independently of badg
   expect(Math.hypot(result.markers[0].x - 240, result.markers[0].y - 240)).toBeGreaterThan(30);
 });
 
-test('badges avoid supplied protected label boxes while preserving paired stop projection and pin clearance', () => {
+test('badges avoid supplied protected label boxes while preserving paired stop projection and pin clearance', { tag: '@unit' }, () => {
   const stops = [stop('a', 'Elm @ Akard - W', 100, 92), stop('b', 'Elm @ Akard - E', 120, 108),
     stop('pin', 'Pin-adjacent stop', 240, 240)];
   const data = { transitStops: stops };
@@ -69,7 +69,7 @@ test('badges avoid supplied protected label boxes while preserving paired stop p
   expect(createTransitStopMarkers({}, screenPoint, 1, 480, { occupied: protectedBoxes }).occupied).toEqual([]);
 });
 
-test('real medical-district badges clear primary Harry Hines glyphs while retaining Kendall pair centerline target', () => {
+test('real medical-district badges clear primary Harry Hines glyphs while retaining Kendall pair centerline target', { tag: '@unit' }, () => {
   const fixtures = JSON.parse(fs.readFileSync(new URL('../src/data/additional-test-locations-osm.json', import.meta.url), 'utf8'));
   for (const id of ['medical-district', 'bachman']) {
     const fixture = fixtures.find((entry) => entry.id === id);
@@ -98,7 +98,7 @@ test('real medical-district badges clear primary Harry Hines glyphs while retain
   }
 });
 
-test('real dense fixtures keep every badge above the copyright row', () => {
+test('real dense fixtures keep every badge above the copyright row', { tag: '@unit' }, () => {
   const fixtures = JSON.parse(fs.readFileSync(new URL('../src/data/additional-test-locations-osm.json', import.meta.url), 'utf8'));
   for (const fixture of fixtures) {
     const diagram = generateLocationDiagram(fixture, fixture.center);
@@ -110,7 +110,7 @@ test('real dense fixtures keep every badge above the copyright row', () => {
   for (const badge of render(stops).markers) expect(badge.y + badge.height / 2).toBeLessThanOrEqual(432);
 });
 
-test('protected occupancy options preserve legacy defaults and returned rectangle shape', () => {
+test('protected occupancy options preserve legacy defaults and returned rectangle shape', { tag: '@unit' }, () => {
   const data = { transitStops: [stop('a', 'Elm @ Akard - W', 100, 92), stop('b', 'Elm @ Akard - E', 120, 108)] };
   const screenPoint = (entry) => ({ x: entry.x, y: entry.y });
   const legacy = createTransitStopMarkers(data, screenPoint, 1);
@@ -122,7 +122,7 @@ test('protected occupancy options preserve legacy defaults and returned rectangl
     .toEqual(createTransitStopMarkers(data, screenPoint, 1, 480, roadOptions));
 });
 
-test('uses polyline segments and screen-pixel scale for diagonal rendered streets', () => {
+test('uses polyline segments and screen-pixel scale for diagonal rendered streets', { tag: '@unit' }, () => {
   const result = render([stop('a', 'Elm @ Akard - W', 180, 196), stop('b', 'Elm @ Akard - E', 220, 204)],
     [road('Elm', [{ x: 60, y: 300 }, { x: 100, y: 100 }, { x: 300, y: 300 }])], 2);
   expect(result.markers).toHaveLength(1);
@@ -130,7 +130,7 @@ test('uses polyline segments and screen-pixel scale for diagonal rendered street
   expect(result.markers[0].stopY).toBeCloseTo(200);
 });
 
-test('requires rendered opposite-side geometry when names have no direction', () => {
+test('requires rendered opposite-side geometry when names have no direction', { tag: '@unit' }, () => {
   const stops = [stop('a', 'Elm @ Akard - platform A', 100, 92),
     stop('b', 'Elm @ Akard - platform B', 120, 108)];
   expect(render(stops).markers).toHaveLength(2);
@@ -140,14 +140,14 @@ test('requires rendered opposite-side geometry when names have no direction', ()
   expect(render(stops, []).markers).toHaveLength(2);
 });
 
-test('ignores unnamed, invalid and zero-length rendered road segments', () => {
+test('ignores unnamed, invalid and zero-length rendered road segments', { tag: '@unit' }, () => {
   const stops = [stop('a', 'Elm @ Akard - W', 100, 92), stop('b', 'Elm @ Akard - E', 120, 108)];
   const paths = [road(null), road(undefined, [{ x: NaN, y: 0 }, { x: 100, y: 100 }]),
     road('Elm', [{ x: 100, y: 100 }, { x: 100, y: 100 }]), road()];
   expect(render(stops, paths).markers[0]).toMatchObject({ id: 'bus-pair:node:a|node:b', stopX: 110, stopY: 100 });
 });
 
-test('explicit complementary identity falls back to midpoint without supplied road paths', () => {
+test('explicit complementary identity falls back to midpoint without supplied road paths', { tag: '@unit' }, () => {
   const result = render([stop('a', 'Elm @ Akard - W', 100, 91), stop('b', 'Elm @ Akard - E', 120, 109)]);
   expect(result.markers).toHaveLength(1);
   expect(result.markers[0]).toMatchObject({ stopX: 110, stopY: 100 });
@@ -172,14 +172,14 @@ for (const [label, stops, paths] of [
   ['incompatible recognized agencies', [stop('a', 'Elm @ Akard - W', 100, 92), stop('b', 'Elm @ Akard - E', 120, 108, { network: 'Trinity Metro' })], [road()]],
   ['incompatible unknown agency evidence', [stop('a', 'Elm @ Akard - W', 100, 92, { network: 'Local A' }), stop('b', 'Elm @ Akard - E', 120, 108, { network: 'Local B' })], [road()]],
 ]) {
-  test(`does not pair ${label}`, () => {
+  test(`does not pair ${label}`, { tag: '@unit' }, () => {
     const result = render(stops, paths);
     expect(result.markers).toHaveLength(2);
     expect(result.pairs).toEqual([]);
   });
 }
 
-test('preserves agency inference and unions compatible multi-agency evidence', () => {
+test('preserves agency inference and unions compatible multi-agency evidence', { tag: '@unit' }, () => {
   const a = stop('a', 'Elm @ Akard - W', 100, 92, { network: 'DART; Trinity Metro' });
   const b = stop('b', 'Elm @ Akard - E', 120, 108, { network: undefined });
   const result = render([a, b], [road()], 1, { transitRoutes: [{
@@ -190,7 +190,7 @@ test('preserves agency inference and unions compatible multi-agency evidence', (
   expect(render([a, { ...b, tags: { ...b.tags, direction: 'eastbound' } }], [road()]).markers).toHaveLength(1);
 });
 
-test('pairing keeps shared stop-area rail deduplication and B+R mode working', () => {
+test('pairing keeps shared stop-area rail deduplication and B+R mode working', { tag: '@unit' }, () => {
   const stops = [stop('a', 'Elm @ Akard - W', 100, 92), stop('b', 'Elm @ Akard - E', 120, 108),
     stop('rail', 'Akard', 110, 100, { highway: undefined, railway: 'station' }),
     stop('rail-platform', 'Akard station', 111, 101, { highway: undefined, railway: 'platform' })];
@@ -202,7 +202,7 @@ test('pairing keeps shared stop-area rail deduplication and B+R mode working', (
   expect(result.pairs).toHaveLength(1);
 });
 
-test('pairing is deterministic, one-to-one, and does not mutate input or roads', () => {
+test('pairing is deterministic, one-to-one, and does not mutate input or roads', { tag: '@unit' }, () => {
   const stops = [stop('a', 'Elm @ Akard - W', 100, 92), stop('b', 'Elm @ Akard - E', 110, 108),
     stop('c', 'Elm @ Akard - W', 160, 92)];
   const paths = [road()];
@@ -215,7 +215,7 @@ test('pairing is deterministic, one-to-one, and does not mutate input or roads',
   expect(JSON.stringify({ stops, paths })).toBe(before);
 });
 
-test('genuine offline Dallas fixtures pair Riverfront and Lamar complementary stops', () => {
+test('genuine offline Dallas fixtures pair Riverfront and Lamar complementary stops', { tag: '@unit' }, () => {
   const original = JSON.parse(fs.readFileSync(new URL('../src/data/test-location-osm.json', import.meta.url), 'utf8'));
   const additional = JSON.parse(fs.readFileSync(new URL('../src/data/additional-test-locations-osm.json', import.meta.url), 'utf8'));
   for (const [fixture, prefix] of [[original, 'Lamar @ Commerce'],

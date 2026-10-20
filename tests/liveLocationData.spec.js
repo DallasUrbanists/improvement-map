@@ -14,14 +14,14 @@ const mockFetch = (elements = roads(), extra = {}) => async () => response(eleme
 
 for (const [input, expected] of [['32.7842, -96.7856', center], [' +90 , -180 ', { lat: 90, lon: -180 }],
   ['-.5, +.25', { lat: -0.5, lon: 0.25 }], ['0,0', { lat: 0, lon: 0 }], ['1.,2.0', { lat: 1, lon: 2 }]]) {
-  test(`parses decimal coordinate pair ${input}`, () => expect(parseCoordinateString(input)).toEqual(expected));
+  test(`parses decimal coordinate pair ${input}`, { tag: '@unit' }, () => expect(parseCoordinateString(input)).toEqual(expected));
 }
 for (const input of ['', '1', '1,2,3', ',2', '1,', 'NaN,0', 'Infinity,0', '1e2,0', '0x10,0', '91,0',
   '0,-181', '1 2,3', '1;2', '1\n2,3', null, {}, '1,2 trailing']) {
-  test(`rejects invalid coordinates ${JSON.stringify(input)}`, () => expect(() => parseCoordinateString(input)).toThrow());
+  test(`rejects invalid coordinates ${JSON.stringify(input)}`, { tag: '@unit' }, () => expect(() => parseCoordinateString(input)).toThrow());
 }
 
-test('preserves renderer geometry, every street tag, stop centroids and stop-only memberships', async () => {
+test('preserves renderer geometry, every street tag, stop centroids and stop-only memberships', { tag: '@unit' }, async () => {
   const tags = { highway: 'service', name: 'Parking', service: 'parking_aisle', oneway: 'yes', layer: '-1',
     expressway: 'yes', cycleway: 'track', 'cycleway:left:separation': 'kerb', access: 'private' };
   const building = { type: 'way', id: 20, tags: { building: 'yes', name: 'Building' },
@@ -74,7 +74,7 @@ test('preserves renderer geometry, every street tag, stop centroids and stop-onl
   expect(diagram.svg).toContain('OpenStreetMap');
 });
 
-test('assembles split building outlines and retains raw multipolygon members including holes', async () => {
+test('assembles split building outlines and retains raw multipolygon members including holes', { tag: '@unit' }, async () => {
   const outline = [point(0, 0), point(10, 0), point(10, 10), point(0, 10), point(0, 0)];
   const relation = { type: 'relation', id: 50, tags: { building: 'yes', type: 'multipolygon' }, members: [
     { type: 'way', ref: 51, role: 'outer', geometry: outline.slice(0, 3) },
@@ -86,7 +86,7 @@ test('assembles split building outlines and retains raw multipolygon members inc
   expect(data.buildingRelations).toEqual([relation]);
 });
 
-test('open way platforms retain geometry with finite centroid', async () => {
+test('open way platforms retain geometry with finite centroid', { tag: '@unit' }, async () => {
   const geometry = [point(10, 10), point(20, 20)];
   const { data } = await fetchLocationData(center, { fetchImpl: mockFetch([...roads(),
     { type: 'way', id: 10, tags: { public_transport: 'platform', bus: 'yes' }, geometry }]) });
@@ -94,7 +94,7 @@ test('open way platforms retain geometry with finite centroid', async () => {
   expect(data.transitStops[0].geometry).toEqual(geometry);
 });
 
-test('enumerates positive provider area containment ordered most-specific without claiming polygon verification', async () => {
+test('enumerates positive provider area containment ordered most-specific without claiming polygon verification', { tag: '@unit' }, async () => {
   const area = (id, level, name) => ({ type: 'area', id: 3600000000 + id,
     tags: { boundary: 'administrative', admin_level: level, ...(name ? { name } : {}) } });
   const { administrativeBoundary } = await fetchLocationData(center, { fetchImpl: mockFetch([...roads(),
@@ -108,7 +108,7 @@ test('enumerates positive provider area containment ordered most-specific withou
   expect(administrativeBoundary).not.toHaveProperty('geometry');
 });
 
-test('does not fabricate a boundary/name from nearby relations or unnamed containing areas', async () => {
+test('does not fabricate a boundary/name from nearby relations or unnamed containing areas', { tag: '@unit' }, async () => {
   const relation = { type: 'relation', id: 2, tags: { boundary: 'administrative', name: 'Nearby, not containing' } };
   const none = await fetchLocationData(center, { fetchImpl: mockFetch([...roads(), relation]) });
   expect(none.administrativeBoundary).toBeNull();
@@ -118,7 +118,7 @@ test('does not fabricate a boundary/name from nearby relations or unnamed contai
   expect(unnamed.administrativeBoundary.verification.contains).toBe(true);
 });
 
-test('refetches to cover the exact renderer square and includes newly exposed buildings', async () => {
+test('refetches to cover the exact renderer square and includes newly exposed buildings', { tag: '@unit' }, async () => {
   const calls = [];
   const extraBuilding = { type: 'way', id: 99, tags: { building: 'yes' },
     geometry: [point(490, -10), point(510, -10), point(510, 10), point(490, -10)] };
@@ -134,7 +134,7 @@ test('refetches to cover the exact renderer square and includes newly exposed bu
   expect(data.provenance.viewportHalfExtentMeters).toBeCloseTo(577.5, 6);
 });
 
-test('groups same-name road pieces and excludes service/cycleway from fitting', async () => {
+test('groups same-name road pieces and excludes service/cycleway from fitting', { tag: '@unit' }, async () => {
   let calls = 0;
   await fetchLocationData(center, { fetchImpl: async () => { calls++;
     return response([...roads([20, 40]), road(10, 60, { name: 'Street 1' }),
@@ -144,7 +144,7 @@ test('groups same-name road pieces and excludes service/cycleway from fitting', 
   expect(calls).toBe(3);
 });
 
-test('errors clearly instead of silently using incomplete oversized geometry', async () => {
+test('errors clearly instead of silently using incomplete oversized geometry', { tag: '@unit' }, async () => {
   let calls = 0;
   await expect(fetchLocationData(center, { fetchImpl: async () => { calls++; return response(roads([20, 40, 80, 2500])); } }))
     .rejects.toThrow(/oversized/);
@@ -152,7 +152,7 @@ test('errors clearly instead of silently using incomplete oversized geometry', a
   await expect(fetchLocationData(center, { fetchImpl: mockFetch([]) })).rejects.toThrow(/4 named/);
 });
 
-test('renders geometry when the provider administrative-area database is missing', async () => {
+test('renders geometry when the provider administrative-area database is missing', { tag: '@unit' }, async () => {
   const queries = [];
   const { data, administrativeBoundary } = await fetchLocationData(center, { fetchImpl: async (_, options) => {
     queries.push(options.body.get('data'));
@@ -170,7 +170,7 @@ test('renders geometry when the provider administrative-area database is missing
   expect(data.provenance.acquisitions[0].query).toBe(queries[1]);
 });
 
-test('retries once on provider/network failure with a different CORS endpoint', async () => {
+test('retries once on provider/network failure with a different CORS endpoint', { tag: '@unit' }, async () => {
   const urls = [];
   const { data } = await fetchLocationData(center, { fetchImpl: async (url) => {
     urls.push(url);
@@ -195,14 +195,14 @@ for (const [title, fetchImpl, error] of [
   ['invalid element', mockFetch([null]), /Malformed/],
   ['HTTP 400', async () => ({ ok: false, status: 400 }), /HTTP 400/],
 ]) {
-  test(`errors without retrying on ${title}`, async () => {
+  test(`errors without retrying on ${title}`, { tag: '@unit' }, async () => {
     let calls = 0;
     await expect(fetchLocationData(center, { fetchImpl: (...args) => { calls++; return fetchImpl(...args); } })).rejects.toThrow(error);
     expect(calls).toBe(1);
   });
 }
 
-test('pre-aborted requests never contact provider; in-flight abort interrupts even an uncooperative fetch', async () => {
+test('pre-aborted requests never contact provider; in-flight abort interrupts even an uncooperative fetch', { tag: '@unit' }, async () => {
   const before = new AbortController(); before.abort();
   let calls = 0;
   await expect(fetchLocationData(center, { signal: before.signal, fetchImpl: async () => { calls++; return response(); } }))
@@ -219,7 +219,7 @@ test('pre-aborted requests never contact provider; in-flight abort interrupts ev
   expect(requestedSignal.aborted).toBe(true);
 });
 
-test('bounded request timeout falls back and overall deadline aborts uncooperative providers', async () => {
+test('bounded request timeout falls back and overall deadline aborts uncooperative providers', { tag: '@unit' }, async () => {
   const originalSetTimeout = globalThis.setTimeout;
   try {
     globalThis.setTimeout = (callback, delay, ...args) => originalSetTimeout(callback, delay === 25000 ? 0 : delay, ...args);
@@ -238,7 +238,7 @@ test('bounded request timeout falls back and overall deadline aborts uncooperati
   }
 });
 
-test('bounds reject invalid numeric centers before HTTP and near-pole oversized extents', async () => {
+test('bounds reject invalid numeric centers before HTTP and near-pole oversized extents', { tag: '@unit' }, async () => {
   for (const value of [null, { lat: '32', lon: -96 }, { lat: 0, lon: Infinity }, { lat: -91, lon: 0 }]) {
     await expect(fetchLocationData(value, { fetchImpl: () => { throw new Error('Should not fetch'); } })).rejects.toThrow(/Latitude/);
   }

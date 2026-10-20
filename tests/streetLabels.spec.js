@@ -43,13 +43,13 @@ async function raster(page, svg) {
   }, svg);
 }
 
-test('rounded label geometry matches the actual renderer, including duplicate vertices', () => {
+test('rounded label geometry matches the actual renderer, including duplicate vertices', { tag: '@unit' }, () => {
   for (const points of [horizontal, curve, [{ x: 50, y: 100 }, { x: 50, y: 100 }, { x: 100, y: 130 }, { x: 300, y: 80 }]]) {
     expect(roundedStreetLabelPath(points)).toBe(roundedRailPath(points, 5));
   }
 });
 
-test('placement is deterministic, immutable, self-contained and fully titled', () => {
+test('placement is deterministic, immutable, self-contained and fully titled', { tag: '@unit' }, () => {
   const options = input();
   const original = structuredClone(options);
   const result = createStreetLabel(options);
@@ -68,7 +68,7 @@ test('placement is deterministic, immutable, self-contained and fully titled', (
   expect(escaped.markup).toContain('<title>A &amp; &lt;Road&gt; &quot;Title&quot;</title>');
 });
 
-test('gray halo is the default and a safe color override preserves all layout geometry', () => {
+test('gray halo is the default and a safe color override preserves all layout geometry', { tag: '@unit' }, () => {
   const gray = createStreetLabel(input());
   expect(gray.markup).toContain('stroke="#f5f5f5" stroke-width="5"');
   for (const haloColor of ['#fff', '#ababab', '#FFF']) {
@@ -84,7 +84,7 @@ test('gray halo is the default and a safe color override preserves all layout ge
   }
 });
 
-test('rank one reserves every glyph envelope, including halo, inside all frame margins', () => {
+test('rank one reserves every glyph envelope, including halo, inside all frame margins', { tag: '@unit' }, () => {
   for (const polylines of [[horizontal], [curve], [line({ x: 80, y: -50 }, { x: 350, y: 520 })],
     [line({ x: 150, y: 540 }, { x: 150, y: -60 })]]) {
     const result = createStreetLabel(input({ polylines, occupied: [] }));
@@ -102,7 +102,7 @@ test('rank one reserves every glyph envelope, including halo, inside all frame m
   expect(createStreetLabel(input({ polylines: [line({ x: -100, y: 45 }, { x: 600, y: 45 })] })).markup).toBe('');
 });
 
-test('secondary ranks prefer partial clipping to omission but require a majority visible', () => {
+test('secondary ranks prefer partial clipping to omission but require a majority visible', { tag: '@unit' }, () => {
   const points = line({ x: -100, y: 110 }, { x: 140, y: 110 });
   expect(createStreetLabel(input({ polylines: [points] })).markup).toBe('');
   for (const rank of [2, 3, 4]) {
@@ -116,7 +116,7 @@ test('secondary ranks prefer partial clipping to omission but require a majority
   expect(createStreetLabel(input({ rank: 2, polylines: [mostlyOutside] })).markup).toBe('');
 });
 
-test('full secondary placements outrank clipped placements and preserve rank/index conventions', () => {
+test('full secondary placements outrank clipped placements and preserve rank/index conventions', { tag: '@unit' }, () => {
   const clipped = line({ x: -100, y: 110 }, { x: 100, y: 110 });
   const result = createStreetLabel(input({ rank: undefined, index: 1, polylines: [clipped, horizontal] }));
   expect(result.diagnostics.rank).toBe(2);
@@ -124,7 +124,7 @@ test('full secondary placements outrank clipped placements and preserve rank/ind
   expect(result.diagnostics.fullyInFrame).toBe(true);
 });
 
-test('curved labels avoid the crosshair, transit badges and previously placed text', () => {
+test('curved labels avoid the crosshair, transit badges and previously placed text', { tag: '@unit' }, () => {
   const badge = { x: 80, y: 159, width: 60, height: 40 };
   const obstacles = [crosshair, badge];
   const first = createStreetLabel(input({ text: 'Market Blvd', polylines: [curve], occupied: obstacles }));
@@ -138,7 +138,7 @@ test('curved labels avoid the crosshair, transit badges and previously placed te
   expect(blocked.diagnostics.reason).toBe('no-clear-span');
 });
 
-test('right-to-left source paths are exactly reversed, remain on the curve, and read upright', () => {
+test('right-to-left source paths are exactly reversed, remain on the curve, and read upright', { tag: '@unit' }, () => {
   const result = createStreetLabel(input({ polylines: [[...curve].reverse()], occupied: [] }));
   expect(result.diagnostics.placed).toBe(true);
   expect(result.diagnostics.reversed).toBe(true);
@@ -147,7 +147,7 @@ test('right-to-left source paths are exactly reversed, remain on the curve, and 
   expect(result.diagnostics.curvature).toBeGreaterThan(0.1);
 });
 
-test('tiny, disconnected, invalid and ineligible paths and unsupported names are omitted safely', () => {
+test('tiny, disconnected, invalid and ineligible paths and unsupported names are omitted safely', { tag: '@unit' }, () => {
   for (const polylines of [[], [[]], [[{ x: 20, y: 20 }]], [line({ x: 50, y: 100 }, { x: 80, y: 100 })],
     [line({ x: NaN, y: 100 }, { x: 400, y: 100 })], [horizontal.map((point) => ({ ...point, x: Infinity }))],
     [{ points: horizontal, labelEligible: false }],
@@ -190,7 +190,7 @@ test('four ranked labels expose non-vacuous layout diagnostics and distinct SVG 
   }
 });
 
-test('touching short fragments join their exact rendered curves without bridging disconnected streets', () => {
+test('touching short fragments join their exact rendered curves without bridging disconnected streets', { tag: '@unit' }, () => {
   const pieces = [[{ x: 30, y: 150 }, { x: 130, y: 150 }],
     [{ x: 130, y: 150 }, { x: 180, y: 150 }, { x: 230, y: 160 }],
     [{ x: 230, y: 160 }, { x: 300, y: 180 }, { x: 390, y: 190 }]];
@@ -204,7 +204,7 @@ test('touching short fragments join their exact rendered curves without bridging
   expect(result.diagnostics.curvature).toBeGreaterThan(0.1);
 });
 
-test('sharp hairpins cannot make text reverse direction mid-label', () => {
+test('sharp hairpins cannot make text reverse direction mid-label', { tag: '@unit' }, () => {
   const result = createStreetLabel(input({ text: 'Long Hairpin Boulevard', occupied: [],
     polylines: [[{ x: 100, y: 140 }, { x: 240, y: 140 }, { x: 100, y: 155 }]] }));
   expect(result.markup).toBe('');

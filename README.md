@@ -110,6 +110,9 @@ npm run build
 Generates production PWA files in the `dist/` directory.
 
 ### 4. Run Automated Playwright Tests
+
+See [test maintenance and focused commands](docs/test-maintenance.md) for the unit/browser split and coverage policy.
+
 ```bash
 # Run regression tests across Desktop and Mobile viewports
 npm test

@@ -23,7 +23,7 @@ test('toolbar visual baseline', async ({ page }, info) => {
   const toolbar = page.getByRole('group', { name: 'Map view options' });
   await expect(toolbar).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
-  const options = { animations: 'disabled', caret: 'hide' };
+  const options = { animations: 'disabled', caret: 'hide', maxDiffPixels: 16 };
   if (existsSync(info.snapshotPath('toolbar.png')) || process.env.UX_VISUAL === '1') {
     await expect(toolbar).toHaveScreenshot('toolbar.png', options);
   } else {

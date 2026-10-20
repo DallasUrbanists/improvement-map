@@ -11,7 +11,7 @@ const second = way(2, [{ x: 100, y: 10 }, { x: 0, y: 10 }], { oneway: 'yes' });
 const fixtures = [...JSON.parse(fs.readFileSync(new URL('../src/data/additional-test-locations-osm.json', import.meta.url))),
   ...JSON.parse(fs.readFileSync(new URL('../src/data/extra-test-locations-osm.json', import.meta.url)))];
 
-test('opposite carriageways become one centered path, preserving protected bike metadata', () => {
+test('opposite carriageways become one centered path, preserving protected bike metadata', { tag: '@unit' }, () => {
   const result = mergeDividedStreets([first, { ...second, bike: true }]);
   expect(result).toHaveLength(1);
   expect(result[0].divided).toBe(true);
@@ -22,7 +22,7 @@ test('opposite carriageways become one centered path, preserving protected bike 
   expect(mergeDividedStreets(reversed)[0].points).toEqual(result[0].points);
 });
 
-test('partial overlaps merge only their shared extent and connect ordinary tails', () => {
+test('partial overlaps merge only their shared extent and connect ordinary tails', { tag: '@unit' }, () => {
   const short = { ...second, points: [{ x: 80, y: 10 }, { x: 20, y: 10 }] };
   const result = mergeDividedStreets([first, short]);
   expect(result.find((entry) => entry.divided).points).toEqual([{ x: 20, y: 5 }, { x: 80, y: 5 }]);
@@ -31,7 +31,7 @@ test('partial overlaps merge only their shared extent and connect ordinary tails
   ]);
 });
 
-test('curved and fragmented carriageways form a continuous centered polyline', () => {
+test('curved and fragmented carriageways form a continuous centered polyline', { tag: '@unit' }, () => {
   const a = way(1, [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 10 }]);
   const b = way(2, [{ x: 0, y: 10 }, { x: 50, y: 10 }]);
   const c = way(3, [{ x: 50, y: 10 }, { x: 100, y: 20 }]);
@@ -43,7 +43,7 @@ test('curved and fragmented carriageways form a continuous centered polyline', (
   expect(centered[0].points.at(-1).y).toBeGreaterThan(14);
 });
 
-test('unrelated, crossing, distant, same-direction, minor, and grade-separated roads stay separate', () => {
+test('unrelated, crossing, distant, same-direction, minor, and grade-separated roads stay separate', { tag: '@unit' }, () => {
   for (const other of [
     { ...second, tags: { ...second.tags, name: 'Other Road' } },
     { ...second, tags: { ...second.tags, highway: 'secondary' } },
@@ -58,13 +58,13 @@ test('unrelated, crossing, distant, same-direction, minor, and grade-separated r
   ]) expect(mergeDividedStreets([first, other])).toEqual([first, other]);
 });
 
-test('geometric inference supports older extracts without directional tags', () => {
+test('geometric inference supports older extracts without directional tags', { tag: '@unit' }, () => {
   const ways = [first, second].map((entry) => ({ ...entry, tags: { name: 'Boulevard', highway: 'primary' } }));
   expect(mergeDividedStreets(ways)).toHaveLength(1);
   expect(mergeDividedStreets(ways)[0].divided).toBe(true);
 });
 
-test('triangular transition fans collapse to the crossing median and preserve connected endpoints', () => {
+test('triangular transition fans collapse to the crossing median and preserve connected endpoints', { tag: '@unit' }, () => {
   const median = way(1, [{ x: 0, y: 0 }, { x: 100, y: 0 }], {}, { divided: true });
   const a = way(2, [{ x: 0, y: 0 }, { x: -10, y: -5 }], {}, { transitionTail: true });
   const b = way(3, [{ x: 0, y: 0 }, { x: -10, y: 5 }], {}, { transitionTail: true });
@@ -84,7 +84,7 @@ test('triangular transition fans collapse to the crossing median and preserve co
   }
 });
 
-test('outer tips between aligned median endpoints move onto the centerline without removing branches', () => {
+test('outer tips between aligned median endpoints move onto the centerline without removing branches', { tag: '@unit' }, () => {
   const a = way(1, [{ x: -8, y: 0 }, { x: 0, y: -10 }], {}, { transitionTail: true });
   const b = way(2, [{ x: -8, y: 0 }, { x: 0, y: 10 }], {}, { transitionTail: true });
   const top = way(3, [{ x: 0, y: -100 }, { x: 0, y: -10 }], {}, { divided: true });
@@ -97,7 +97,7 @@ test('outer tips between aligned median endpoints move onto the centerline witho
     .toEqual([{ ...a, transitionTail: false }, { ...b, transitionTail: false }, top, bottom]);
 });
 
-test('short median-gap connectors center without flattening long loops or bike connectors', () => {
+test('short median-gap connectors center without flattening long loops or bike connectors', { tag: '@unit' }, () => {
   const top = way(1, [{ x: 0, y: -100 }, { x: 0, y: -10 }], {}, { divided: true });
   const bottom = way(2, [{ x: 0, y: 10 }, { x: 0, y: 100 }], {}, { divided: true });
   const connector = way(3, [{ x: 8, y: -10 }, { x: 8, y: 10 }]);
@@ -108,7 +108,7 @@ test('short median-gap connectors center without flattening long loops or bike c
   }
 });
 
-test('Colorado and Beckley no longer retain the spread transition corners', () => {
+test('Colorado and Beckley no longer retain the spread transition corners', { tag: '@unit' }, () => {
   const fixture = fixtures.find((entry) => entry.id === 'location-15');
   const project = (point) => ({ x: (point.lon - fixture.center.lon) * 111195 * Math.cos(fixture.center.lat * Math.PI / 180),
     y: -(point.lat - fixture.center.lat) * 111195 });
@@ -134,7 +134,7 @@ test('Colorado and Beckley no longer retain the spread transition corners', () =
   }
 });
 
-test('requested real-world examples render thick merged roads and retain their street selection', () => {
+test('requested real-world examples render thick merged roads and retain their street selection', { tag: '@unit' }, () => {
   const examples = [
     ['medical-district', ['Harry Hines Boulevard', 'Market Center Boulevard']],
     ['bachman', ['Harry Hines Boulevard']],

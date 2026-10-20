@@ -19,6 +19,7 @@ for (const motion of ['no-preference', 'reduce']) {
       window.__settling = [];
       window.__navigationCenters = [];
       window.__trayHeightFrames = [];
+      window.__trayAnimationFrames = [];
       window.__overlappingMotion = false;
       window.__synchronizedFrames = [];
       let heightAnimation;
@@ -28,7 +29,15 @@ for (const motion of ['no-preference', 'reduce']) {
         const animation = animate(...args);
         heightAnimation = animation;
         const sample = () => {
-          window.__trayHeightFrames.push(tray.getBoundingClientRect().height);
+          const height = tray.getBoundingClientRect().height;
+          window.__trayHeightFrames.push(height);
+          window.__trayAnimationFrames.push({
+            height,
+            cssHeight: getComputedStyle(tray).height,
+            maxHeight: getComputedStyle(tray).maxHeight,
+            contentHeight: tray.querySelector('.map-tray-content').getBoundingClientRect().height,
+            progress: animation.effect.getComputedTiming().progress,
+          });
           if (animation.playState === 'running') requestAnimationFrame(sample);
         };
         requestAnimationFrame(sample);
@@ -85,9 +94,14 @@ for (const motion of ['no-preference', 'reduce']) {
       }
       expect(await page.evaluate(() => window.__overlappingMotion)).toBe(true);
       expect(heights.length).toBeGreaterThan(2);
+      const frames = await page.evaluate(() => window.__trayAnimationFrames);
+      const heightChanges = frames.filter((frame, index) => index === 0 || Math.abs(frame.height - frames[index - 1].height) > .1);
+      const changes = heightChanges.map(({ height, cssHeight, maxHeight, contentHeight, progress }) =>
+        `${height.toFixed(2)}px (css ${cssHeight}, max ${maxHeight}, content ${contentHeight.toFixed(2)}) at ${progress?.toFixed(2) ?? 'finished'}`).join(' → ');
       const min = Math.min(...heights), max = Math.max(...heights);
-      expect(max - min).toBeGreaterThan(1);
-      expect(heights.some(height => height > min + .1 && height < max - .1)).toBe(true);
+      expect(max - min, `Tray height samples: ${changes}`).toBeGreaterThan(1);
+      expect(frames.some(({ height, progress }) => Math.abs(height - heights[0]) > .1 && progress > 0 && progress < 1),
+        `Tray height samples: ${changes}`).toBe(true);
     }
   });
 }

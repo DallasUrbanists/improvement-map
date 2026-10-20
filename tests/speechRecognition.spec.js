@@ -55,7 +55,7 @@ function results(recognizer, entries, resultIndex = 0) {
   });
 }
 
-test('speech controller waits for confirmed start and times out a stalled startup', () => {
+test('speech controller waits for confirmed start and times out a stalled startup', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('Existing text');
   expect(h.states.at(-1)).toBe('starting');
@@ -66,7 +66,7 @@ test('speech controller waits for confirmed start and times out a stalled startu
   expect(h.timers.size).toBe(0);
 });
 
-test('speech controller cancels pending permission and ignores late events', () => {
+test('speech controller cancels pending permission and ignores late events', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('Original');
   const old = h.recognizers[0];
@@ -82,7 +82,7 @@ test('speech controller cancels pending permission and ignores late events', () 
   h.recorder.cancel();
 });
 
-test('speech controller replaces interims and commits each final index once', () => {
+test('speech controller replaces interims and commits each final index once', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('Original');
   const recognizer = h.recognizers[0];
@@ -101,7 +101,7 @@ test('speech controller replaces interims and commits each final index once', ()
   h.recorder.cancel();
 });
 
-test('speech controller removes withdrawn interims without removing deliberate repetitions', () => {
+test('speech controller removes withdrawn interims without removing deliberate repetitions', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('');
   const recognizer = h.recognizers[0];
@@ -112,7 +112,7 @@ test('speech controller removes withdrawn interims without removing deliberate r
   h.recorder.cancel();
 });
 
-test('speech controller waits for last results after Stop and force-aborts a stalled stop', () => {
+test('speech controller waits for last results after Stop and force-aborts a stalled stop', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('');
   const recognizer = h.recognizers[0];
@@ -129,7 +129,7 @@ test('speech controller waits for last results after Stop and force-aborts a sta
   expect(h.timers.size).toBe(0);
 });
 
-test('speech controller restarts Android short sessions without duplicating earlier text', () => {
+test('speech controller restarts Android short sessions without duplicating earlier text', { tag: '@unit' }, () => {
   const h = harness({ shortSessions: true });
   h.recorder.start('Original');
   const first = h.recognizers[0];
@@ -153,7 +153,7 @@ test('speech controller restarts Android short sessions without duplicating earl
   expect(h.recognizers).toHaveLength(2);
 });
 
-test('speech controller can cancel during the restart delay', () => {
+test('speech controller can cancel during the restart delay', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('');
   const first = h.recognizers[0];
@@ -168,7 +168,7 @@ test('speech controller can cancel during the restart delay', () => {
   expect(h.texts.at(-1)).toBe('Complete.');
 });
 
-test('speech controller stops repeated empty sessions rather than looping forever', () => {
+test('speech controller stops repeated empty sessions rather than looping forever', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('');
   for (let i = 0; i < 3; i++) {
@@ -182,7 +182,7 @@ test('speech controller stops repeated empty sessions rather than looping foreve
   expect(h.timers.size).toBe(0);
 });
 
-test('speech controller bounds restart frequency even with final results', () => {
+test('speech controller bounds restart frequency even with final results', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('');
   for (let i = 0; i < 11; i++) {
@@ -198,7 +198,7 @@ test('speech controller bounds restart frequency even with final results', () =>
 });
 
 for (const error of ['not-allowed', 'network', 'no-speech', 'audio-capture']) {
-  test(`speech controller stops on ${error} without restarting`, () => {
+  test(`speech controller stops on ${error} without restarting`, { tag: '@unit' }, () => {
     const h = harness();
     h.recorder.start('');
     h.recognizers[0].onerror({ error });
@@ -210,7 +210,7 @@ for (const error of ['not-allowed', 'network', 'no-speech', 'audio-capture']) {
   });
 }
 
-test('speech controller detects a started recognizer that never delivers text', () => {
+test('speech controller detects a started recognizer that never delivers text', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('');
   h.recognizers[0].onstart();
@@ -220,7 +220,7 @@ test('speech controller detects a started recognizer that never delivers text', 
   expect(h.recognizers[0].aborts).toBe(1);
 });
 
-test('speech controller preserves pending text on an incomplete natural end', () => {
+test('speech controller preserves pending text on an incomplete natural end', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('');
   h.recognizers[0].onstart();
@@ -231,7 +231,7 @@ test('speech controller preserves pending text on an incomplete natural end', ()
   expect(h.recognizers).toHaveLength(1);
 });
 
-test('speech controller diagnostics never include source text or transcripts', () => {
+test('speech controller diagnostics never include source text or transcripts', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('Private source text');
   h.recognizers[0].onstart();
@@ -244,7 +244,7 @@ test('speech controller diagnostics never include source text or transcripts', (
     ['timestamp', 'sessionId', 'event', 'error'].includes(key)))).toBe(true);
 });
 
-test('speech controller ignores rapid duplicate starts and recovers from thrown start/stop calls', () => {
+test('speech controller ignores rapid duplicate starts and recovers from thrown start/stop calls', { tag: '@unit' }, () => {
   const h = harness();
   h.recorder.start('Original');
   h.recorder.start('Ignored');
@@ -272,6 +272,7 @@ test('speech UI can cancel startup and abort recording when its cached view is l
     }
     window.SpeechRecognition = Recognition;
   });
+  await page.addInitScript(() => localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({ step: 3, details: '', photos: [], location: { latitude: 32.78, longitude: -96.8, address: 'Dallas, TX' } })));
   await page.goto('/submit');
   await page.locator('#input-details').fill('Original draft content');
   await page.getByRole('button', { name: /Record$/ }).click();
@@ -286,10 +287,12 @@ test('speech UI can cancel startup and abort recording when its cached view is l
     window.lateSpeechResult = session.onresult;
   });
   await expect(page.getByRole('button', { name: 'Stop recording' })).toBeVisible();
-  await page.getByRole('link', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.speechSessions[1].aborted)).toBe(true);
   await page.evaluate(() => window.lateSpeechResult({ results: [[{ transcript: 'Must be ignored' }]] }));
-  await page.getByRole('link', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByTestId('pin-and-continue').click();
+  await page.getByRole('button', { name: 'Skip photos', exact: true }).click();
   await expect(page.locator('#input-details')).toHaveValue('Original draft content');
   await expect(page.getByRole('button', { name: /Record$/ })).toBeVisible();
 });
@@ -304,6 +307,7 @@ test('speech UI says Please wait during an automatic restart and resumes listeni
     }
     window.SpeechRecognition = Recognition;
   });
+  await page.addInitScript(() => localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({ step: 3, details: '', photos: [], location: { latitude: 32.78, longitude: -96.8, address: 'Dallas, TX' } })));
   await page.goto('/submit');
   await page.getByRole('button', { name: 'Record speech to text' }).click();
   await page.evaluate(() => {
@@ -332,6 +336,7 @@ test('speech UI recovers from a stalled stop and cancels when the page is hidden
     }
     window.SpeechRecognition = Recognition;
   });
+  await page.addInitScript(() => localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({ step: 3, details: '', photos: [], location: { latitude: 32.78, longitude: -96.8, address: 'Dallas, TX' } })));
   await page.goto('/submit');
   await page.getByRole('button', { name: 'Record speech to text' }).click();
   await page.getByRole('button', { name: 'Stop recording' }).click();
@@ -349,7 +354,7 @@ test('speech UI recovers from a stalled stop and cancels when the page is hidden
   expect(await page.evaluate(() => window.recognizer.aborted)).toBe(true);
 });
 
-test('speech controller offers a keyboard fallback when the API is unavailable', () => {
+test('speech controller offers a keyboard fallback when the API is unavailable', { tag: '@unit' }, () => {
   const h = harness({ unsupported: true });
   h.recorder.start('');
   expect(h.errors.at(-1)).toContain('keyboard microphone');

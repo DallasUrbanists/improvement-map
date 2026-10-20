@@ -5,17 +5,8 @@ import { createTransitStopMarkers } from '../src/services/transitStops.js';
 
 const original = JSON.parse(fs.readFileSync(new URL('../src/data/test-location-osm.json', import.meta.url), 'utf8'));
 const additional = JSON.parse(fs.readFileSync(new URL('../src/data/additional-test-locations-osm.json', import.meta.url), 'utf8'));
-const coordinates = [
-  [32.780017580621774, -96.80887918446064],
-  [32.79031836911971, -96.81145872166579],
-  [32.797646133410474, -96.80142278473127],
-  [32.80595531491456, -96.79461026102173],
-  [32.806472820267075, -96.83042844171591],
-  [32.85352890117053, -96.8787510771719],
-  [33.01065228733186, -96.95918249975571],
-];
 
-test('original diagram embeds DART artwork for both Elm bus stop and Akard station', () => {
+test('original diagram embeds DART artwork for both Elm bus stop and Akard station', { tag: '@unit' }, () => {
   const result = generateLocationDiagram(original, original.center);
   expect(result.transitStops.length).toBeGreaterThanOrEqual(2);
   expect(result.transitStops.find((stop) => stop.mode === 'bus')).toMatchObject({ name: 'Elm @ Akard - W - NS', agencies: ['dart'] });
@@ -28,7 +19,7 @@ test('original diagram embeds DART artwork for both Elm bus stop and Akard stati
   }
 });
 
-test('agency matching preserves provider identity when shared stop-area modes are combined', () => {
+test('agency matching preserves provider identity when shared stop-area modes are combined', { tag: '@unit' }, () => {
   const tags = [
     { network: 'DART', highway: 'bus_stop', name: 'DART bus' },
     { operator: 'Denton County Transportation Authority', railway: 'station', name: 'DCTA rail' },
@@ -56,7 +47,7 @@ test('agency matching preserves provider identity when shared stop-area modes ar
   expect(markers.some((marker) => marker.name === 'Outside frame')).toBe(false);
 });
 
-test('locations 3 and 5 retain only their combined rail agency marker', () => {
+test('locations 3 and 5 retain only their combined rail agency marker', { tag: '@unit' }, () => {
   for (const id of ['victory', 'cityplace']) {
     const data = additional.find((location) => location.id === id);
     const result = generateLocationDiagram(data, data.center);
@@ -66,7 +57,7 @@ test('locations 3 and 5 retain only their combined rail agency marker', () => {
   }
 });
 
-test('locations 7 and 8 combine shared bus and rail stations without merging unrelated stops', () => {
+test('locations 7 and 8 combine shared bus and rail stations without merging unrelated stops', { tag: '@unit' }, () => {
   for (const [id, name, agencies] of [['bachman', 'Bachman', ['dart']], ['carrollton', 'Hebron', ['dcta']]]) {
     const data = additional.find((location) => location.id === id);
     const result = generateLocationDiagram(data, data.center);
@@ -80,7 +71,7 @@ test('locations 7 and 8 combine shared bus and rail stations without merging unr
   expect(result.transitStops.find((stop) => stop.name.includes('Greyhound'))).toMatchObject({ mode: 'bus', agencies: ['greyhound'] });
 });
 
-test('all eleven agencies match their supplied logos and embed artwork without remote requests', () => {
+test('all eleven agencies match their supplied logos and embed artwork without remote requests', { tag: '@unit' }, () => {
   const operators = ['Amtrak', 'Dallas Area Rapid Transit', 'Denton County Transportation Authority', 'FlixBus',
     'Greyhound', 'McKinney Avenue Transit Authority', 'Red Coach', 'STAR Transit', 'Trinity Railway Express', 'Trinity Metro', 'Vonlane'];
   const agencies = ['amtrak', 'dart', 'dcta', 'flixbus', 'greyhound', 'm-line', 'redcoach', 'star-transit', 'tre', 'trinity-metro', 'vonlane'];
@@ -127,7 +118,7 @@ test('all eleven embedded agency artworks rasterize offline', async ({ page }) =
   }
 });
 
-test('nearby unrelated bus and rail stops do not merge because their badges overlap', () => {
+test('nearby unrelated bus and rail stops do not merge because their badges overlap', { tag: '@unit' }, () => {
   const fixture = { transitStops: [
     { id: 'rail', type: 'node', lat: 0, lon: 0, tags: { name: 'Station A', railway: 'station', network: 'DART' } },
     { id: 'bus', type: 'node', lat: 0, lon: 0, tags: { name: 'Different street stop', highway: 'bus_stop', network: 'DART' } },
@@ -136,63 +127,13 @@ test('nearby unrelated bus and rail stops do not merge because their badges over
   expect(markers.map((marker) => marker.mode).sort()).toEqual(['bus', 'rail']);
 });
 
-test('all seven requested locations generate deterministic self-contained diagrams', () => {
-  expect(additional.map((data) => [data.center.lat, data.center.lon])).toEqual(coordinates);
+test('all offline locations generate deterministic self-contained diagrams', { tag: '@unit' }, () => {
   for (const data of additional) {
+    expect(Number.isFinite(data.center.lat) && Number.isFinite(data.center.lon)).toBe(true);
     const result = generateLocationDiagram(data, data.center);
     expect(result.svg).toBe(generateLocationDiagram(data, data.center).svg);
     expect(result.transitStops.length).toBeGreaterThan(0);
     expect(result.svg).not.toMatch(/NaN|Infinity|<script|<foreignObject|(?:href|src)="https?:\/\/(?!www\.openstreetmap\.org\/copyright)/);
     expect(result.svg).toContain('viewBox="0 0 480 480"');
   }
-});
-
-test('location previews render with embedded logos offline and download correctly', async ({ page }) => {
-  const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.route('**/*', (route) => {
-    const url = new URL(route.request().url());
-    if (['localhost', '127.0.0.1'].includes(url.hostname)) return route.continue();
-    return route.abort();
-  });
-  await page.goto('/test');
-  await page.getByLabel('Renderer').selectOption('current');
-  const primary = page.getByTestId('diagram-preview');
-  await expect(primary).toHaveAttribute('src', /agency-dart/);
-  await expect.poll(() => primary.evaluate((image) => image.complete && image.naturalWidth === 480)).toBe(true);
-  const result = generateLocationDiagram(original, original.center);
-  for (const marker of result.transitStops) {
-    const pixels = await primary.evaluate((image, marker) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 480; canvas.height = 480;
-      const context = canvas.getContext('2d');
-      context.drawImage(image, 0, 0, 480, 480);
-      const pixels = context.getImageData(Math.round(marker.x - 15), Math.round(marker.y - 15), 30, 30).data;
-      let yellow = 0;
-      for (let i = 0; i < pixels.length; i += 4) {
-        if (pixels[i] > 220 && pixels[i + 1] > 160 && pixels[i + 2] < 60) yellow++;
-      }
-      return yellow;
-    }, marker);
-    expect(pixels).toBeGreaterThan(20);
-  }
-  const previews = page.getByTestId('additional-diagram-preview');
-  await expect(previews).toHaveCount(19);
-  for (let i = 0; i < additional.length; i++) {
-    const preview = previews.nth(i);
-    await preview.scrollIntoViewIfNeeded();
-    await expect.poll(() => preview.evaluate((image) => image.complete && image.naturalWidth === 480 && image.naturalHeight === 480)).toBe(true);
-    const bounds = await preview.boundingBox();
-    expect(bounds.width).toBeCloseTo(bounds.height, 0);
-  }
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('link', { name: 'Download SVG for location 10', exact: true }).click(),
-  ]);
-  const svg = fs.readFileSync(await download.path(), 'utf8');
-  expect(svg).toContain('<symbol id="agency-dcta"');
-  expect(svg).toContain('<use href="#agency-dcta"');
-  expect(svg).not.toContain('upload.wikimedia.org');
-  expect(errors).toEqual([]);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

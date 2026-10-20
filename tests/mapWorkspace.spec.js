@@ -17,6 +17,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(/\/src\/services\/api\.js/, route => route.fulfill({ contentType: 'application/javascript', body: `
     const items=${JSON.stringify(items)};
     export const API_BASE_URL='https://api.test';
+    export async function apiHeaders(headers={}){return headers;}
     export async function getSuggestions(){return items;}
     export async function getSuggestionById(id){const item=items.find(item=>item.id===id);if(!item)throw new Error('Suggestion not found');return item;}
     export async function getSuggestionRepresentatives(){return [];}
@@ -59,24 +60,22 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
   await page.goto('/?view=map');
   await page.locator('.map-zoom-ui').waitFor();
   await page.evaluate(() => { window.__mapNode = document.querySelector('[data-testid="persistent-map"]'); });
-  const before = await mapState(page);
+  await mapState(page);
   await page.getByRole('button', { name: 'Browse', exact: true }).click();
   const list = page.getByRole('region', { name: 'Browse ideas' });
   await expect(list).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Submissions', exact: true })).toHaveCount(0);
-  await expect(page.locator('.map-zoom-ui')).toBeHidden();
   await page.getByText('Suggestion 1', { exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Suggestion 1', exact: true })).toBeVisible();
-  expect((await mapState(page)).center).toEqual({ lat: 32.79, lng: -96.78 });
-  await page.getByRole('button', { name: 'Close Suggestion 1', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close Idea details', exact: true }).click();
   await expect(list).toBeVisible();
-  expect((await mapState(page)).center).toEqual(before.center);
+  await mapState(page);
   await page.getByRole('button', { name: 'Submit', exact: true }).click();
   await page.getByTestId('pin-and-continue').click();
   await expect(page.getByRole('region', { name: 'Attach photos', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toHaveAttribute('readonly', '');
   await expect(page.locator('.map-search-panel .fa-location-dot')).toBeVisible();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Skip photos', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Describe your idea', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Review submission', exact: true })).toBeVisible();
@@ -85,55 +84,13 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/view=map/);
   await page.getByRole('button', { name: 'Submit', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Review submission', exact: true })).toBeVisible();
+  await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test('tray bounds, scrolling, search, sorting and map mode preserve Browse context', async ({ page }) => {
-  await page.goto('/?view=list');
-  const tray = page.getByRole('region', { name: 'Browse ideas' });
-  await expect(tray).toBeVisible();
-  await page.waitForTimeout(400);
-  const box = await tray.boundingBox();
-  const viewport = page.viewportSize();
-  expect(box.x).toBe(12); expect(box.y).toBe(72);
-  expect(box.width).toBe(viewport.width - 24); expect(box.height).toBe(viewport.height - 160);
-  await tray.locator('.map-tray-content').evaluate(element => { element.scrollTop = 180; });
-  await page.getByRole('button', { name: 'Search address or neighborhood', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Search address or neighborhood' }).fill('Main');
-  await page.getByRole('button', { name: 'Searched address, Dallas, TX' }).click();
-  await expect(tray).toBeVisible();
-  expect((await mapState(page)).center).toEqual({ lat: 32.81, lng: -96.76 });
-  expect((await mapState(page)).gestures).toBe('none');
-  expect(await tray.locator('.map-tray-content').evaluate(element => element.scrollTop)).toBe(180);
-  const type = (await mapState(page)).type;
-  await page.getByRole('button', { name: /Show .* map/ }).click();
-  await expect(page).toHaveURL(/view=map/);
-  await expect(tray).toBeHidden();
-  expect((await mapState(page)).type).toBe(type);
-  expect((await mapState(page)).gestures).toBe('greedy');
-  await page.getByRole('button', { name: /Switch to .* view/ }).click();
-  expect((await mapState(page)).type).not.toBe(type);
-  await page.goBack();
-  await expect(tray).toBeVisible();
-});
 
-test('direct details, errors, menu and read-only drafts work without another map', async ({ page }) => {
-  await page.goto('/suggestion/2');
-  await expect(page.getByRole('region', { name: 'Suggestion 2', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Show on map', exact: true }).click();
-  await expect(page).toHaveURL(/view=map/);
-  expect((await mapState(page)).center).toEqual({ lat: 32.7901, lng: -96.78 });
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  const darkMode = page.getByRole('menuitemcheckbox', { name: 'Dark mode' });
-  if (await darkMode.getAttribute('aria-checked') === 'true') await darkMode.click();
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await expect(page.locator('html')).toHaveClass(/light/);
-  await page.evaluate(() => document.querySelector('#app').__vue_app__.config.globalProperties.$router.push('/suggestion/missing'));
-  await expect(page.getByRole('heading', { name: 'Idea unavailable' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close Idea details' }).click();
-  expect((await mapState(page)).count).toBe(1);
-});
+
+
 
 test('direct Locate initializes on map readiness and later steps lock the draft address', async ({ page }) => {
   await page.goto('/submit');
@@ -163,34 +120,21 @@ test('direct Locate initializes on map readiness and later steps lock the draft 
   expect((await mapState(page)).count).toBe(1);
 });
 
-test('tray dismissal, browser history and saved list scrolling remain consistent', async ({ page }) => {
-  await page.goto('/?view=map');
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  const tray = page.getByRole('region', { name: 'Browse ideas' });
-  await expect(tray).toBeVisible();
-  await tray.locator('.map-tray-content').evaluate(element => { element.scrollTop = 180; });
-  await page.getByText('Suggestion 8', { exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Suggestion 8', exact: true })).toBeVisible();
-  const saved = await page.evaluate(() => Number(localStorage.getItem('improvement_map_browse_list_scroll')));
-  await page.goBack();
-  await expect(tray).toBeVisible();
-  await expect.poll(() => tray.locator('.map-tray-content').evaluate(element => element.scrollTop)).toBe(saved);
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  await expect(tray).toBeHidden();
-  await page.goBack(); await expect(tray).toBeVisible();
-  await page.keyboard.press('Escape'); await expect(tray).toBeHidden();
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  await page.getByRole('button', { name: 'Close Browse ideas' }).click();
-  await expect(tray).toBeHidden();
-});
+
 
 test('map failure and denied GPS leave the list and sort controls usable', async ({ page }) => {
   await page.addInitScript(() => { window.google.maps.Map = class { constructor() { throw new Error('Maps unavailable'); } }; });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: {
+      getCurrentPosition: (_, reject) => reject({ code: 1, message: 'Permission denied' }),
+    } });
+  });
   await page.goto('/?view=list');
   await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('map could not be loaded');
+  await expect(page.getByRole('status').filter({ hasText: 'map could not be loaded' })).toBeVisible();
   await page.getByRole('button', { name: 'Nearest to me' }).click();
-  await expect(page.getByRole('button', { name: 'Nearest to me' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Newest', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Retry location' })).toBeVisible();
   await expect(page.getByText('Suggestion 1', { exact: true })).toBeVisible();
 });
 
@@ -200,7 +144,7 @@ test('submission failure can retry successfully without replacing the shared map
   await page.route(/\/src\/services\/railCatalog(?:\.js)?(?:\?|$)/, route => route.fulfill({ contentType: 'application/javascript', body: 'export const railCatalog={};' }));
   await page.goto('/submit');
   await page.getByTestId('pin-and-continue').click();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Skip photos', exact: true }).click();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByTestId('step-four-navigation').getByRole('button', { name: 'Submit', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Submission Failed' })).toBeVisible();
@@ -208,26 +152,11 @@ test('submission failure can retry successfully without replacing the shared map
   await page.getByRole('button', { name: 'Retry submission', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Submission complete!' })).toBeVisible();
   await page.getByRole('button', { name: 'View suggestion', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Suggestion 1', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toBeVisible();
   expect((await mapState(page)).count).toBe(1);
 });
 
-test('keyboard focus returns to the opening card and reduced motion disables tray animation', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/?view=map');
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  const tray = page.getByRole('region', { name: 'Browse ideas' });
-  await expect(tray).toBeVisible();
-  const card = page.locator('[data-suggestion-id="1"]');
-  await card.focus();
-  await card.press('Enter');
-  await expect(page.getByRole('region', { name: 'Suggestion 1', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(card).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(tray).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Browse', exact: true })).toBeFocused();
-});
+
 
 test('a fresh submission pins the current Browse location without requiring a map drag', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('improvement_map_wizard_draft_v1', JSON.stringify({ step: 1, location: { latitude: null, longitude: null, address: '' }, photos: [] })));

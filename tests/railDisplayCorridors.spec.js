@@ -8,6 +8,7 @@ import { corridorBlend, corridorReference } from '../src/services/railCorridorGr
 import { snapRailStopsToPaths } from '../src/services/simpleTransitStops.js';
 import { generateVersionTwoLocationDiagram } from '../src/services/locationDiagramVersionTwo.js';
 import { railSvgLayers } from '../src/services/railSvgLayers.js';
+import { railThickness } from '../src/services/railSettings.js';
 import { createGoogleMapsRailOverlay } from '../src/services/googleMapsRailOverlay.js';
 
 const earth = 2 * Math.PI * 6378137;
@@ -42,7 +43,7 @@ function fixture(rule) {
 }
 
 for (const rule of RAIL_DISPLAY_CORRIDORS) {
-  test(`${rule.id}: separate, blended, grouped, ordered, and translation invariant`, () => {
+  test(`${rule.id}: separate, blended, grouped, ordered, and translation invariant`, { tag: '@unit' }, () => {
     const { render, data, lat, northSouth } = fixture(rule);
     const original = JSON.stringify(data);
     const close = render(rule.zoom + 1); const disabled = render(rule.zoom + 1, []);
@@ -74,7 +75,7 @@ for (const rule of RAIL_DISPLAY_CORRIDORS) {
   });
 }
 
-test('all real corridor anchors resolve and all requested services participate', () => {
+test('all real corridor anchors resolve and all requested services participate', { tag: '@unit' }, () => {
   const before = JSON.stringify(catalog);
   for (const corridor of RAIL_DISPLAY_CORRIDORS) {
     const points = corridorReference(catalog, corridor);
@@ -84,7 +85,7 @@ test('all real corridor anchors resolve and all requested services participate',
   expect(JSON.stringify(catalog)).toBe(before);
 });
 
-test('duplicate direction traces share one core stroke while unrelated tracks stay unchanged', () => {
+test('duplicate direction traces share one core stroke while unrelated tracks stay unchanged', { tag: '@unit' }, () => {
   const rule = RAIL_DISPLAY_CORRIDORS.find((c) => c.id === 'm-line-st-paul');
   const { data, render } = fixture(rule);
   const originals = data.segments.filter((s) => s.keys.includes('DART:425'));
@@ -104,7 +105,7 @@ test('duplicate direction traces share one core stroke while unrelated tracks st
   expect(Math.abs(snapped[0].y - crossings[0][0].y)).toBeLessThan(0.1);
 });
 
-for (const rule of RAIL_DISPLAY_CORRIDORS) test(`${rule.id}: real services join without mutating their catalog`, () => {
+for (const rule of RAIL_DISPLAY_CORRIDORS) test(`${rule.id}: real services join without mutating their catalog`, { tag: '@unit' }, () => {
   const before = JSON.stringify(catalog);
   const latitude = (rule.start[1] + rule.end[1]) / 2; const scale = ppm(latitude, rule.zoom);
   const project = (p) => ({ x: (p.lon - rule.start[0]) * 111195 * Math.cos(latitude * Math.PI / 180),
@@ -116,7 +117,7 @@ for (const rule of RAIL_DISPLAY_CORRIDORS) test(`${rule.id}: real services join 
   expect(JSON.stringify(catalog)).toBe(before);
 });
 
-test('real network preserves connected endpoints and equivalent SVG/Mercator grouping scales', () => {
+test('real network preserves connected endpoints and equivalent SVG/Mercator grouping scales', { tag: '@unit' }, () => {
   const lat = 32.8; const zoom = 14.5; const scale = ppm(lat, zoom);
   const project = (p) => ({ x: (p.lon + 96.8) * 111195 * Math.cos(lat * Math.PI / 180), y: (lat - p.lat) * 111195 });
   const screen = (p) => ({ x: p.x * scale, y: p.y * scale });
@@ -145,7 +146,7 @@ test('real network preserves connected endpoints and equivalent SVG/Mercator gro
   expect(endpoints(result.segments)).toBe(endpoints(baseline.segments));
 });
 
-test('Version Two renders deterministic grouped diagrams and supports a missing catalog', () => {
+test('Version Two renders deterministic grouped diagrams and supports a missing catalog', { tag: '@unit' }, () => {
   const center = { lat: 32.79, lon: -96.81 };
   const data = { elements: [{ type: 'way', id: 1, tags: { highway: 'residential', name: 'Example Street' },
     geometry: [{ lat: 32.81, lon: -96.82 }, { lat: 32.81, lon: -96.80 }] }] };
@@ -157,43 +158,60 @@ test('Version Two renders deterministic grouped diagrams and supports a missing 
   expect(generateVersionTwoLocationDiagram(data, center).svg).not.toMatch(/NaN|Infinity/);
 });
 
-test('Maps caches pan geometry, handles fractional zoom, and rebases panes synchronously', () => {
-  const savedDocument = globalThis.document; const savedObserver = globalThis.ResizeObserver;
-  const attributes = new Map();
-  const svg = { dataset: {}, style: {}, innerHTML: '', setAttribute: (name, value) => attributes.set(name, value), remove() {} };
-  globalThis.document = { createElementNS: () => svg }; globalThis.ResizeObserver = undefined;
-  let view; let zoom = 14; let pan = 0; let pane = 0;
-  const projection = {
-    getWorldWidth: () => 256 * 2 ** zoom,
-    fromLatLngToDivPixel: (p) => ({ x: p.lng * 256 * 2 ** zoom / 360 + pan + pane,
-      y: -Math.asinh(Math.tan(p.lat * Math.PI / 180)) * 256 * 2 ** zoom / (2 * Math.PI) + pan + pane }),
-    fromLatLngToContainerPixel(p) { const pixel = this.fromLatLngToDivPixel(p); return { x: pixel.x - pane, y: pixel.y - pane }; },
+test('Maps manages rail tiles, caches geometry, updates labels and releases resources', { tag: '@unit' }, () => {
+  const types = [];
+  const listeners = [];
+  const maps = {
+    Size: class { constructor(width, height) { Object.assign(this, { width, height }); } },
+    StyledMapType: class { constructor(styles) { this.styles = styles; } },
   };
-  const maps = { LatLng: class { constructor(lat, lng) { this.lat = lat; this.lng = lng; } },
-    OverlayView: class {
-      constructor() { view = this; }
-      getProjection() { return projection; }
-      getPanes() { return { overlayLayer: { appendChild() {} } }; }
-      setMap(map) { if (map) { this.onAdd(); this.draw(); } else this.onRemove(); }
-    } };
-  const map = { getDiv: () => ({ clientWidth: 1108, clientHeight: 1004 }), getZoom: () => zoom,
-    getHeading: () => 0, getTilt: () => 0, setOptions() {}, addListener: () => ({ remove() {} }) };
+  const map = {
+    overlayMapTypes: { push: type => types.push(type), getLength: () => types.length,
+      getAt: i => types[i], removeAt: i => types.splice(i, 1) },
+    setOptions() {}, getHeading: () => 0, getTilt: () => 0,
+    addListener: () => { const listener = { removed: false, remove() { this.removed = true; } }; listeners.push(listener); return listener; },
+  };
+  const ownerDocument = { createElementNS: () => ({
+    dataset: {}, style: {}, attributes: {}, innerHTML: '',
+    setAttribute(name, value) { this.attributes[name] = value; },
+  }) };
+  const overlay = createGoogleMapsRailOverlay(map, maps, catalog);
   try {
-    const overlay = createGoogleMapsRailOverlay(map, maps, catalog);
-    const markup = svg.innerHTML; const box = attributes.get('viewBox').split(' ').map(Number);
-    pan += 100; view.draw();
-    expect(svg.innerHTML).toBe(markup);
-    expect(Number(attributes.get('viewBox').split(' ')[0]) - box[0]).toBeCloseTo(-100, 6);
-    pane += 256; view.draw();
-    expect(svg.style.left).toBe('256px');
-    expect(svg.innerHTML).toBe(markup);
-    zoom = 14.5; view.draw(); expect(svg.innerHTML).not.toBe(markup);
-    zoom = 14; view.draw(); expect(svg.innerHTML).toBe(markup);
-    overlay.dispose();
-  } finally { globalThis.document = savedDocument; globalThis.ResizeObserver = savedObserver; }
+    const rail = types[0];
+    expect(rail.tileSize).toEqual({ width: 256, height: 256 });
+    const first = rail.getTile({ x: 100, y: 100 }, 14, ownerDocument);
+    const adjacent = rail.getTile({ x: 101, y: 100 }, 14, ownerDocument);
+    expect(first.innerHTML).toContain('data-transit-line');
+    expect(adjacent.innerHTML).toBe(first.innerHTML);
+    expect(Number(adjacent.attributes.viewBox.split(' ')[0]) - Number(first.attributes.viewBox.split(' ')[0])).toBe(256);
+    const wrapped = rail.getTile({ x: 100 + 2 ** 14, y: 100 }, 14, ownerDocument);
+    expect(wrapped.attributes.viewBox).toBe(first.attributes.viewBox);
+    const fractional = rail.getTile({ x: 100, y: 100 }, 14.5, ownerDocument);
+    expect(fractional.innerHTML).not.toBe(first.innerHTML);
+    expect(rail.getTile({ x: 100, y: 100 }, 14, ownerDocument).innerHTML).toBe(first.innerHTML);
+    overlay.update({ styles: [], mapType: 'roadmap' });
+    expect(types).toHaveLength(2);
+    const labels = types[1];
+    overlay.update({ styles: [], mapType: 'roadmap' });
+    expect(types[1]).toBe(labels);
+    overlay.update({ styles: [], mapType: 'satellite' });
+    expect(types).toEqual([rail]);
+    rail.releaseTile(first);
+    const markup = first.innerHTML;
+    const previous = railThickness.value;
+    try {
+      railThickness.value = previous + 1;
+      expect(first.innerHTML).toBe(markup);
+      expect(adjacent.innerHTML).not.toBe(markup);
+    } finally { railThickness.value = previous; }
+  } finally { overlay.dispose(); }
+  expect(types).toEqual([]);
+  expect(listeners.every(listener => listener.removed)).toBe(true);
+  overlay.update({ styles: [], mapType: 'roadmap' });
+  expect(types).toEqual([]);
 });
 
-test('terminal bundles keep the full lane separation through both terminal caps', () => {
+test('terminal bundles keep the full lane separation through both terminal caps', { tag: '@unit' }, () => {
   const rule = RAIL_DISPLAY_CORRIDORS.find((c) => c.id === 'a-train-trinity');
   const { render } = fixture(rule);
   const result = render(rule.zoom);
@@ -205,7 +223,7 @@ test('terminal bundles keep the full lane separation through both terminal caps'
   }
 });
 
-test('streetcar casing and ink are beneath rail, with a local Green bridge above Silver', () => {
+test('streetcar casing and ink are beneath rail, with a local Green bridge above Silver', { tag: '@unit' }, () => {
   const lat = 32.95508; const lon = -96.90864; const scale = ppm(lat, 14);
   const project = (p) => ({ x: (p.lon - lon) * 111195 * Math.cos(lat * Math.PI / 180), y: (lat - p.lat) * 111195 });
   const transit = renderSourceTransit(catalog, { lat, lon }, 0, project,
