@@ -16,7 +16,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      expensive-checks: ${{ steps.filter.outputs.expensive-checks }}
+      usability-checks: ${{ steps.filter.outputs.usability-checks }}
     steps:
       - name: Checkout pull request
         if: github.event_name == 'pull_request'
@@ -34,15 +34,15 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           if [[ "$EVENT_NAME" != "pull_request" ]]; then
-            echo "expensive-checks=true" >> "$GITHUB_OUTPUT"
+            echo "usability-checks=true" >> "$GITHUB_OUTPUT"
           else
-            result="$(bash scripts/ci-paths-changed.sh "$BASE_SHA" "$HEAD_SHA")"
-            echo "expensive-checks=$result" >> "$GITHUB_OUTPUT"
+            result="$(bash scripts/ci-usability-paths-changed.sh "$BASE_SHA" "$HEAD_SHA")"
+            echo "usability-checks=$result" >> "$GITHUB_OUTPUT"
           fi
 
   audit:
     needs: detect-changes
-    if: needs.detect-changes.outputs.expensive-checks == 'true'
+    if: needs.detect-changes.outputs.usability-checks == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

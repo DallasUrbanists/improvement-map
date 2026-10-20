@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       expensive-checks: ${{ steps.filter.outputs.expensive-checks }}
+      usability-checks: ${{ steps.filter.outputs.usability-checks }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -41,9 +42,12 @@ jobs:
         run: |
           if [[ "$EVENT_NAME" != "push" || "$BEFORE_SHA" =~ ^0+$ ]]; then
             echo "expensive-checks=true" >> "$GITHUB_OUTPUT"
+            echo "usability-checks=true" >> "$GITHUB_OUTPUT"
           else
             result="$(bash scripts/ci-paths-changed.sh "$BEFORE_SHA" "$HEAD_SHA")"
             echo "expensive-checks=$result" >> "$GITHUB_OUTPUT"
+            usability_result="$(bash scripts/ci-usability-paths-changed.sh "$BEFORE_SHA" "$HEAD_SHA")"
+            echo "usability-checks=$usability_result" >> "$GITHUB_OUTPUT"
           fi
 
   critical-tests:
@@ -103,7 +107,7 @@ jobs:
 
   usability:
     needs: detect-changes
-    if: needs.detect-changes.outputs.expensive-checks == 'true'
+    if: needs.detect-changes.outputs.usability-checks == 'true'
     uses: ./.github/workflows/usability.yml
   build-and-deploy:
     needs: critical-tests
