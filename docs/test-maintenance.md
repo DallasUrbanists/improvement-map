@@ -14,7 +14,22 @@ npm test
 
 # Android/iPhone, light/dark, accessibility and approved screenshots
 npm run test:ux
+
+# Run one registered CI feature suite with the routine device matrix
+npm run test:suite -- ux-browse
 ```
+
+Playwright CI divides UX coverage into `ux-browse`, `ux-submit`, `ux-saved`,
+`ux-navigation`, `ux-motion`, `ux-content`, `ux-actions`, and `ux-streetmix`.
+Each suite runs Android Chromium and iPhone WebKit in light and dark themes.
+`npm run test:suite -- <suite> [Playwright options]` runs an individual
+registered suite locally; add `--full` to include the expanded device profiles.
+The `regression-app`, `regression-diagrams`, and `unit` suites split the former
+extended E2E job. The standalone advisory workflow selects suites by changed
+files, uploads per-suite evidence, and builds one combined report. UX checks
+report failures by default; `UX_ENFORCE=true` makes them fail that workflow but
+does not block Pages deployment. The deployment workflow continues to require
+the critical test job.
 
 Browserless Playwright cases are tagged `@unit` and run in the `unit` project.
 Mixed files keep shared fixtures together, but their pure cases do not run in

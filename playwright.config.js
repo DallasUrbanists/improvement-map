@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const unitOnly = process.argv.includes('--project=unit');
+const reporter = [['list']];
+if (process.env.PLAYWRIGHT_BLOB_DIR) reporter.push(['blob', { outputDir: process.env.PLAYWRIGHT_BLOB_DIR }]);
 
 export default defineConfig({
   testDir: './tests',
@@ -11,7 +13,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 2,
   reporter: 'list',
-  outputDir: 'test-results/regression',
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || 'test-results/regression',
+  reporter,
   use: {
     baseURL: 'http://localhost:5173',
     // Existing journeys exercise the app after onboarding; announcement specs override this.

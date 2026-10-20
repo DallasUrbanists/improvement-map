@@ -45,7 +45,7 @@ export function audit(page, testInfo) {
     const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
     const accessibility = result.violations.map(({ id, impact, description, nodes }) => ({ id, impact, description, nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })) }));
     visited.push(state);
-    const report = { state, project: testInfo.project.name, visited, transitions: visited.slice(1).map((to, i) => [visited[i], to]), layout, accessibility, incomplete: result.incomplete.map(({ id, nodes }) => ({ id, targets: nodes.map(n => n.target) })) };
+    const report = { state, project: testInfo.project.name, suite: process.env.UX_SUITE || 'ux-all', test: testInfo.titlePath, retry: testInfo.retry, visited, transitions: visited.slice(1).map((to, i) => [visited[i], to]), layout, accessibility, incomplete: result.incomplete.map(({ id, nodes }) => ({ id, targets: nodes.map(n => n.target) })) };
     const reportPath = testInfo.outputPath(`${state}.json`);
     await writeFile(reportPath, JSON.stringify(report, null, 2));
     await testInfo.attach(`${state}.json`, { path: reportPath, contentType: 'application/json' });

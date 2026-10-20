@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const full = process.env.UX_FULL === '1';
+const reporter = [['list'], ['./scripts/ux-reporter.js'], ['html', { outputFolder: process.env.UX_HTML_DIR || 'playwright-report/ux', open: 'never' }]];
+if (process.env.PLAYWRIGHT_BLOB_DIR) reporter.push(['blob', { outputDir: process.env.PLAYWRIGHT_BLOB_DIR }]);
 const profiles = [
   ['android', { ...devices['Pixel 5'] }],
   ['iphone', { ...devices['iPhone 13'], defaultBrowserType: 'webkit' }],
@@ -17,11 +19,11 @@ export default defineConfig({
   timeout: 90000,
   expect: { timeout: 8000 },
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 2,
+  workers: process.env.CI ? 4 : 2,
   retries: process.env.CI ? 1 : 0,
   forbidOnly: !!process.env.CI,
-  outputDir: 'test-results/ux',
-  reporter: [['list'], ['./scripts/ux-reporter.js'], ['html', { outputFolder: 'playwright-report/ux', open: 'never' }]],
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || 'test-results/ux',
+  reporter,
   // Missing baselines must be reviewed, never silently accepted.
   updateSnapshots: 'none',
   snapshotPathTemplate: '{testDir}/snapshots/{platform}/{projectName}/{arg}{ext}',
