@@ -1,6 +1,7 @@
+import { createInterface } from 'node:readline/promises';
 import { spawnSync } from 'node:child_process';
 
-const [type, slug, ...extraArgs] = process.argv.slice(2);
+const [type, slug, issueNumberArg, ...extraArgs] = process.argv.slice(2);
 const branchTypes = new Set([
   'feature',
   'fix',
@@ -19,41 +20,93 @@ function run(command, args, options = {}) {
   });
 }
 
-if (!branchTypes.has(type) || !slug || extraArgs.length || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-  console.error(`Usage: npm run start:<type> -- <lowercase-kebab-slug>`);
+function runCaptured(command, args) {
+  return spawnSync(command, args, {
+    encoding: 'utf8',
+    stdio: ['inherit', 'pipe', 'inherit'],
+  });
+}
+
+function usage() {
+  console.error('Usage: npm run start:<type> -- <lowercase-kebab-slug> [issue-number]');
+  console.error('Omit issue-number to enter one interactively or create a new issue.');
   console.error(`Types: ${[...branchTypes].join(', ')}`);
-  process.exit(1);
 }
 
-const ghCheck = run('gh', ['auth', 'status']);
-if (ghCheck.error?.code === 'ENOENT') {
-  console.error('GitHub CLI (gh) is not installed or is not on PATH. Install it before creating a branch.');
-  process.exit(1);
+function assertBranchDoesNotExist(branchName) {
+  for (const ref of [`refs/heads/${branchName}`, `refs/remotes/origin/${branchName}`]) {
+    const existing = spawnSync('git', ['show-ref', '--verify', '--quiet', ref], { stdio: 'ignore' });
+    if (existing.status === 0) throw new Error(`Branch already exists: ${branchName}`);
+    if (existing.status !== 1) throw new Error('Could not inspect Git branches. Run this command from inside a Git repository.');
+  }
 }
 
-if (ghCheck.status !== 0) {
-  const login = run('gh', ['auth', 'login']);
-  if (login.status !== 0) process.exit(login.status ?? 1);
+async function ask(question) {
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return (await prompt.question(question)).trim();
+  } finally {
+    prompt.close();
+  }
+}
 
-  const verify = run('gh', ['auth', 'status']);
-  if (verify.status !== 0) {
-    console.error('GitHub CLI authentication could not be verified.');
+async function createIssue() {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error('Creating an issue requires an interactive terminal.');
+  }
+  const title = await ask('New issue title: ');
+  if (!title) throw new Error('Issue title cannot be empty.');
+  const body = await ask('Issue description (optional): ');
+  const result = runCaptured('gh', ['issue', 'create', '--title', title, '--body', body]);
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.status !== 0) throw new Error('GitHub issue creation failed.');
+  const match = result.stdout.match(/\/issues\/(\d+)/);
+  if (!match) throw new Error('Issue was created, but its number could not be read from GitHub CLI output.');
+  return match[1];
+}
+
+async function main() {
+  if (!branchTypes.has(type) || !slug || extraArgs.length
+      || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)
+      || (issueNumberArg && !/^\d+$/.test(issueNumberArg))) {
+    usage();
     process.exit(1);
   }
+
+  const ghCheck = run('gh', ['auth', 'status']);
+  if (ghCheck.error?.code === 'ENOENT') {
+    throw new Error('GitHub CLI (gh) is not installed or is not on PATH. Install it before creating a branch.');
+  }
+
+  if (ghCheck.status !== 0) {
+    const login = run('gh', ['auth', 'login']);
+    if (login.status !== 0) process.exit(login.status ?? 1);
+    const verify = run('gh', ['auth', 'status']);
+    if (verify.status !== 0) throw new Error('GitHub CLI authentication could not be verified.');
+  }
+
+  let issueNumber = issueNumberArg;
+  if (!issueNumber) {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      throw new Error('Run from an interactive terminal to enter an issue number.');
+    }
+    issueNumber = await ask('GitHub issue number (press Enter to create one): ');
+    if (!issueNumber) issueNumber = await createIssue();
+    if (!/^\d+$/.test(issueNumber)) throw new Error('Issue number must contain digits only.');
+  }
+
+  const issueCheck = run('gh', ['issue', 'view', issueNumber, '--json', 'number']);
+  if (issueCheck.status !== 0) throw new Error(`Could not access issue #${issueNumber}.`);
+
+  const branch = `${type}/${issueNumber}-${slug}`;
+  assertBranchDoesNotExist(branch);
+  const result = run('gh', ['issue', 'develop', issueNumber, '--base', 'main', '--name', branch, '--checkout']);
+  process.exit(result.status ?? 1);
 }
 
-const branch = `${type}/${slug}`;
-for (const ref of [`refs/heads/${branch}`, `refs/remotes/origin/${branch}`]) {
-  const existing = spawnSync('git', ['show-ref', '--verify', '--quiet', ref], { stdio: 'ignore' });
-  if (existing.status === 0) {
-    console.error(`Branch already exists: ${branch}`);
-    process.exit(1);
-  }
-  if (existing.status !== 1) {
-    console.error('Could not inspect Git branches. Run this command from a Git repository.');
-    process.exit(existing.status ?? 1);
-  }
+try {
+  await main();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
 }
-
-const result = run('git', ['switch', '-c', branch]);
-process.exit(result.status ?? 1);
