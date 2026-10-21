@@ -98,7 +98,7 @@ jobs:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
           RELEASE_MANIFEST: node_modules/.cache/improvement-map-releases.json
-
+          VITE_PRESENTATION_ENABLED: ${{ env.VITE_PRESENTATION_ENABLED }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
