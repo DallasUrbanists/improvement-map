@@ -32,6 +32,29 @@ const routes = [
     meta: { title: 'Location Diagram Test | Improvement Map' }
   },
   {
+    path: '/tv',
+    name: 'PresentationTV',
+    component: () => import('../views/PresentationTVView.vue'),
+    meta: { title: 'TV presentation | Improvement Map', shell: 'presentation' },
+  },
+  {
+    path: '/remote',
+    component: () => import('../views/PresentationRemoteShell.vue'),
+    meta: { title: 'Presenter remote | Improvement Map', shell: 'presentation' },
+    children: [
+      { path: '', name: 'RemoteController', component: () => import('../views/PresentationRemoteController.vue'), meta: { title: 'Presenter remote | Improvement Map' } },
+      { path: 'ideas', name: 'RemoteIdeas', component: () => import('../views/PresentationRemoteIdeas.vue'), meta: { title: 'Find ideas | Presenter remote' } },
+      { path: 'styles', name: 'RemoteStyles', component: () => import('../views/PresentationRemoteStyles.vue'), meta: { title: 'Style settings | Presenter remote' } },
+      { path: 'audience', name: 'RemoteAudience', component: () => import('../views/PresentationRemoteAudience.vue'), meta: { title: 'Audience | Presenter remote' } },
+    ],
+  },
+  {
+    path: '/audience',
+    name: 'PresentationAudience',
+    component: () => import('../views/PresentationAudienceView.vue'),
+    meta: { title: 'Audience presentation | Improvement Map', shell: 'presentation' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }

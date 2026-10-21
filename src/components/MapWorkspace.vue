@@ -82,6 +82,7 @@
     <button v-if="isSubmitLocate && !isSubmitting" type="button" class="map-ui map-ui-button cancel-pin-button" :style="{ top: `calc(${pinContinueTop} + 60px)` }" :inert="detailLoading" @click="cancelPin">Cancel pin</button>
     <MapToolbar v-if="!isSubmitting" class="absolute bottom-8 left-6 z-10" :inert="detailLoading"
       ref="mapToolbar" :model-value="trayOpen && !isSubmit ? 'list' : 'map'" :marker-zoom-threshold="markerZoomThreshold" :map-zoom="mapZoom"
+      @present-on-tv="openPresentationSetup"
       @update:model-value="selectTab"
       :heatmap-opacity="heatmapOpacity" @update:heatmap-opacity="setHeatmapOpacity"
       :heatmap-radius="heatmapRadius" @update:heatmap-radius="setHeatmapRadius"
@@ -1326,6 +1327,18 @@ function activatePrimaryMapAction() {
   pendingFabMorphRect = primaryMapActionButton.value?.getBoundingClientRect() || null;
   fabMorphing.value = true;
   router.push('/submit').catch(() => { fabMorphing.value = false; pendingFabMorphRect = null; });
+}
+function openPresentationSetup() {
+  const center = map?.getCenter?.();
+  const snapshot = center ? {
+    camera: { latitude: center.lat(), longitude: center.lng(), zoom: map.getZoom() || 13 },
+    selectedIdeaId: route.name === 'SubmissionDetail' && /^\d+$/.test(String(route.params.id)) ? String(route.params.id) : null,
+  } : null;
+  try {
+    if (snapshot) localStorage.setItem('presentation-browse-snapshot-v1', JSON.stringify(snapshot));
+    else localStorage.removeItem('presentation-browse-snapshot-v1');
+  } catch { /* This public camera/selection snapshot is optional. */ }
+  router.push('/tv');
 }
 const readOnlyAddress = computed(() => isDetail.value || (isSubmit.value && draft.value.step > 1));
 const trayOpen = computed(() => isList.value || route.name === 'MyActions' || route.name === 'Bookmarks' || route.name === 'SubmissionDetail' || readOnlyAddress.value);

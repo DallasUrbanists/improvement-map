@@ -72,7 +72,7 @@ export default defineConfig({
         theme_color: '#0c2340',
         background_color: '#071527',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         start_url: './',
         icons: [
           {
@@ -95,6 +95,10 @@ export default defineConfig({
       },
       workbox: {
         runtimeCaching: [
+          {
+            urlPattern: /^https?:\/\/[^/]+\/api\/public-improvements\/presentation(?:\/|$)/i,
+            handler: 'NetworkOnly',
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',

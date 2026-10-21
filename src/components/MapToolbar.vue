@@ -14,6 +14,7 @@
         <div class="p-1" role="menu" aria-label="Map options">
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Saved ideas</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/my-actions')">My actions</button>
+          <button v-if="presentationEnabled" type="button" role="menuitem" class="map-ui-button w-full" @click="openPresentationSetup">Present on TV</button>
           <div class="menu-divider" role="separator"></div>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('welcome')">Welcome &amp; guide</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('history')">What's new</button>
@@ -173,6 +174,7 @@ function showAnnouncement(screen) {
   openAnnouncement(screen);
 }
 import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
+import { presentationIsEnabled } from '../services/presentationApi.js';
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
   modelValue: { type: String, default: 'streets' },
@@ -190,13 +192,14 @@ const props = defineProps({
   markerSpotlightSize: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightSize },
   markerSpotlightFeather: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightFeather },
 });
-const emit = defineEmits(['update:modelValue', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
+const emit = defineEmits(['update:modelValue', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather', 'present-on-tv']);
 const route = useRoute();
 const router = useRouter();
 const isBrowse = computed(() => route.path === '/' || route.path === '/browse');
 const menuId = `map-menu-${useId()}`;
 const menuOpen = ref(false);
 const menuButton = ref(null);
+const presentationEnabled = presentationIsEnabled();
 const markerSettingsDialog = ref(null);
 const markerSettingsReturnFocus = ref(null);
 const settingsTab = ref('markers');
@@ -239,6 +242,10 @@ function openTray(path) {
   menuOpen.value = false;
   menuButton.value?.focus({ preventScroll: true });
   router.push(path);
+}
+function openPresentationSetup() {
+  menuOpen.value = false;
+  emit('present-on-tv');
 }
 function browseList() {
   if (props.showMapControls) emit('update:modelValue', 'list');
