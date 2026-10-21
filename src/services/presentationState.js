@@ -106,8 +106,11 @@ function bytesToBase64Url(bytes) {
 }
 
 export function validatePresentationIdea(idea) {
-  if (!idea || typeof idea !== 'object' || typeof idea.id !== 'string' || !/^\d+$/.test(idea.id)
-    || typeof idea.contentVersion !== 'string' || !idea.contentVersion
+  const validId = typeof idea?.id === 'string'
+    ? /^\d+$/.test(idea.id)
+    : typeof idea?.id === 'number' && Number.isSafeInteger(idea.id) && idea.id > 0;
+  if (!idea || typeof idea !== 'object' || !validId
+    || typeof idea.contentVersion !== 'string'
     || typeof idea.summary !== 'string' || typeof idea.details !== 'string'
     || !Array.isArray(idea.descriptionPages) || !idea.descriptionPages.every(page => typeof page === 'string')
     || !idea.location || typeof idea.location !== 'object' || !Array.isArray(idea.album)) return false;
@@ -116,7 +119,7 @@ export function validatePresentationIdea(idea) {
     if (!item || typeof item.id !== 'string' || !item.id || !['photo', 'streetmix'].includes(item.kind) || typeof item.url !== 'string') return false;
     if (item.kind === 'streetmix') {
       if (sawStreetmix || index !== idea.album.length - 1 || !safePresentationStreetmixUrl(item.url)
-        || typeof item.streetmixId !== 'string' || !/^\d+$/.test(item.streetmixId)
+        || typeof item.streetmixId !== 'string' || !item.streetmixId
         || typeof item.thumbnailPath !== 'string' || !item.thumbnailPath.startsWith(`/api/public-improvements/presentation/sessions/`)) return false;
       sawStreetmix = true;
     } else {
@@ -128,6 +131,10 @@ export function validatePresentationIdea(idea) {
     }
   }
   return true;
+}
+
+export function normalizePresentationIdea(idea) {
+  return validatePresentationIdea(idea) ? { ...idea, id: String(idea.id) } : null;
 }
 
 export function safePresentationStreetmixUrl(value) {

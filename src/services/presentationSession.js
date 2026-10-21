@@ -2,7 +2,7 @@ import { computed, reactive } from 'vue';
 import {
   createAudienceView, createDefaultPresentationState,
   getAlbumItem, getPresentationAlbum, isStreetmixItem, isValidCamera,
-  reduceAudienceView, shouldFollowPresenter, toWritablePresentationState,
+  normalizePresentationIdea, reduceAudienceView, shouldFollowPresenter, toWritablePresentationState,
   validatePresentationIdea, validatePresentationState,
 } from './presentationState.js';
 import {
@@ -166,8 +166,8 @@ function applyEnvelope(envelope, sequence = ++callbackRevision) {
         lastContentVersion = null;
       }
     } else if (validatePresentationIdea(envelope.content)) {
-      session.content = envelope.content;
-      lastContentVersion = envelope.content.contentVersion;
+      session.content = normalizePresentationIdea(envelope.content);
+      lastContentVersion = session.content.contentVersion;
     } else {
       throw new Error('The presentation service returned invalid idea content.');
     }
@@ -269,8 +269,8 @@ async function startPresentationSession(credential, initialState, content = null
   session.status = initialState?.session?.status || 'waiting';
   if (initialState?.state && validatePresentationState(initialState.state)) session.state = initialState.state;
   else if (initialState && validatePresentationState(initialState)) session.state = initialState;
-  if (content && validatePresentationIdea(content)) session.content = content;
-  if (initialState?.content && validatePresentationIdea(initialState.content)) session.content = initialState.content;
+  if (content && validatePresentationIdea(content)) session.content = normalizePresentationIdea(content);
+  if (initialState?.content && validatePresentationIdea(initialState.content)) session.content = normalizePresentationIdea(initialState.content);
   if (session.content) lastContentVersion = session.content.contentVersion;
   session.lastSuccessAt = Date.now();
   session.error = '';
@@ -321,9 +321,10 @@ export async function connectController(code) {
       let selectedIdeaId = null;
       if (browseSnapshot.selectedIdeaId) {
         const idea = await loadPresentationIdea(credential, String(browseSnapshot.selectedIdeaId));
-        if (validatePresentationIdea(idea)) {
-          session.content = idea;
-          selectedIdeaId = idea.id;
+        const normalizedIdea = normalizePresentationIdea(idea);
+        if (normalizedIdea) {
+          session.content = normalizedIdea;
+          selectedIdeaId = normalizedIdea.id;
         }
       }
       if (selectedIdeaId) enqueuePresentationChanges({ selectedIdeaId }, { immediate: true });
@@ -472,8 +473,8 @@ async function flushPresentationChanges() {
 
 export async function selectPresentationIdea(ideaId) {
   if (String(ideaId) === String(session.state.selectedIdeaId)) return true;
-  const idea = await loadPresentationIdea(session.credential, String(ideaId));
-  if (!validatePresentationIdea(idea)) throw new Error('This idea is not available for presentation.');
+  const idea = normalizePresentationIdea(await loadPresentationIdea(session.credential, String(ideaId)));
+  if (!idea) throw new Error('This idea is not available for presentation.');
   session.content = idea;
   enqueuePresentationChanges({ selectedIdeaId: idea.id }, { immediate: true });
   return true;
@@ -487,7 +488,7 @@ export async function clearPresentedIdea() {
 export async function ensurePresentationCatalog({ refresh = false } = {}) {
   if (session.catalogLoaded && !refresh) return session.catalog;
   const ideas = await loadPresentationIdeas(session.credential);
-  session.catalog = ideas.filter(validatePresentationIdea);
+  session.catalog = ideas.map(normalizePresentationIdea).filter(Boolean);
   session.catalogLoaded = true;
   if (session.state.selectedIdeaId && !session.catalog.some(item => item.id === session.state.selectedIdeaId)) {
     enqueuePresentationChanges({ selectedIdeaId: null }, { immediate: true });
