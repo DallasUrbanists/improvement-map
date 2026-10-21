@@ -48,13 +48,14 @@ test('map actions open Browse and New, and Style Settings switches map imagery',
   await expect(page).toHaveTitle('Browse ideas | Improvement Map');
   await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel pin', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toHaveCount(0);
   await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await page.getByRole('radio', { name: 'Satellite' }).check();
   await page.getByRole('button', { name: 'Close Style Settings' }).click();

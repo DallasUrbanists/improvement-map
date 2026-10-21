@@ -46,6 +46,21 @@ Regression artifacts live in `test-results/regression`; UX artifacts live in
 `test-results/ux`. Keeping these separate prevents one runner from clearing
 another runner's active traces.
 
+The regression runner uses the same Vite configuration as the UX runner to
+disable HMR. Test artifacts and concurrent edits must not reload a page during
+a journey or replace the shared map.
+
+### Toolbar screenshot review, October 20, 2026
+
+Reviewed the former horizontal toolbar and the current 72 × 72 circular List
+button introduced by the committed UI redesign. The iPhone, narrow, landscape,
+and desktop baselines still showed the removed 290/332 × 46 toolbar. Reviewed
+fresh light/dark captures for all eight profiles: the List icon and label are
+legible, centered, and contained in the circular button. Updated only these
+eight stale baselines; the Android baselines already matched the new control.
+The user confirmed that trays retain their 12px bottom clearance and journeys
+should use the trays' Close buttons before activating covered map controls.
+
 ## Coverage retained after the October 2026 assessment
 
 - Deterministic workspace navigation checks toolbar behavior, manual/system

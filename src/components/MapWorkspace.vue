@@ -1071,6 +1071,8 @@ const draft = computed(() => submission.value?.draft || initialDraft);
 const isSubmit = computed(() => route.name === 'Submit');
 const isDetail = computed(() => route.name === 'SubmissionDetail');
 const detailLoading = ref(false);
+// History navigation is asynchronous; stop queued framing when closing starts.
+let detailClosing = false;
 let detailMotionFrame = 0;
 let cancelDetailMotion = null;
 const detailLocation = ref(null);
@@ -1621,7 +1623,7 @@ function navigateDetail(direction) {
   if (id) router.push(`/suggestion/${encodeURIComponent(id)}`);
 }
 function frameDetailLocation(immediate = false) {
-  if (!isDetail.value || !map || !googleMaps || !detailLocation.value) return;
+  if (detailClosing || !isDetail.value || !map || !googleMaps || !detailLocation.value) return;
   const { latitude, longitude } = detailLocation.value;
   if (latitude == null || longitude == null) return;
   const position = { lat: Number(latitude), lng: Number(longitude) };
@@ -1720,6 +1722,7 @@ async function closeToMap() {
 async function closeTray() {
   if (isSubmitting.value) return;
   if (['MyActions', 'Bookmarks', 'SubmissionDetail'].includes(route.name)) {
+    if (route.name === 'SubmissionDetail') detailClosing = true;
     await returnToOrigin();
     return;
   }
@@ -1775,6 +1778,7 @@ const removeNavigationGuard = router.beforeEach(async (to, from) => {
   saveViewState(true);
   detailReturnViewport = null;
   if (from.name === 'SubmissionDetail' && to.name !== 'SubmissionDetail') {
+    detailClosing = true;
     cancelDetailTransition();
     detailReturnViewport = !skipRestore ? viewState.returnTo?.viewport : null;
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -1815,6 +1819,7 @@ const removeNavigationGuard = router.beforeEach(async (to, from) => {
   }
 });
 const removeAfterNavigation = router.afterEach((to, from, failure) => {
+  detailClosing = false;
   const exitAnimations = detailExitAnimations;
   detailExitAnimations = [];
   if (failure) { exitAnimations.forEach(animation => animation.cancel()); return; }

@@ -31,7 +31,7 @@ test('desktop side tray keeps the map usable; mobile restores modal map behavior
   await expect(tray(page)).toBeVisible();
 });
 
-test('search reveals the map, keeps list position, and toolbar exits are explicit', async ({ page }) => {
+test('search reveals the map, keeps list position, and tray exits are explicit', async ({ page }) => {
   await page.goto('/?view=list');
   await tray(page).locator('.map-tray-content').evaluate(el => { el.scrollTop = 200; });
   await page.getByRole('textbox', { name: 'Search address or neighborhood' }).fill('Main');
@@ -41,17 +41,22 @@ test('search reveals the map, keeps list position, and toolbar exits are explici
   await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect.poll(() => tray(page).locator('.map-tray-content').evaluate(el => el.scrollTop)).toBe(200);
   await bookmarks(page);
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
   await expect(tray(page)).toBeVisible();
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await expect(page).toHaveURL(/view=map/);
   await page.getByRole('button', { name: 'List', exact: true }).click();
+  await expect(tray(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
+  await expect(page).toHaveURL(/view=map/);
   await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await expect(page).toHaveURL(/view=map/);
 });
 
 test('Submit retains content, refresh keeps its step, and bookmark excursions return there', async ({ page }) => {
   await page.goto('/?view=list');
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   await page.getByTestId('pin-and-continue').click();
@@ -61,7 +66,7 @@ test('Submit retains content, refresh keeps its step, and bookmark excursions re
   await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Attach photos', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   const draft = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), draftKey);

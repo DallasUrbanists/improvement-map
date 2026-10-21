@@ -23,7 +23,8 @@ export default defineConfig({
     serviceWorkers: 'block',
   },
   webServer: unitOnly && !process.argv.some(arg => arg.startsWith('--project=') && arg !== '--project=unit') ? undefined : {
-    command: 'npm run dev',
+    // Disable HMR so test artifacts and concurrent edits cannot reload a journey.
+    command: 'npm run dev -- --config vite.ux.config.js',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

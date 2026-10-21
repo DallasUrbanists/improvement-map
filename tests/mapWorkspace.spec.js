@@ -69,6 +69,7 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
   await page.getByRole('button', { name: 'Close Idea details', exact: true }).click();
   await expect(list).toBeVisible();
   await mapState(page);
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByTestId('pin-and-continue').click();
   await expect(page.getByRole('region', { name: 'Attach photos', exact: true })).toBeVisible();

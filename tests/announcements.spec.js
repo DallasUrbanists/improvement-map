@@ -45,7 +45,7 @@ test('direct idea link defers updates until Browse and keeps the route', async (
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await expect(page).toHaveURL(/suggestion\/1/);
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Idea details', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Got it' })).toBeVisible();
 });
 test('blocked preference writes use in-memory state without reopening', async ({ page }) => {

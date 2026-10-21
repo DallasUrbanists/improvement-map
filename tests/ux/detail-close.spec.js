@@ -47,20 +47,31 @@ for (const motion of ['no-preference', 'reduce']) {
     const tray = page.locator('.submission-detail-tray');
     await expect(tray).toHaveAttribute('aria-busy', 'false');
     await expect(page.locator('.detail-description')).not.toHaveClass(/detail-description-revealing/);
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
+      const { default: router } = await import('/src/router/index.js');
+      // Keep the outgoing route mounted long enough to flush queued framing.
+      // Closing must suppress that work even when a navigation guard is slow.
+      router.beforeEach(async (to, from) => {
+        if (from.name === 'SubmissionDetail' && to.name === 'Browse') {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      });
       window.__closeCamera = [];
       window.__closeOpacity = [];
       window.__recordClose = false;
       // Observe the close action, excluding initial ResizeObserver settling
       // that can run while Playwright is moving focus to the close control.
       document.addEventListener('keydown', event => {
-        if (event.key === 'Enter') window.__recordClose = true;
+        if (event.key === 'Enter') {
+          window.__recordClose = true;
+          window.dispatchEvent(new Event('resize'));
+        }
       }, { once: true, capture: true });
       const prototype = window.google.maps.Map.prototype;
       for (const method of ['setCenter', 'panTo']) {
         const original = prototype[method];
         prototype[method] = function (...args) {
-          if (window.__recordClose) window.__closeCamera.push({ method, detail: !!document.querySelector('.detail-map-target') });
+          if (window.__recordClose) window.__closeCamera.push({ method, detail: !!document.querySelector('.detail-map-target'), stack: new Error().stack });
           return original.apply(this, args);
         };
       }
@@ -79,7 +90,7 @@ for (const motion of ['no-preference', 'reduce']) {
     await expect(card).toBeFocused();
     const evidence = await page.evaluate(() => ({ camera: window.__closeCamera, opacity: window.__closeOpacity }));
     expect(evidence.camera.length).toBeGreaterThan(0);
-    expect(evidence.camera.every(event => !event.detail)).toBe(true);
+    expect(evidence.camera.every(event => !event.detail), JSON.stringify(evidence.camera)).toBe(true);
     expect(evidence.camera.filter(event => event.method === 'panTo')).toHaveLength(motion === 'reduce' ? 0 : 1);
     if (motion === 'no-preference') expect(evidence.opacity.some(value => value > 0 && value < 1)).toBe(true);
   });
