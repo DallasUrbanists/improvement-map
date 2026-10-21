@@ -8,7 +8,7 @@
           <i class="fa-solid fa-crosshairs" :class="{ 'animate-spin': isLocating }" aria-hidden="true"></i> Nearest to me
         </button>
       </div>
-      <p v-if="workspace.locationError.value" class="idea-notice" role="status">{{ workspace.locationError.value }} <button class="map-ui-button" @click="setSortMode(2); workspace.requestGps()">Retry location</button></p>
+      <p v-if="workspace.locationError.value" class="idea-notice" role="status">{{ workspace.locationError.value }} <button type="button" class="map-ui-button" @click="setSortMode(2); workspace.requestGps()">Retry location</button><button type="button" class="map-ui-button" @click="workspace.locationError.value = ''">Dismiss</button></p>
       <p v-else-if="isLocating" class="idea-notice" role="status">Finding your location…</p>
     </template>
     <p v-if="bookmarkNotice" class="idea-notice" role="alert">{{ bookmarkNotice }}</p>

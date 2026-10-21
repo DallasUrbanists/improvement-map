@@ -15,7 +15,8 @@ export default class UxReporter {
   }
 
   async onTestEnd(test, result) {
-    const identity = test.titlePath.join(' › ');
+    const titlePath = typeof test.titlePath === 'function' ? test.titlePath() : test.titlePath;
+    const identity = (titlePath || [test.title]).join(' › ');
     const project = test.parent.project()?.name;
     for (const annotation of result.annotations || []) {
       if (annotation.type !== 'visited-state') continue;

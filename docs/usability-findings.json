@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-19",
+  "updated": "2026-10-20",
   "findings": [
     {
       "id": "UX-001",
@@ -166,6 +166,18 @@
       "evidence": "docs/usability-evidence/detail-tray/loading-current.png (before); loading-updated.png (after).",
       "decision": "User approved and implemented: readable accordion labels with unchanged row geometry, content at 85% opacity, a 3px indeterminate progress line beneath the header, and the existing loading message. Reduced motion uses a static line. Existing interaction locks preserved.",
       "regression": "tests/ux/detail-navigation.spec.js checks readable labels, progress visibility/removal, reduced motion, disabled navigation and inert content/toolbars across Android Chromium and iPhone WebKit in both themes."
+    },
+    {
+      "id": "UX-011",
+      "fingerprint": "layout:trays-cover-bottom-map-controls",
+      "status": "intentional",
+      "severity": "none",
+      "states": ["browse-list", "details", "submit-photos-empty", "description-long"],
+      "devices": ["mobile"],
+      "reproduction": "Open a tray on mobile and attempt to activate the List or New control behind it.",
+      "evidence": "Commit 8cd20a8 changed tray bottom clearance to 12px and placed map controls beneath the route layer. Playwright reported the tray intercepting pointer events. The user confirmed the intended layout on 2026-10-20.",
+      "decision": "Preserve the layout and use each tray's Close button before activating covered map controls. Do not raise map controls above the tray or restore the former bottom clearance.",
+      "regression": "tests/ux/idea-navigation.spec.js, tests/announcements.spec.js, tests/mapWorkspace.spec.js, tests/workspaceNavigation.spec.js, and tests/speechRecognition.spec.js exercise tray exits and the subsequent navigation."
     }
   ]
 }

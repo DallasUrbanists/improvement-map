@@ -9,8 +9,8 @@
     <Teleport :to="draftCrosshairPane || 'body'" :disabled="isSubmit || !draftCrosshairPane">
     <div v-if="isSubmit" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
       <svg :key="isSubmitLocate ? 'locating' : 'locked'" data-testid="suggestion-location-crosshair" viewBox="0 0 50 50" aria-hidden="true" @animationend="onCrosshairAnimationEnd">
-        <g transform="translate(25 25)" fill="none" stroke="white" stroke-width="3">
-          <circle r="9" /><path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" /><circle r="2" fill="white" stroke="none" />
+        <g transform="translate(25 25)" fill="none" stroke="var(--color-primary)" stroke-width="3">
+          <circle r="9" /><path d="M-25 0H-6 M6 0H25 M0-25V-6 M0 6V25" /><circle r="2" fill="var(--color-primary)" stroke="none" />
         </g>
       </svg>
       <div v-if="isSubmit && submissionCoordinates" ref="coordinateLabel" class="crosshair-coordinate-label" :class="{ 'is-left': coordinateLabelOnLeft, 'is-moving': isSubmitLocate && isPinMoving }" :style="coordinateLabelStyle">
@@ -28,24 +28,20 @@
 
       </div>
     </div>
-    <div v-if="isDetail && isMapReady && !mapError" class="map-ui detail-zoom-ui" role="group" aria-label="Map zoom" :inert="detailLoading">
-      <button type="button" class="map-ui-button" aria-label="Zoom in" @click="zoomDetailMap(1)">+</button>
-      <button type="button" class="map-ui-button" aria-label="Zoom out" @click="zoomDetailMap(-1)">−</button>
-    </div>
     <div class="workspace-route-layer">
       <router-view v-slot="{ Component }">
         <keep-alive include="BrowseView,SubmitView"><component :is="Component" :key="route.name" /></keep-alive>
       </router-view>
     </div>
-      <MapSearchOverlay :query="mapSearchQuery" :has-suggestions="mapSearchResults.length > 0" :read-only="readOnlyAddress" :inert="detailLoading">
+      <MapSearchOverlay :has-suggestions="mapSearchResults.length > 0" :inert="detailLoading">
         <div
           class="map-ui map-search-panel relative flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-xl">
-          <span class="pl-3 pr-2 text-zinc-400">
-            <i :class="['fa-solid', readOnlyAddress ? 'fa-location-dot' : 'fa-magnifying-glass']" aria-hidden="true"></i>
-          </span>
           <input type="text" v-model="mapSearchQuery" :readonly="readOnlyAddress" aria-label="Search address or neighborhood" @input="onMapSearchInput" @focus="searchEditing = true" @blur="searchEditing = false"
             placeholder="Search address or neighborhood..."
             class="w-full py-2.5 pr-8 bg-transparent text-xs sm:text-sm text-black dark:text-white placeholder-zinc-400 focus:outline-none" />
+          <span v-if="!isSearching" class="map-search-icon" aria-hidden="true">
+            <i :class="['fa-solid', readOnlyAddress ? 'fa-location-dot' : 'fa-magnifying-glass']"></i>
+          </span>
           <button v-if="mapSearchQuery && !readOnlyAddress" @click="mapSearchQuery = ''; mapSearchResults = []"
             class="map-search-clear p-2 text-zinc-400 hover:text-black dark:hover:text-white" aria-label="Clear search" type="button">
             <i class="fa-solid fa-xmark text-sm"></i>
@@ -69,11 +65,24 @@
           </button>
         </div>
       </MapSearchOverlay>
-    <MapToolbar v-if="!isSubmitting" class="absolute bottom-8 left-1/2 -translate-x-1/2 z-40" :inert="detailLoading"
-      :model-value="trayOpen && !isSubmit ? 'list' : currentMapType === 'hybrid' ? 'satellite' : 'streets'"
-      :map-type="currentMapType" :locating="isLocating || !!submission?.isLocating?.value"
-      :recenter-disabled="readOnlyAddress" :exit-submit="isSubmit" :marker-zoom-threshold="markerZoomThreshold" :map-zoom="mapZoom"
-      @exit-submit="closeTray" @center="onCenterOnLocationClick" @update:model-value="selectTab"
+    <StyleSettings ref="styleSettings" :map-style="selectedMapStyle" :icon-size="suggestionIconSize"
+      :rails-visible="railVisible" :rail-thickness="railThickness" @map-style="changeMapStyle" @icon-size="setSuggestionIconSize"
+      @rails-visible="setRailVisibility" @rail-thickness="setRailThickness" @more-settings="openAdvancedMapSettings"
+      :locating="isLocating || !!submission?.isLocating?.value" :recenter-disabled="readOnlyAddress" @center="onCenterOnLocationClick"
+      @before-open="mapToolbar?.closeMarkerSettings?.()" />
+    <button v-if="!isSubmitting" ref="primaryMapActionButton" type="button" class="map-ui new-idea-fab" :data-testid="isSubmitLocate ? 'pin-and-continue' : undefined" :class="{ 'is-primary': !isSubmit || isSubmitLocate, 'is-pin-continue': isSubmitLocate, 'is-morphing': fabMorphing, 'is-morph-prep': isSubmitLocate && fabMorphPhase === 'travel' && fabMorphing, 'is-morph-circle': fabMorphPhase === 'reverse-expand' }" :style="isSubmitLocate ? { top: pinContinueTop } : fabReverseTravelOffset ? { translate: fabReverseTravelOffset } : undefined" :inert="detailLoading"
+      :aria-label="isSubmitLocate ? 'Set pin and continue' : isSubmit ? 'Close' : 'New'" :title="isSubmitLocate ? 'Set pin and continue' : isSubmit ? 'Close' : 'New'"
+      :disabled="isSubmitLocate && !pinContinueReady" @click="activatePrimaryMapAction">
+      <i :class="['fa-solid', isSubmit && !isSubmitLocate ? 'fa-xmark' : 'fa-plus']" aria-hidden="true"></i>
+      <span class="new-idea-fab-labels" :class="{ 'is-pin-continue': isSubmitLocate }">
+        <span class="new-idea-fab-label" :class="{ 'is-active': !isSubmitLocate && fabMorphPhase !== 'reverse-travel', 'is-fading': isSubmitLocate }">{{ isSubmitLocate ? 'New' : isSubmit ? 'Close' : 'New' }}</span>
+        <span class="new-idea-fab-label new-idea-fab-label-pin" :class="{ 'is-active': isSubmitLocate && fabMorphPhase === 'complete' }">Set pin and continue</span>
+      </span>
+    </button>
+    <button v-if="isSubmitLocate && !isSubmitting" type="button" class="map-ui map-ui-button cancel-pin-button" :style="{ top: `calc(${pinContinueTop} + 60px)` }" :inert="detailLoading" @click="cancelPin">Cancel pin</button>
+    <MapToolbar v-if="!isSubmitting" class="absolute bottom-8 left-6 z-10" :inert="detailLoading"
+      ref="mapToolbar" :model-value="trayOpen && !isSubmit ? 'list' : 'map'" :marker-zoom-threshold="markerZoomThreshold" :map-zoom="mapZoom"
+      @update:model-value="selectTab"
       :heatmap-opacity="heatmapOpacity" @update:heatmap-opacity="setHeatmapOpacity"
       :heatmap-radius="heatmapRadius" @update:heatmap-radius="setHeatmapRadius"
       :marker-pulse-speed="markerPulseSpeed" @update:marker-pulse-speed="setMarkerPulseSpeed"
@@ -91,6 +100,7 @@
 
 import MapToolbar from './MapToolbar.vue';
 import MapSearchOverlay from './MapSearchOverlay.vue';
+import StyleSettings from './StyleSettings.vue';
 import { ref, computed, onMounted, provide, shallowRef, inject, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import dayjs from 'dayjs';
@@ -99,6 +109,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 import { isDark } from '../services/theme';
+import { railVisible, railThickness, setRailVisible, setRailThickness } from '../services/railSettings.js';
+import { suggestionIconSize, selectedMapStyle, setSuggestionIconSize, setSelectedMapStyle } from '../services/styleSettings.js';
 import { mapWorkspaceKey, detailMotionDuration } from '../services/mapWorkspace';
 import { loadWizardDraft, saveWizardDraft } from '../services/storage';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
@@ -150,7 +162,7 @@ import {
   resolveGooglePlace,
   getMapStyles,
   updateMapTheme,
-  insetMapZoomControls,
+  setMapRailsVisible,
   disposeMapTheme,
   reverseGeocodeWithGoogle,
 } from '../services/googleMaps';
@@ -169,7 +181,9 @@ const restoredLocation = window.history.state?.ideaView?.location;
 const userLocation = ref(restoredLocation && Number.isFinite(restoredLocation.lat) && Number.isFinite(restoredLocation.lng)
   && Math.abs(restoredLocation.lat) <= 90 && Math.abs(restoredLocation.lng) <= 180 ? restoredLocation : null);
 const isLocating = ref(false);
-const currentMapType = ref(getStoredMapView()?.mapType || (savedTab === 'satellite' ? 'hybrid' : 'roadmap'));
+const currentMapType = ref(selectedMapStyle.value === 'satellite' ? 'hybrid' : 'roadmap');
+const styleSettings = ref(null);
+const mapToolbar = ref(null);
 let requestedSort = getStoredBrowseSort();
 const activeSort = ref(requestedSort === 2 && userLocation.value ? 2 : 1);
 const markerZoomThreshold = ref(getStoredMarkerZoomThreshold());
@@ -320,6 +334,13 @@ let crosshairTravelAnimation = null;
 let crosshairTravelFrame = null;
 const crosshairEntranceReady = ref(true);
 const pinContinueReady = ref(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const pinContinueTop = ref('50%');
+const primaryMapActionButton = ref(null);
+const fabMorphing = ref(false);
+const fabMorphPhase = ref('idle');
+let pendingFabMorphRect = null;
+let pendingReverseFabMorphRect = null;
+const fabReverseTravelOffset = ref(null);
 function onCrosshairAnimationEnd(event) {
   if (event.animationName === 'crosshair-appear' && isSubmitLocate.value) pinContinueReady.value = true;
 }
@@ -368,8 +389,6 @@ function selectTab(tab) {
     else { rememberFocus(); router.push({ path: '/', query: { view: 'list' } }); }
   } else if (trayOpen.value && !isSubmit.value) {
     closeToMap();
-  } else {
-    setMapType(tab === 'satellite' ? 'hybrid' : 'roadmap');
   }
 }
 function setTab(tab) { router.push({ path: '/', query: { view: tab === 'list' ? 'list' : 'map' } }); }
@@ -389,11 +408,24 @@ function setSortMode(sort) {
 function setMapType(type) {
   cancelClusterZoom();
   currentMapType.value = type;
+  setSelectedMapStyle(type === 'hybrid' || type === 'satellite' ? 'satellite' : 'streets');
   setStoredBrowseTab(isList.value ? 'list' : type === 'hybrid' ? 'satellite' : 'streets');
   if (!map) return;
   map.setMapTypeId(type);
   updateMapTheme(map, isDark.value, type);
   saveCurrentMapView();
+}
+function changeMapStyle(style) {
+  setSelectedMapStyle(style);
+  setMapType(style === 'satellite' ? 'hybrid' : 'roadmap');
+}
+function setRailVisibility(visible) {
+  setRailVisible(visible);
+  if (map) setMapRailsVisible(map, railVisible.value);
+}
+function openAdvancedMapSettings() {
+  styleSettings.value?.close();
+  nextTick(() => mapToolbar.value?.openMarkerSettings?.(styleSettings.value?.getOpener?.()));
 }
 function saveCurrentMapView() {
   if (!map || !isMapReady.value || isProgrammaticChange || (!isBrowse.value && route.name !== 'Bookmarks')) return;
@@ -453,7 +485,7 @@ function setHeatmapRadius(value) {
   setStoredHeatmapRadius(heatmapRadius.value);
 }
 function suggestionMarkerIcon(suggestion, pulse = false) {
-  const size = pulse ? 128 : 80;
+  const size = Math.round((pulse ? 128 : 80) * suggestionIconSize.value / 100);
   return {
     url: createEmojiMarkerSvg(suggestion.emoji, {
       pulse,
@@ -469,6 +501,14 @@ function suggestionMarkerIcon(suggestion, pulse = false) {
     anchor: new googleMaps.Point(size / 2, size / 2),
   };
 }
+function refreshSuggestionMarkerIcons() {
+  for (const marker of markersArray) {
+    const suggestion = suggestionMarkerData.get(marker);
+    if (suggestion) marker.setIcon(suggestionMarkerIcon(suggestion, marker === detailPinnedMarker));
+  }
+}
+watch(suggestionIconSize, refreshSuggestionMarkerIcons, { flush: 'sync' });
+watch(railVisible, visible => { if (map) setMapRailsVisible(map, visible); }, { flush: 'sync' });
 function updatePinnedDetailMarkerIcon() {
   if (!detailPinnedMarker) return;
   const suggestion = suggestionMarkerData.get(detailPinnedMarker);
@@ -589,8 +629,7 @@ async function initGoogleMap() {
       mapTypeId: currentMapType.value === 'hybrid' ? googleMaps.MapTypeId.HYBRID : googleMaps.MapTypeId.ROADMAP,
       styles: getMapStyles(isDark.value, currentMapType.value),
       disableDefaultUI: true,
-      zoomControl: true,
-      zoomControlOptions: { position: googleMaps.ControlPosition.TOP_RIGHT },
+      zoomControl: false,
       mapTypeControl: false,
       gestureHandling: detailLoading.value ? 'none' : 'greedy',
       keyboardShortcuts: !detailLoading.value,
@@ -602,7 +641,6 @@ async function initGoogleMap() {
       tiltInteractionEnabled: false,
     });
 
-    insetMapZoomControls(map, googleMaps);
     updateMapTheme(map, isDark.value, currentMapType.value);
     infoWindow = new googleMaps.InfoWindow();
     sharedBrowseMap.value = {
@@ -1033,6 +1071,8 @@ const draft = computed(() => submission.value?.draft || initialDraft);
 const isSubmit = computed(() => route.name === 'Submit');
 const isDetail = computed(() => route.name === 'SubmissionDetail');
 const detailLoading = ref(false);
+// History navigation is asynchronous; stop queued framing when closing starts.
+let detailClosing = false;
 let detailMotionFrame = 0;
 let cancelDetailMotion = null;
 const detailLocation = ref(null);
@@ -1150,6 +1190,71 @@ watch(coordinateLabel, (element, _, onCleanup) => {
   onCleanup(() => observer.disconnect());
 });
 watch(isSubmitLocate, async active => {
+  if (active && pendingFabMorphRect) {
+    const startRect = pendingFabMorphRect;
+    pendingFabMorphRect = null;
+    fabMorphPhase.value = 'travel';
+    fabMorphing.value = true;
+    void (async () => {
+      await nextTick();
+      const button = primaryMapActionButton.value;
+      if (button) button.classList.remove('is-morph-prep');
+      const endRect = button?.getBoundingClientRect();
+      if (button) button.classList.add('is-morph-prep');
+      if (!button || !endRect || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        fabMorphPhase.value = 'complete';
+        fabMorphing.value = false;
+        return;
+      }
+      const travel = button.animate([
+        { translate: `${startRect.left - endRect.left}px ${startRect.top - endRect.top}px`, width: `${startRect.width}px`, height: `${startRect.height}px`, borderRadius: '50%', transformOrigin: 'top left' },
+        { translate: '0px 0px', width: `${startRect.width}px`, height: `${startRect.height}px`, borderRadius: '50%', transformOrigin: 'top left' },
+      ], { duration: 300, easing: 'linear', fill: 'forwards' });
+      await travel.finished.catch(() => {});
+      if (!button.isConnected) { travel.cancel(); return; }
+      fabMorphPhase.value = 'expand';
+      await nextTick();
+      const expand = button.animate([
+        { translate: '0px 0px', width: `${startRect.width}px`, height: `${startRect.height}px`, borderRadius: '50%', transformOrigin: 'top left' },
+        { translate: '0px 0px', width: `${endRect.width}px`, height: `${endRect.height}px`, borderRadius: '999px', transformOrigin: 'top left' },
+      ], { duration: 110, easing: 'ease-out', fill: 'forwards' });
+      await expand.finished.catch(() => {});
+      expand.cancel();
+      fabMorphPhase.value = 'complete';
+      fabMorphing.value = false;
+    })();
+  } else if (!active && pendingReverseFabMorphRect) {
+    const { startRect, endRect, offset } = pendingReverseFabMorphRect;
+    pendingReverseFabMorphRect = null;
+    fabMorphPhase.value = 'reverse-travel';
+    fabMorphing.value = true;
+    void (async () => {
+      await nextTick();
+      const button = primaryMapActionButton.value;
+      if (!button || !endRect || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        fabMorphing.value = false;
+        fabMorphPhase.value = 'idle';
+        fabReverseTravelOffset.value = null;
+        return;
+      }
+      const travelBack = button.animate([
+        { translate: offset, width: '72px', height: '72px', borderRadius: '50%', transformOrigin: 'top left' },
+        { translate: '0px 0px', width: '72px', height: '72px', borderRadius: '50%', transformOrigin: 'top left' },
+      ], { duration: 300, easing: 'linear', fill: 'forwards' });
+      await travelBack.finished.catch(() => {});
+      travelBack.cancel();
+      fabReverseTravelOffset.value = null;
+      fabMorphing.value = false;
+      fabMorphPhase.value = 'idle';
+    })();
+  } else if (!active) {
+    fabMorphPhase.value = 'idle';
+    fabMorphing.value = false;
+    pendingFabMorphRect = null;
+  } else {
+    fabMorphPhase.value = 'complete';
+    fabMorphing.value = false;
+  }
   pinContinueReady.value = active && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   isPinMoving.value = false;
   crosshairTravelAnimation?.cancel();
@@ -1185,7 +1290,43 @@ watch(isSubmitLocate, async active => {
     }
     positionCoordinateLabel();
   }).catch(() => {});
-});
+}, { immediate: true });
+async function cancelPin() {
+  const button = primaryMapActionButton.value;
+  if (!button || !isSubmitLocate.value || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    await closeTray();
+    return;
+  }
+  fabMorphPhase.value = 'reverse-expand';
+  fabMorphing.value = true;
+  await nextTick();
+  const currentRect = button.getBoundingClientRect();
+  const contract = button.animate([
+    { width: `${currentRect.width}px`, height: `${currentRect.height}px`, borderRadius: '999px' },
+    { width: '72px', height: '72px', borderRadius: '50%' },
+  ], { duration: 110, easing: 'ease-in', fill: 'forwards' });
+  await contract.finished.catch(() => {});
+  if (!button.isConnected) { contract.cancel(); return; }
+  const startRect = button.getBoundingClientRect();
+  const pinTop = button.style.top;
+  button.classList.remove('is-pin-continue');
+  button.style.removeProperty('top');
+  const endRect = button.getBoundingClientRect();
+  button.classList.add('is-pin-continue');
+  button.style.top = pinTop;
+  const offset = `${startRect.left - endRect.left}px ${startRect.top - endRect.top}px`;
+  pendingReverseFabMorphRect = { startRect, endRect, offset };
+  fabReverseTravelOffset.value = offset;
+  await closeTray();
+  contract.cancel();
+}
+function activatePrimaryMapAction() {
+  if (isSubmitLocate.value) { submission.value?.nextStep?.(); return; }
+  if (isSubmit.value) { closeTray(); return; }
+  pendingFabMorphRect = primaryMapActionButton.value?.getBoundingClientRect() || null;
+  fabMorphing.value = true;
+  router.push('/submit').catch(() => { fabMorphing.value = false; pendingFabMorphRect = null; });
+}
 const readOnlyAddress = computed(() => isDetail.value || (isSubmit.value && draft.value.step > 1));
 const trayOpen = computed(() => isList.value || route.name === 'MyActions' || route.name === 'Bookmarks' || route.name === 'SubmissionDetail' || readOnlyAddress.value);
 const wideScreen = window.matchMedia('(min-width: 1024px)');
@@ -1307,7 +1448,6 @@ function snapshot() {
 function restoreSnapshot(view, animate = false) {
   if (!view) return;
   if (!map) { pendingLocation = { latitude: view.lat, longitude: view.lng, zoom: view.zoom, mapType: view.mapType }; return; }
-  if (view.mapType) setMapType(view.mapType);
   if (map.getZoom() !== view.zoom) map.setZoom(view.zoom);
   if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) map.panTo({ lat: view.lat, lng: view.lng });
   else map.setCenter({ lat: view.lat, lng: view.lng });
@@ -1318,7 +1458,6 @@ function focusLocation(location) {
   if (!map) return;
   const lat = Number(location.latitude), lng = Number(location.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-  if (location.mapType) setMapType(location.mapType);
   map.setCenter({ lat, lng });
   map.setZoom(location.zoom ?? 16);
   pendingLocation = null;
@@ -1484,7 +1623,7 @@ function navigateDetail(direction) {
   if (id) router.push(`/suggestion/${encodeURIComponent(id)}`);
 }
 function frameDetailLocation(immediate = false) {
-  if (!isDetail.value || !map || !googleMaps || !detailLocation.value) return;
+  if (detailClosing || !isDetail.value || !map || !googleMaps || !detailLocation.value) return;
   const { latitude, longitude } = detailLocation.value;
   if (latitude == null || longitude == null) return;
   const position = { lat: Number(latitude), lng: Number(longitude) };
@@ -1514,11 +1653,6 @@ function frameDetailLocation(immediate = false) {
   } else { map.setCenter(position); map.panBy?.(0, offset); }
   ensureDetailTargetOverlay();
   detailTargetOverlay.draw();
-}
-function zoomDetailMap(direction) {
-  if (!map || !isDetail.value) return;
-  const zoom = (map.getZoom() ?? 16) + direction;
-  map.setZoom(Math.max(map.get?.('minZoom') ?? 0, Math.min(map.get?.('maxZoom') ?? 22, zoom)));
 }
 function frameSubmissionLocation() {
     if (!map || !googleMaps || !isSubmit.value || ![3, 4].includes(draft.value.step)) return;
@@ -1588,13 +1722,14 @@ async function closeToMap() {
 async function closeTray() {
   if (isSubmitting.value) return;
   if (['MyActions', 'Bookmarks', 'SubmissionDetail'].includes(route.name)) {
+    if (route.name === 'SubmissionDetail') detailClosing = true;
     await returnToOrigin();
     return;
   }
   if (isSubmit.value) submission.value?.saveDraft?.();
-  const focusLabel = isList.value ? 'Browse' : isSubmit.value ? 'Submit' : null;
+  const focusLabel = isList.value ? 'List' : isSubmit.value ? 'New' : null;
   await closeToMap();
-  if (focusLabel) nextTick(() => document.querySelector(`.map-toolbar button[aria-label="${focusLabel}"]`)?.focus({ preventScroll: true }));
+  if (focusLabel) nextTick(() => document.querySelector(focusLabel === 'New' ? '.new-idea-fab' : '.map-list-fab')?.focus({ preventScroll: true }));
   else restoreFocus();
 }
 async function revealLocation(location) {
@@ -1617,7 +1752,7 @@ function resetSubmissionToBrowseCenter(viewport) {
     saveWizardDraft(savedDraft);
     return;
   }
-  savedDraft.location = { latitude: viewport.lat, longitude: viewport.lng, address: '', description: '' };
+  savedDraft.location = { latitude: viewport.lat, longitude: viewport.lng, zoom: viewport.zoom, address: '', description: '' };
   initialDraft.location = savedDraft.location;
   saveWizardDraft(savedDraft);
   if (!map || !isMapReady.value) return;
@@ -1643,11 +1778,12 @@ const removeNavigationGuard = router.beforeEach(async (to, from) => {
   saveViewState(true);
   detailReturnViewport = null;
   if (from.name === 'SubmissionDetail' && to.name !== 'SubmissionDetail') {
+    detailClosing = true;
     cancelDetailTransition();
     detailReturnViewport = !skipRestore ? viewState.returnTo?.viewport : null;
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       // Keep the detail layout and camera intact until its visual exit ends.
-      const elements = document.querySelectorAll('.submission-detail-tray, .detail-map-target, .detail-zoom-ui, .workspace-backdrop-detail');
+      const elements = document.querySelectorAll('.submission-detail-tray, .detail-map-target, .workspace-backdrop-detail');
       const animations = [...elements].map(element => element.animate(
         [{ opacity: 1 }, { opacity: 0 }],
         { duration: 240, easing: 'ease-out', fill: 'forwards' },
@@ -1683,6 +1819,7 @@ const removeNavigationGuard = router.beforeEach(async (to, from) => {
   }
 });
 const removeAfterNavigation = router.afterEach((to, from, failure) => {
+  detailClosing = false;
   const exitAnimations = detailExitAnimations;
   detailExitAnimations = [];
   if (failure) { exitAnimations.forEach(animation => animation.cancel()); return; }
@@ -1718,8 +1855,8 @@ function handleEscape(event) {
   if (event.key !== 'Escape' || event.defaultPrevented) return;
   if (detailLoading.value) { event.preventDefault(); return; }
   if (isPopupOpen.value) { closeInfoWindow(); removeStoredActiveInfoWindowSuggestionId(); event.preventDefault(); return; }
-  const openMenu = document.querySelector('.map-toolbar[data-menu-open="true"]');
-  if (openMenu) { openMenu.querySelector('[aria-label="Menu"]')?.click(); event.preventDefault(); return; }
+  const openMenu = document.querySelector('.map-menu-launch[aria-expanded="true"]');
+  if (openMenu) { openMenu.click(); event.preventDefault(); return; }
   if (isSubmit.value && submission.value?.dismissNested?.()) { event.preventDefault(); return; }
   if (workspace.dismissDetail?.()) { event.preventDefault(); return; }
   if (trayOpen.value) { event.preventDefault(); closeTray(); }
@@ -1733,7 +1870,7 @@ const workspace = {
   isLoading, listError, locationError, saveViewState, getViewState, rememberSuggestion,
   formatBrowseAddress, formatCreationDate, getPrimaryPhoto, failedPhotoIds, onPhotoError,
   isList, trayOpen, closeTray, closeToMap, openSuggestion, focusLocation, revealLocation,
-  registerSubmission: value => { submission.value = value; },
+  registerSubmission: value => { submission.value = value; }, pinContinueTop,
 };
 provide(mapWorkspaceKey, workspace);
 watch([isPopupOpen, isSpiderOpen, isMapReady], ([popupOpen, spiderOpen]) => {

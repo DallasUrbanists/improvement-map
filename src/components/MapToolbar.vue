@@ -1,31 +1,13 @@
 <template>
-  <div v-bind="$attrs" class="map-ui map-toolbar" :data-menu-open="menuOpen" role="group" aria-label="Map view options">
-    <button v-if="showMapControls" type="button" class="map-ui-button map-icon-button map-location-button" data-testid="center-on-location-control"
-      title="Center on my location" aria-label="Center on my location" :aria-busy="locating" :disabled="recenterDisabled" @click="$emit('center')">
-      <i class="fa-solid fa-crosshairs" :class="{ 'animate-spin': locating }" aria-hidden="true"></i>
-    </button>
-    <span v-if="showMapControls" class="map-toolbar-divider" aria-hidden="true"></span>
-    <button v-if="showMapControls" type="button" class="map-ui-button" :aria-pressed="modelValue !== 'list'"
-      :aria-label="modelValue === 'list' ? `Show ${modeLabel} map` : `Switch to ${nextModeLabel} view`"
-      :title="modelValue === 'list' ? `Show ${modeLabel} map` : `Switch to ${nextModeLabel} view`"
-      @click="$emit('update:modelValue', modelValue === 'list' ? mapMode : nextMode)">
-      <i :class="['fa-solid', mapMode === 'satellite' ? 'fa-earth-americas' : 'fa-road']" aria-hidden="true"></i>
-      <span>{{ modeLabel }}</span>
-    </button>
-    <button type="button" class="map-ui-button" aria-label="Browse" :aria-pressed="isBrowse && modelValue === 'list'"
-      @click="browseList">
-      <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
-      <span>Browse</span>
-    </button>
-    <button type="button" class="map-ui-button" :aria-label="route.path === '/submit' ? 'Close' : 'Submit'" :aria-pressed="route.path === '/submit'" @click="exitSubmit ? $emit('exit-submit') : router.push('/submit')">
-      <i class="fa-solid fa-plus transition-transform duration-200" :class="{ 'rotate-45': route.path === '/submit' }" aria-hidden="true"></i>
-      <span>{{ route.path === '/submit' ? 'Close' : 'Submit' }}</span>
-    </button>
-    <button ref="menuButton" :id="menuId" type="button" class="map-ui-button map-icon-button" aria-label="Menu" title="Menu" aria-haspopup="menu" :aria-expanded="menuOpen"
-      @click="menuOpen = !menuOpen">
-      <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
-    </button>
-  </div>
+  <button v-bind="$attrs" type="button" class="map-ui map-ui-button map-list-fab" aria-label="List" :aria-pressed="isBrowse && modelValue === 'list'"
+    @click="browseList">
+    <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
+    <span>List</span>
+  </button>
+  <button ref="menuButton" :id="menuId" type="button" class="map-ui map-ui-button map-icon-button map-menu-launch" :inert="$attrs.inert" aria-label="Menu" title="Menu" aria-haspopup="menu" :aria-expanded="menuOpen"
+    @click="menuOpen = !menuOpen">
+    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+  </button>
   <Teleport to="body">
     <div class="map-menu-layer">
       <k-popover :opened="menuOpen" :target="`#${menuId}`" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
@@ -36,7 +18,7 @@
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('welcome')">Welcome &amp; guide</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('history')">What's new</button>
           <div class="menu-divider" role="separator"></div>
-          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings">Map settings<i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
+          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings()">Map settings<i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
           <div class="menu-divider" role="separator"></div>
           <button type="button" role="menuitemcheckbox" :aria-checked="isDark" class="map-ui-button w-full justify-between" @click="applyTheme(isDark ? 'light' : 'dark')">Dark mode<span class="theme-switch" :class="{ 'is-on': isDark }" aria-hidden="true"></span></button>
         </div>
@@ -45,7 +27,7 @@
   </Teleport>
   <Teleport to="body">
     <dialog ref="markerSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-settings-title`"
-      @keydown.esc.stop.prevent="closeMarkerSettings" @click.self="closeMarkerSettings" @close="menuButton?.focus({ preventScroll: true })">
+      @keydown.esc.stop.prevent="closeMarkerSettings" @click.self="closeMarkerSettings" @close="restoreMarkerSettingsFocus">
       <header class="map-tray-header marker-settings-header">
         <div class="map-tray-heading">
           <h2 :id="`${menuId}-settings-title`">Map settings</h2>
@@ -195,10 +177,6 @@ defineOptions({ inheritAttrs: false });
 const props = defineProps({
   modelValue: { type: String, default: 'streets' },
   showMapControls: { type: Boolean, default: true },
-  locating: { type: Boolean, default: false },
-  mapType: { type: String, default: 'roadmap' },
-  recenterDisabled: { type: Boolean, default: false },
-  exitSubmit: { type: Boolean, default: false },
   markerZoomThreshold: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerZoomThreshold },
   mapZoom: { type: Number, default: 13 },
   heatmapOpacity: { type: Number, default: DEFAULT_MARKER_SETTINGS.heatmapOpacity },
@@ -212,7 +190,7 @@ const props = defineProps({
   markerSpotlightSize: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightSize },
   markerSpotlightFeather: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightFeather },
 });
-const emit = defineEmits(['update:modelValue', 'center', 'exit-submit', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
+const emit = defineEmits(['update:modelValue', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
 const route = useRoute();
 const router = useRouter();
 const isBrowse = computed(() => route.path === '/' || route.path === '/browse');
@@ -220,6 +198,7 @@ const menuId = `map-menu-${useId()}`;
 const menuOpen = ref(false);
 const menuButton = ref(null);
 const markerSettingsDialog = ref(null);
+const markerSettingsReturnFocus = ref(null);
 const settingsTab = ref('markers');
 const animationEnabled = computed(() => props.markerPulseScale > 1 || props.markerBobAngle > 0);
 let previousAnimation;
@@ -245,12 +224,17 @@ function resetMarkerSettings() {
     emit(`update:${setting}`, value);
   }
 }
-async function openMarkerSettings() {
+async function openMarkerSettings(returnFocus = null) {
   menuOpen.value = false;
+  markerSettingsReturnFocus.value = returnFocus;
   await nextTick();
   markerSettingsDialog.value?.show();
 }
 function closeMarkerSettings() { markerSettingsDialog.value?.close(); }
+function restoreMarkerSettingsFocus() {
+  (markerSettingsReturnFocus.value || menuButton.value)?.focus({ preventScroll: true });
+  markerSettingsReturnFocus.value = null;
+}
 function openTray(path) {
   menuOpen.value = false;
   menuButton.value?.focus({ preventScroll: true });
@@ -262,9 +246,5 @@ function browseList() {
 }
 watch(() => route.fullPath, () => { menuOpen.value = false; closeMarkerSettings(); });
 onDeactivated(() => { menuOpen.value = false; closeMarkerSettings(); });
-const mapMode = computed(() => props.modelValue === 'list'
-  ? (props.mapType === 'hybrid' ? 'satellite' : 'streets') : props.modelValue);
-const modeLabel = computed(() => mapMode.value === 'satellite' ? 'Satellite' : 'Streets');
-const nextMode = computed(() => mapMode.value === 'satellite' ? 'streets' : 'satellite');
-const nextModeLabel = computed(() => nextMode.value === 'satellite' ? 'Satellite' : 'Streets');
+defineExpose({ openMarkerSettings, closeMarkerSettings });
 </script>

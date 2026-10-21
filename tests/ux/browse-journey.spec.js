@@ -4,18 +4,19 @@ import { audit, assertDraft } from './audit.js';
 test('browse, search, history, photos, settings and theme', async ({ page }, info) => {
   const check = audit(page, info);
   await page.goto('/?view=map');
-  await expect(page.locator('.map-zoom-ui')).toBeVisible();
-  const toolbarButtons = page.locator('.map-toolbar > button');
+  await expect(page.locator('.map-search-panel')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
+  const toolbarButtons = page.locator('.map-list-fab');
   for (const button of await toolbarButtons.all()) {
     const box = await button.boundingBox();
     expect.soft(box.width, 'toolbar touch width').toBeGreaterThanOrEqual(44);
     expect.soft(box.height, 'toolbar touch height').toBeGreaterThanOrEqual(44);
   }
-  const toolbarBox = await page.locator('.map-toolbar').boundingBox();
+  const toolbarBox = await page.locator('.map-list-fab').boundingBox();
   expect.soft(toolbarBox.x).toBeGreaterThanOrEqual(0);
   expect.soft(toolbarBox.x + toolbarBox.width).toBeLessThanOrEqual(page.viewportSize().width);
   await check('browse-map');
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.getByText('Suggestion 1', { exact: true })).toBeVisible();
   await check('browse-list');
   const scroll = page.locator('.map-tray-content');
@@ -39,7 +40,6 @@ test('browse, search, history, photos, settings and theme', async ({ page }, inf
   await page.goForward();
   await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toHaveAttribute('aria-busy', 'false');
   await page.goBack();
-  await page.getByRole('button', { name: 'Search address or neighborhood', exact: true }).click();
   await page.getByRole('textbox', { name: 'Search address or neighborhood' }).fill('Main');
   await expect(page.getByRole('button', { name: 'Searched address, Dallas, TX' })).toBeVisible();
   await check('search-results');

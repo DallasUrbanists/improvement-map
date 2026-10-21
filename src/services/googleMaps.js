@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { createNeighborhoodLabelLayer } from './neighborhoodLabels';
+import { railVisible } from './railSettings.js';
 
 const GOOGLE_MAPS_API_KEY =
   import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
@@ -106,37 +107,6 @@ function blendLabelColor(from, to, progress) {
 }
 
 const mapThemeBindings = new WeakMap();
-const mapZoomControls = new WeakMap();
-
-// Reserve the search bar's height in the right-side control stack.
-export function insetMapZoomControls(map, maps) {
-  if (mapZoomControls.has(map)) return;
-  const control = document.createElement('div');
-  control.className = 'map-ui map-zoom-ui';
-  control.setAttribute('role', 'group');
-  control.setAttribute('aria-label', 'Map zoom');
-  const buttons = [1, -1].map(direction => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'map-ui-button';
-    button.textContent = direction > 0 ? '+' : '−';
-    button.setAttribute('aria-label', direction > 0 ? 'Zoom in' : 'Zoom out');
-    button.addEventListener('click', () => map.setZoom((map.getZoom() ?? 13) + direction));
-    control.appendChild(button);
-    return button;
-  });
-  const sync = () => {
-    const type = map.mapTypes?.get(map.getMapTypeId());
-    buttons[0].disabled = map.getZoom() >= (map.get('maxZoom') ?? type?.maxZoom ?? 22);
-    buttons[1].disabled = map.getZoom() <= (map.get('minZoom') ?? type?.minZoom ?? 0);
-  };
-  const listeners = ['zoom_changed', 'maptypeid_changed', 'minzoom_changed', 'maxzoom_changed']
-    .map(event => map.addListener(event, sync));
-  map.controls[maps.ControlPosition.RIGHT_TOP].push(control);
-  map.setOptions({ zoomControl: false });
-  sync();
-  mapZoomControls.set(map, { control, listeners, controls: map.controls[maps.ControlPosition.RIGHT_TOP] });
-}
 
 /**
  * Updates a Google Map instance styling based on theme and map type
@@ -148,7 +118,7 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
   if (!map) return;
   let binding = mapThemeBindings.get(map);
   if (!binding) {
-    binding = { isDarkTheme };
+    binding = { isDarkTheme, railVisible: railVisible.value };
     const refresh = () => {
       const type = map.getMapTypeId();
       let styles = getMapStyles(binding.isDarkTheme, type, map.getZoom());
@@ -159,10 +129,11 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
         styles = styles.map(rule => rule.featureType === 'administrative.neighborhood' && rule.elementType === 'labels.text'
           ? { ...rule, stylers: [{ visibility: 'off' }] } : rule);
       }
+      binding.railLayer?.setVisible(binding.railVisible !== false);
       binding.railLayer?.update({ styles, mapType: type });
       // Labels are rendered once, in the managed label layer above all rails.
       // Keeping it in the base tiles too produces conflicting label placements.
-      if (binding.railLayer && type !== 'hybrid' && type !== 'satellite') {
+      if (binding.railLayer && binding.railVisible !== false && type !== 'hybrid' && type !== 'satellite') {
         styles = [...styles, { featureType: 'all', elementType: 'labels', stylers: [{ visibility: 'off' }] }];
       }
       const signature = JSON.stringify(styles);
@@ -189,15 +160,15 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
   binding.refresh();
 }
 
+export function setMapRailsVisible(map, visible) {
+  const binding = map && mapThemeBindings.get(map);
+  if (!binding) return;
+  binding.railVisible = Boolean(visible);
+  binding.railLayer?.setVisible(binding.railVisible);
+  binding.refresh?.();
+}
+
 export function disposeMapTheme(map) {
-  const zoom = mapZoomControls.get(map);
-  if (zoom) {
-    zoom.listeners.forEach(listener => listener.remove());
-    for (let i = zoom.controls.getLength() - 1; i >= 0; i--) {
-      if (zoom.controls.getAt(i) === zoom.control) zoom.controls.removeAt(i);
-    }
-    mapZoomControls.delete(map);
-  }
   const binding = mapThemeBindings.get(map);
   if (!binding) return;
   binding.disposed = true;

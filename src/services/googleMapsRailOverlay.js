@@ -1,5 +1,5 @@
 import { watch } from 'vue';
-import { railThickness, DEFAULT_RAIL_THICKNESS } from './railSettings.js';
+import { railThickness, railVisible, DEFAULT_RAIL_THICKNESS } from './railSettings.js';
 import { railSvgLayers } from './railSvgLayers.js';
 import { renderSourceTransit } from './sourceRailRendering.js';
 
@@ -32,6 +32,7 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
   let labelsMapType = null;
   let labelSignature = '';
   let disposed = false;
+  let visible = railVisible.value;
   const projectWorld = (lat, lng, size) => {
     const sin = Math.sin(Math.max(-85.05112878, Math.min(85.05112878, lat)) * Math.PI / 180);
     return { x: (lng + 180) / 360 * size, y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size };
@@ -66,7 +67,7 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
       if (map.overlayMapTypes.getAt(i) === type) map.overlayMapTypes.removeAt(i);
     }
   };
-  map.overlayMapTypes.push(railMapType);
+  if (visible) map.overlayMapTypes.push(railMapType);
   const stopThicknessWatch = watch(railThickness, () => {
     for (const [tile, { coord, zoom }] of tiles) paintTile(tile, coord, zoom);
   }, { flush: 'sync' });
@@ -78,8 +79,19 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
     headingInteractionEnabled: false, tiltInteractionEnabled: false });
   const listeners = ['heading_changed', 'tilt_changed'].map(event => map.addListener(event, lockCamera));
   return {
+    setVisible(nextVisible) {
+      if (disposed || visible === Boolean(nextVisible)) return;
+      visible = Boolean(nextVisible);
+      if (visible) map.overlayMapTypes.push(railMapType);
+      else {
+        removeMapType(railMapType);
+        if (labelsMapType) removeMapType(labelsMapType);
+        labelsMapType = null;
+        labelSignature = '';
+      }
+    },
     update({ styles, mapType }) {
-      if (disposed) return;
+      if (disposed || !visible) return;
       // Let Maps initialize and manage StyledMapType tiles. Calling getTile
       // directly on an unregistered StyledMapType returns no label tiles.
       // Preserve street, city, and neighborhood styling above every rail service.

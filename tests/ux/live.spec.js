@@ -10,8 +10,8 @@ test('read-only live map integration smoke', async ({ page, context }, info) => 
   await page.goto(process.env.UX_LIVE_URL);
   await expect(page.locator('[data-testid="persistent-map"] .gm-style')).toBeVisible({ timeout: 30000 });
   await expect(page.locator('.fake-map')).toHaveCount(0);
-  await expect(page.getByRole('group', { name: 'Map view options' })).toBeVisible();
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'List', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
   await info.attach('live-map.png', { body: await page.screenshot(), contentType: 'image/png' });
 });

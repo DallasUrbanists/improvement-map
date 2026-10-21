@@ -18,44 +18,46 @@ async function mapState(page) {
 test('desktop side tray keeps the map usable; mobile restores modal map behavior', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/?view=list');
-  await expect(page.locator('.map-zoom-ui')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
   await expect(page.locator('.workspace-backdrop')).toHaveCount(0);
   await expect.poll(async () => (await mapState(page)).gestures).toBe('greedy');
-  const initial = await mapState(page);
-  await page.locator('.map-zoom-ui').getByRole('button', { name: 'Zoom in', exact: true }).click();
-  expect((await mapState(page)).zoom).toBeGreaterThan(initial.zoom);
+  await mapState(page);
   await bookmarks(page);
-  await expect(page.locator('.map-zoom-ui')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
   await page.setViewportSize({ width: 360, height: 800 });
-  await expect(page.locator('.map-zoom-ui')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
   await expect.poll(async () => (await mapState(page)).gestures).toBe('none');
   await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
   await expect(tray(page)).toBeVisible();
 });
 
-test('search reveals the map, keeps list position, and toolbar exits are explicit', async ({ page }) => {
+test('search reveals the map, keeps list position, and tray exits are explicit', async ({ page }) => {
   await page.goto('/?view=list');
   await tray(page).locator('.map-tray-content').evaluate(el => { el.scrollTop = 200; });
-  await page.getByRole('button', { name: 'Search address or neighborhood', exact: true }).click();
   await page.getByRole('textbox', { name: 'Search address or neighborhood' }).fill('Main');
   await page.getByRole('button', { name: 'Searched address, Dallas, TX' }).click();
   await expect(page).toHaveURL(/view=map/);
   expect((await mapState(page)).center).toEqual({ lat: 32.81, lng: -96.76 });
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect.poll(() => tray(page).locator('.map-tray-content').evaluate(el => el.scrollTop)).toBe(200);
   await bookmarks(page);
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
   await expect(tray(page)).toBeVisible();
-  await page.getByRole('button', { name: /Show .* map/ }).click();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await expect(page).toHaveURL(/view=map/);
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await expect(tray(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
+  await expect(page).toHaveURL(/view=map/);
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await expect(page).toHaveURL(/view=map/);
 });
 
 test('Submit retains content, refresh keeps its step, and bookmark excursions return there', async ({ page }) => {
   await page.goto('/?view=list');
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   await page.getByTestId('pin-and-continue').click();
   await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
@@ -64,8 +66,8 @@ test('Submit retains content, refresh keeps its step, and bookmark excursions re
   await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
-  await page.getByRole('button', { name: 'Browse', exact: true }).click();
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Attach photos', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   const draft = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), draftKey);
   expect(draft.details).toContain('Improve safety');
@@ -105,6 +107,9 @@ test('map failures, unsupported GPS, and broken thumbnails still allow bookmarks
   await page.goto('/?view=list');
   await page.getByRole('button', { name: 'Nearest to me', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Newest', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Dismiss', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Dismiss', exact: true }).click();
+  await expect(page.getByText('Your location is unavailable. Showing newest ideas.', { exact: true })).toHaveCount(0);
   await expect(page.locator('.idea-thumbnail .fa-camera')).toBeVisible();
   await page.getByRole('button', { name: 'Bookmark idea', exact: true }).click();
   await bookmarks(page);

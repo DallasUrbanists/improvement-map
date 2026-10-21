@@ -50,7 +50,7 @@ export function initTheme() {
 }
 
 export function applyTheme(theme) {
-  if (theme !== 'light' && theme !== 'dark') return;
+	if (!THEME_OPTIONS.has(theme)) return;
   selectedTheme.value = theme;
   setStoredTheme(theme);
   applyResolvedTheme(theme);

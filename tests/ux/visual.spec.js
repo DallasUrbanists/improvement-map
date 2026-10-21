@@ -18,10 +18,11 @@ test('map loading surface follows theme independently of rendered tiles', async 
   await expect(tiles).toHaveCSS('background-color', 'rgb(77, 96, 89)');
 });
 
-test('toolbar visual baseline', async ({ page }, info) => {
+test('list floating button visual baseline', async ({ page }, info) => {
   await page.goto('/?view=map');
-  const toolbar = page.getByRole('group', { name: 'Map view options' });
+  const toolbar = page.locator('.map-list-fab');
   await expect(toolbar).toBeVisible();
+  await expect(page.locator('.map-toolbar')).toHaveCount(0);
   await page.evaluate(() => document.fonts.ready);
   const options = { animations: 'disabled', caret: 'hide', maxDiffPixels: 16 };
   if (existsSync(info.snapshotPath('toolbar.png')) || process.env.UX_VISUAL === '1') {

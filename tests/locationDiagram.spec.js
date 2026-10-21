@@ -265,7 +265,8 @@ test('Version Two previews offline, switches renderers and exports landscape SVG
   await page.route('**/*', route => ['localhost', '127.0.0.1'].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
   await page.goto('/test');
   const preview = page.getByTestId('diagram-preview');
-  await expect(page.getByLabel('Renderer')).toHaveValue('minimal');
+  // This route lazy-loads and renders the entire offline gallery before mounting.
+  await expect(page.getByLabel('Renderer')).toHaveValue('minimal', { timeout: 15000 });
   await expect.poll(() => preview.evaluate(img => img.complete && img.naturalWidth === 480 && Math.abs(img.naturalHeight - 480 / 1.91) < 1)).toBe(true);
   const landscape = await preview.getAttribute('src');
   await page.getByLabel('Renderer').selectOption('current');

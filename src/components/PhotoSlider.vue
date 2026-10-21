@@ -107,7 +107,9 @@ function scrollToPhoto(index, behavior = 'smooth') {
   const viewer = photoViewer.value;
   if (!viewer) return;
   const targetIndex = Math.max(0, Math.min(index, props.photos.length - 1));
-  viewer.scrollTo({ left: targetIndex * photoScrollAdvance(viewer), behavior });
+  // Programmatic scrolling must honor the same motion preference as transitions.
+  const scrollBehavior = behavior === 'smooth' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : behavior;
+  viewer.scrollTo({ left: targetIndex * photoScrollAdvance(viewer), behavior: scrollBehavior });
 }
 
 onMounted(() => scrollToPhoto(props.activeIndex, 'auto'));

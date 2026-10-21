@@ -287,10 +287,10 @@ test('speech UI can cancel startup and abort recording when its cached view is l
     window.lateSpeechResult = session.onresult;
   });
   await expect(page.getByRole('button', { name: 'Stop recording' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Close Describe your idea', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.speechSessions[1].aborted)).toBe(true);
   await page.evaluate(() => window.lateSpeechResult({ results: [[{ transcript: 'Must be ignored' }]] }));
-  await page.getByRole('button', { name: 'Submit', exact: true }).click();
+  await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByTestId('pin-and-continue').click();
   await page.getByRole('button', { name: 'Skip photos', exact: true }).click();
   await expect(page.locator('#input-details')).toHaveValue('Original draft content');

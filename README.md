@@ -44,7 +44,7 @@ A wizard-style multi-step form with persistent `localStorage` draft saving:
 - **Tray behavior** — Steps 2–4 lock the address bar to the selected location. Closing a tray preserves the draft; Submit resumes its saved step. Location summaries use the shared map rather than creating embedded maps.
 
 ### 3. Browse Page (`/browse`)
-- **Map View**: Full viewport Google Map with native Google Maps markers for all suggestions, Streets & Satellite view switchers, search bar overlay with Google address autocomplete, and popups containing summary, photo thumbnail, and "View suggestion" link.
+- **Map View**: Full viewport Google Map with native Google Maps markers for all suggestions, Style Settings controls for Streets/Satellite imagery, search bar overlay with Google address autocomplete, and popups containing summary, photo thumbnail, and "View suggestion" link.
 - **Suggestion Density**: The browse map replaces suggestion markers and the draft crosshair with a heatmap below the configured marker threshold (default zoom 10). The three dots menu shows the current zoom and saves a threshold from 1 to 20. The Marker settings modal saves heatmap opacity (default 40%) and radius (8 to 160 screen pixels, default 56). Markers and clusters return at the threshold and above. The canvas layer blends nearby suggestions and stays aligned while panning. Submit retains its location crosshair.
 - **List View**: Suggestion cards sorted by distance from user's current GPS location (closest first via Turf.js) or newest first if GPS permission is pending.
 

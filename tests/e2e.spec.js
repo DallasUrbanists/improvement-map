@@ -197,7 +197,8 @@ test('submission uses an AI-generated imperative summary with required limits', 
 
   await page.goto('/submit');
   await page.getByRole('button', { name: 'Submit' }).click();
-  await expect(page.getByRole('heading', { name: 'Submission complete!' })).toBeVisible();
+  // Offline thumbnail generation and photo conversion finish before submission.
+  await expect(page.getByRole('heading', { name: 'Submission complete!' })).toBeVisible({ timeout: 15000 });
   await expect.poll(() => summaryRequest).toEqual({
     method: 'POST',
     body: {
