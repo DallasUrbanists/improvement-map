@@ -148,7 +148,7 @@ onBeforeUnmount(() => { mounted = false; clearTimeout(timer); observer?.disconne
 .welcome-feature h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
 .welcome-feature p { margin: 0; font-size: 16px; line-height: 1.5; }
 .announcement-note { font-size: 14px; line-height: 1.45; margin: 16px 0 0; }
-.announcement-footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
+.announcement-footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding: 12px 16px max(12px, var(--app-safe-area-bottom, 0px)); }
 .announcement-footer label { display: flex; align-items: center; gap: 12px; min-height: 44px; flex: 1; font-size: 14px; line-height: 1.45; cursor: pointer; }
 .announcement-footer input { width: 22px; height: 22px; accent-color: var(--map-control-text); flex-shrink: 0; }
 .announcement-footer input:focus-visible { outline: 2px solid var(--map-control-text); outline-offset: 3px; }
