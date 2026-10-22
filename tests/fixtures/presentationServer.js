@@ -2,6 +2,7 @@ import { createDefaultPresentationState, DEFAULT_PHOTO_FRAME } from '../../src/s
 
 const pixelPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
 const id = suffix => `00000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
+const defaultApiOrigin = 'https://api.presentation.test';
 
 export const presentationIdeas = [
   {
@@ -24,8 +25,10 @@ export const presentationIdeas = [
 ];
 
 export class PresentationTestServer {
-  constructor({ clock = () => Date.parse('2026-10-21T18:00:00.000Z') } = {}) {
+  constructor({ clock = () => Date.now(), appOrigin = 'http://localhost:5173', apiOrigin = defaultApiOrigin } = {}) {
     this.clock = clock;
+    this.appOrigin = new URL(appOrigin).origin;
+    this.apiOrigin = new URL(apiOrigin).origin;
     this.sessions = new Map();
     this.idempotency = new Map();
     this.sequence = 0;
@@ -36,6 +39,11 @@ export class PresentationTestServer {
     this.dropStateResponses = 0;
     this.rateLimitNextStateResponses = 0;
     this.enrollmentRequests = [];
+    this.syncRequests = 0;
+    this.socketAttempts = 0;
+    this.socketAuthFrames = [];
+    this.socketPresence = [];
+    this.socketConnections = new Set();
   }
 
   get serverTimeMs() { return this.clock(); }
@@ -48,8 +56,8 @@ export class PresentationTestServer {
     const session = {
       id: sessionId, status: 'waiting', revision: 0, state,
       expiresAt: new Date(this.serverTimeMs + 10 * 60_000).toISOString(),
-      presenterCode: 'ABCD2345', presenterCodeExpiresAt: new Date(this.serverTimeMs + 10 * 60_000).toISOString(),
-      audienceCode: 'WXYZ6789', controllerId: null, receiver: null,
+      presenterCode: '01234', presenterCodeExpiresAt: new Date(this.serverTimeMs + 10 * 60_000).toISOString(),
+      audienceCode: '56789', controllerId: null, receiver: null,
       participants: new Map([[participant.id, participant]]), content: null,
     };
     this.sessions.set(sessionId, session);
@@ -104,6 +112,135 @@ export class PresentationTestServer {
     };
   }
 
+  fullSocketEnvelope(session, role) {
+    const { body } = this.currentEnvelope(session, role, { force: true });
+    body.changed = true;
+    body.state = structuredClone(session.state);
+    body.content = session.state.selectedIdeaId === null ? null : structuredClone(session.content);
+    if (role !== 'controller') delete body.audienceCode;
+    return body;
+  }
+
+  sendSnapshot(session, connection) {
+    if (!connection?.authenticated || connection.closed || connection.session !== session) return false;
+    connection.sequence++;
+    try {
+      connection.route.send(JSON.stringify({
+        type: 'snapshot', socketProtocolVersion: 1, sequence: connection.sequence,
+        envelope: this.fullSocketEnvelope(session, connection.participant.role),
+      }));
+      return true;
+    } catch { return false; }
+  }
+
+  broadcastSnapshot(session) {
+    for (const connection of this.socketConnections) this.sendSnapshot(session, connection);
+  }
+
+  heartbeat(sessionId, idValue = 'heartbeat-fixture') {
+    const session = this.sessions.get(sessionId);
+    if (!session) return 0;
+    let sent = 0;
+    for (const connection of this.socketConnections) {
+      if (!connection.authenticated || connection.session !== session || connection.closed) continue;
+      connection.route.send(JSON.stringify({
+        type: 'heartbeat', socketProtocolVersion: 1, id: idValue,
+        serverTime: new Date(this.serverTimeMs).toISOString(),
+      }));
+      sent++;
+    }
+    return sent;
+  }
+
+  dropSockets(sessionId, code = 1013) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return 0;
+    let closed = 0;
+    for (const connection of [...this.socketConnections]) {
+      if (connection.session !== session || connection.closed) continue;
+      connection.closed = true;
+      this.socketConnections.delete(connection);
+      void connection.route.close({ code, reason: 'Fixture transport interruption' });
+      closed++;
+    }
+    return closed;
+  }
+
+  routeWebSocket(route) {
+    this.socketAttempts++;
+    const connection = { route, session: null, participant: null, authenticated: false, closed: false, sequence: 0 };
+    const close = (code, message) => {
+      connection.closed = true;
+      void route.close({ code, reason: message });
+    };
+    const sendError = (error, message) => route.send(JSON.stringify({ type: 'error', socketProtocolVersion: 1, error, message }));
+    route.onMessage(message => {
+      let frame;
+      try { frame = JSON.parse(String(message)); } catch { close(1008, 'Invalid frame'); return; }
+      if (!frame || typeof frame !== 'object' || Array.isArray(frame)) { close(1008, 'Invalid frame'); return; }
+      if (!connection.authenticated) {
+        this.socketAuthFrames.push({ url: route.url(), frame: structuredClone(frame) });
+        const fields = ['type', 'socketProtocolVersion', 'protocolVersion', 'sessionId', 'participantId', 'participantToken'];
+        if (frame.socketProtocolVersion !== 1) { sendError('SOCKET_PROTOCOL_UNSUPPORTED', 'Unsupported presentation socket version.'); close(4004, 'Unsupported version'); return; }
+        if (frame.protocolVersion !== 1) { sendError('PROTOCOL_UNSUPPORTED', 'Update the app to use this presentation.'); close(4004, 'Unsupported protocol'); return; }
+        if (frame.type !== 'authenticate' || Object.keys(frame).sort().join('|') !== fields.sort().join('|')
+          || typeof frame.sessionId !== 'string' || typeof frame.participantId !== 'string' || typeof frame.participantToken !== 'string') {
+          close(1008, 'Invalid authentication frame'); return;
+        }
+        const session = this.sessions.get(frame.sessionId);
+        const participant = session?.participants.get(frame.participantId);
+        if (!participant || participant.token !== frame.participantToken || !participant.connected) {
+          sendError('INVALID_SESSION_CREDENTIAL', 'This presentation connection is no longer valid.');
+          close(4001, 'Rejected participant credential');
+          return;
+        }
+        if (session.status === 'ended' || session.status === 'expired') {
+          const code = session.status === 'expired' ? 'SESSION_EXPIRED' : 'SESSION_ENDED';
+          sendError(code, session.status === 'expired' ? 'This presentation has expired.' : 'This presentation has ended.');
+          close(4003, 'Presentation is no longer active');
+          return;
+        }
+        connection.session = session;
+        connection.participant = participant;
+        connection.authenticated = true;
+        this.socketConnections.add(connection);
+        connection.sequence = 1;
+        route.send(JSON.stringify({
+          type: 'ready', socketProtocolVersion: 1, sequence: 1,
+          envelope: this.fullSocketEnvelope(session, participant.role),
+        }));
+        return;
+      }
+      const presenceFields = ['type', 'socketProtocolVersion', 'heartbeatId', 'presence'].sort().join('|');
+      if (frame.type !== 'presence' || frame.socketProtocolVersion !== 1
+        || Object.keys(frame).sort().join('|') !== presenceFields
+        || !(frame.heartbeatId === null || (typeof frame.heartbeatId === 'string' && frame.heartbeatId.length > 0 && frame.heartbeatId.length <= 64))
+        || !this.validSocketPresence(connection.participant.role, frame.presence)) {
+        close(1008, 'Invalid presence frame');
+        return;
+      }
+      this.socketPresence.push({ role: connection.participant.role, heartbeatId: frame.heartbeatId, presence: structuredClone(frame.presence) });
+      if (connection.participant.role === 'receiver') connection.session.receiver = structuredClone(frame.presence);
+      if (connection.participant.role === 'audience') connection.participant.localView = frame.presence.localView || null;
+    });
+    route.onClose(() => {
+      connection.closed = true;
+      this.socketConnections.delete(connection);
+    });
+  }
+
+  validSocketPresence(role, presence) {
+    if (!presence || typeof presence !== 'object' || Array.isArray(presence)) return false;
+    if (role === 'controller') return Object.keys(presence).length === 0;
+    if (role === 'audience') return Object.keys(presence).every(key => key === 'localView')
+      && (!Object.hasOwn(presence, 'localView') || ['map', 'photo', 'description'].includes(presence.localView));
+    if (role === 'receiver') return Number.isSafeInteger(presence.appliedRevision) && presence.appliedRevision >= 0
+      && presence.viewport && Number.isFinite(presence.viewport.width) && Number.isFinite(presence.viewport.height)
+      && ['loading', 'ready', 'error'].includes(presence.renderStatus)
+      && (presence.renderError === null || ['MAP_UNAVAILABLE', 'IMAGE_UNAVAILABLE', 'STREETMIX_UNAVAILABLE', 'CONTENT_UNAVAILABLE', 'TILE_UNAVAILABLE', 'RENDER_FAILED', 'NETWORK_ERROR', 'TIMEOUT', 'UNKNOWN'].includes(presence.renderError));
+    return false;
+  }
+
   authenticate(request, session) {
     const headers = request.headers();
     const idHeader = headers['x-presentation-participant'];
@@ -145,6 +282,7 @@ export class PresentationTestServer {
       session.presenterCodeExpiresAt = null;
       const result = { status: 200, body: { protocolVersion: 1, sessionId: session.id, participantId: participant.id, role: 'controller', expiresAt: session.expiresAt, state: structuredClone(session.state), audienceCode: session.audienceCode } };
       this.remember(request, body, result);
+      this.broadcastSnapshot(session);
       return result;
     }
 
@@ -157,11 +295,13 @@ export class PresentationTestServer {
       session.participants.set(participant.id, participant);
       const result = { status: 200, body: { protocolVersion: 1, sessionId: session.id, participantId: participant.id, role: 'audience', displayName: participant.displayName, expiresAt: session.expiresAt, state: structuredClone(session.state), ...(session.content ? { content: structuredClone(session.content) } : {}) } };
       this.remember(request, body, result);
+      this.broadcastSnapshot(session);
       return result;
     }
 
     const syncMatch = path.match(/\/sessions\/([^/]+)\/sync$/);
     if (method === 'POST' && syncMatch) {
+      this.syncRequests++;
       const session = this.sessions.get(syncMatch[1]);
       const participant = this.authenticate(request, session);
       if (!participant) return this.error(401, 'INVALID_SESSION_CREDENTIAL', 'This presentation connection is no longer valid.');
@@ -251,6 +391,7 @@ export class PresentationTestServer {
       this.stateMutations++;
       const result = this.currentEnvelope(session, 'controller');
       this.remember(request, body, result);
+      this.broadcastSnapshot(session);
       return this.dropStateResponse(result);
     }
 
@@ -260,7 +401,7 @@ export class PresentationTestServer {
       const participant = this.authenticate(request, session);
       if (!participant) return this.error(401, 'INVALID_SESSION_CREDENTIAL', 'This presentation connection is no longer valid.');
       if (participant.role !== 'receiver') return this.error(403, 'ROLE_FORBIDDEN', 'Only the TV can issue a pairing code.');
-      const code = 'QWER2345';
+      const code = '01234';
       session.presenterCode = code;
       session.presenterCodeExpiresAt = new Date(this.serverTimeMs + 10 * 60_000).toISOString();
       if (session.controllerId) session.participants.get(session.controllerId).connected = false;
@@ -297,13 +438,14 @@ export class PresentationTestServer {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Authorization, Content-Type, Idempotency-Key, X-Presentation-Participant',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Expose-Headers': 'ETag, Retry-After',
       'Cache-Control': 'no-store',
     };
-    if (['localhost', '127.0.0.1'].includes(url.hostname) && url.port === '5173') return route.continue();
-    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (url.origin === this.appOrigin) return route.continue();
     if (url.hostname === 'images.test') return route.fulfill({ status: 200, contentType: 'image/png', body: pixelPng, headers: { ...cors, 'Cross-Origin-Resource-Policy': 'cross-origin' } });
     if (url.hostname === 'streetmix.net') return route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Saved design</title><p>Saved street design</p>', headers: cors });
-    if (!url.pathname.includes('/api/public-improvements/presentation')) return route.abort('blockedbyclient');
+    if (url.origin !== this.apiOrigin || !url.pathname.startsWith('/api/public-improvements/presentation')) return route.abort('blockedbyclient');
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     const result = await this.dispatch(request);
     if (result.drop) return route.abort('connectionreset');
     if (result.binary) return route.fulfill({ status: result.status, contentType: result.contentType, body: result.binary, headers: cors });
@@ -335,14 +477,24 @@ export function presentationBrowserInit() {
     constructor(input, lng) { this.latitude = typeof input === 'object' ? input.lat : input; this.longitude = typeof input === 'object' ? input.lng : lng; }
     lat() { return this.latitude; } lng() { return this.longitude; }
   }
+  class MVCArray {
+    constructor() { this.values = []; }
+    push(value) { this.values.push(value); return this.values.length; }
+    getLength() { return this.values.length; }
+    getAt(index) { return this.values[index]; }
+    removeAt(index) { return this.values.splice(index, 1)[0]; }
+  }
   class Map extends Events {
-    constructor(div, options) { super(); window.__mapConstructions++; this.div = div; this.center = new LatLng(options.center); this.zoom = options.zoom; this.type = options.mapTypeId; this.div.classList.add('fake-map'); setTimeout(() => this.fire('idle'), 0); }
+    constructor(div, options) { super(); window.__mapConstructions++; this.div = div; this.center = new LatLng(options.center); this.zoom = options.zoom; this.type = options.mapTypeId; this.controls = Array.from({ length: 13 }, () => new MVCArray()); this.overlayMapTypes = new MVCArray(); this.div.classList.add('fake-map'); setTimeout(() => this.fire('idle'), 0); }
     getCenter() { return this.center; } getZoom() { return this.zoom; } getMapTypeId() { return this.type; }
+    panTo(value) { this.setCenter(value); }
+    getHeading() { return 0; } getTilt() { return 0; }
+    setHeading() {} setTilt() {}
     setOptions() {} setCenter(value) { this.center = new LatLng(value); setTimeout(() => this.fire('idle'), 0); }
     setZoom(value) { this.zoom = value; setTimeout(() => this.fire('idle'), 0); } setMapTypeId(value) { this.type = value; }
     getDiv() { return this.div; } getBounds() { return { toJSON: () => ({}) }; }
   }
-  class Marker { constructor(options) { this.options = options; } setMap(map) { this.map = map; } setPosition(value) { this.options.position = value; } setTitle(value) { this.options.title = value; } setLabel(value) { this.options.label = value; } }
-  class OverlayView { setMap(map) { this.map = map; if (map) this.onAdd?.(); else this.onRemove?.(); } getPanes() { return { overlayLayer: this.map.div, overlayMouseTarget: this.map.div }; } getProjection() { return { fromLatLngToDivPixel: () => ({ x: 0, y: 0 }) }; } }
-  window.google = { maps: { Map, Marker, OverlayView, LatLng, MapTypeId: { ROADMAP: 'roadmap', HYBRID: 'hybrid' }, ControlPosition: { RIGHT_TOP: 3, BOTTOM_LEFT: 6 }, Point: class {}, Size: class {}, SymbolPath: { CIRCLE: 0 }, places: {}, event: { trigger() {}, clearInstanceListeners() {} } } };
+  class Marker { constructor(options) { this.options = options; } setMap(map) { this.map = map; } setPosition(value) { this.options.position = value; } setTitle(value) { this.options.title = value; } setLabel(value) { this.options.label = value; } setIcon(value) { this.options.icon = value; } }
+  class OverlayView { setMap(map) { this.map = map; if (map) this.onAdd?.(); else this.onRemove?.(); } getPanes() { return { overlayLayer: this.map.div, overlayMouseTarget: this.map.div }; } getProjection() { return { fromLatLngToDivPixel: () => ({ x: 0, y: 0 }), fromLatLngToContainerPixel: () => ({ x: 0, y: 0 }) }; } }
+  window.google = { maps: { Map, Marker, OverlayView, LatLng, MapTypeId: { ROADMAP: 'roadmap', HYBRID: 'hybrid' }, ControlPosition: { RIGHT_TOP: 3, BOTTOM_LEFT: 6 }, Point: class {}, Size: class {}, StyledMapType: class {}, SymbolPath: { CIRCLE: 0 }, places: {}, event: { trigger() {}, clearInstanceListeners() {} } } };
 }

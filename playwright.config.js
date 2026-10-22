@@ -1,12 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const unitOnly = process.argv.includes('--project=unit');
+const appBaseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
+const appUrl = new URL(appBaseURL);
+const useFreshServer = Boolean(process.env.PLAYWRIGHT_BASE_URL);
 const reporter = [['list']];
 if (process.env.PLAYWRIGHT_BLOB_DIR) reporter.push(['blob', { outputDir: process.env.PLAYWRIGHT_BLOB_DIR }]);
 
 export default defineConfig({
   testDir: './tests',
-  testIgnore: '**/ux/**',
+  testIgnore: ['**/ux/**', '**/presentationConnection.spec.js'],
   fullyParallel: true,
   timeout: 45000,
   forbidOnly: !!process.env.CI,
@@ -16,18 +19,24 @@ export default defineConfig({
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || 'test-results/regression',
   reporter,
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: appBaseURL,
     // Existing journeys exercise the app after onboarding; announcement specs override this.
-    storageState: { cookies: [], origins: [{ origin: 'http://localhost:5173', localStorage: [{ name: 'improvement_map_announcements_v1', value: JSON.stringify({ version: 1, initialized: true, skipWelcome: true, acknowledged: '5.3.0' }) }] }] },
+    storageState: { cookies: [], origins: [{ origin: appUrl.origin, localStorage: [{ name: 'improvement_map_announcements_v1', value: JSON.stringify({ version: 1, initialized: true, skipWelcome: true, acknowledged: '5.3.0' }) }] }] },
     trace: 'on-first-retry',
     serviceWorkers: 'block',
   },
   webServer: unitOnly && !process.argv.some(arg => arg.startsWith('--project=') && arg !== '--project=unit') ? undefined : {
     // Disable HMR so test artifacts and concurrent edits cannot reload a journey.
-    command: 'npm run dev -- --config vite.ux.config.js',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    command: `npm run dev -- --config vite.ux.config.js --host ${appUrl.hostname} --port ${appUrl.port || '5173'}${useFreshServer ? ' --strictPort' : ''}`,
+    url: appBaseURL,
+    reuseExistingServer: useFreshServer ? false : !process.env.CI,
     timeout: 120000,
+    env: {
+      ...process.env,
+      VITE_PRESENTATION_ENABLED: 'true',
+      VITE_PRESENTATION_WEBSOCKET_ENABLED: 'false',
+      VITE_API_BASE_URL: 'https://api.presentation.test',
+    },
   },
   projects: [
     {

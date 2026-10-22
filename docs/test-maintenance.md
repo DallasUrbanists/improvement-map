@@ -31,6 +31,34 @@ report failures by default; `UX_ENFORCE=true` makes them fail that workflow but
 does not block Pages deployment. The deployment workflow continues to require
 the critical test job.
 
+Presentation connection coverage is registered separately as
+`regression-presentation`. Its fresh-server config provides Chromium, Mobile
+Chrome, and WebKit projects. The ordinary regression and UX configurations
+explicitly disable presentation socket probing so their existing polling tests
+remain deterministic. The connection suite's default is socket-on; use
+`PRESENTATION_SOCKET_TEST_MODE=off` for the fresh-server fallback assertion.
+Both modes select tagged tests and can be checked without starting Vite:
+
+```powershell
+npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium --list
+$previousSocketTestMode = $env:PRESENTATION_SOCKET_TEST_MODE
+try {
+  $env:PRESENTATION_SOCKET_TEST_MODE = 'off'
+  npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium --list
+} finally {
+  if ($null -eq $previousSocketTestMode) {
+    Remove-Item Env:PRESENTATION_SOCKET_TEST_MODE -ErrorAction SilentlyContinue
+  } else {
+    $env:PRESENTATION_SOCKET_TEST_MODE = $previousSocketTestMode
+  }
+}
+```
+
+These connection tests mock the presentation API and WebSocket with the
+Playwright fixture. They do not replace the local Firestore emulator smoke
+against the actual backend. See [presentation WebSocket transport](presentation-websocket.md)
+for socket setup, fallback behavior, and the opt-in ten-minute soak.
+
 Browserless Playwright cases are tagged `@unit` and run in the `unit` project.
 Mixed files keep shared fixtures together, but their pure cases do not run in
 the device projects. When filtering by title, select the intended project and

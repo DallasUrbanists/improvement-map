@@ -6,7 +6,7 @@
         <h1>{{ terminal ? 'Presentation ended' : 'Join the audience' }}</h1>
         <p class="presentation-muted">Enter the audience viewing code shown on the TV, or open an audience QR link. This code does not grant presenter controls.</p>
         <label for="audience-code">Audience viewing code</label>
-        <input id="audience-code" v-model="code" autocomplete="one-time-code" inputmode="text" maxlength="10" placeholder="ABCD 2345" />
+        <input id="audience-code" v-model="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" placeholder="01234" />
         <button type="submit" class="presentation-button is-primary" :disabled="joining || terminal">{{ joining ? 'Joining…' : 'Join presentation' }}</button>
         <button v-if="terminal" type="button" class="presentation-button" @click="leaveTerminal">Leave ended presentation</button>
         <p v-if="session.error" class="presentation-error" role="alert">{{ session.error }}</p>
@@ -47,7 +47,7 @@
         <button v-for="tab in tabs" :key="tab.mode" type="button" class="presentation-button" :aria-pressed="session.audienceView.mode === tab.mode" @click="setTab(tab.mode)">{{ tab.label }}</button>
       </nav>
       <div class="audience-status-control">
-        <span v-if="following" class="audience-status-chip" role="status">{{ session.status === 'reconnecting' ? 'Reconnecting' : 'Following presenter' }}</span>
+        <span v-if="following" class="audience-status-chip" role="status">{{ session.transportState === 'reconnecting' ? 'Reconnecting' : 'Following presenter' }}</span>
         <button v-else type="button" class="presentation-button" @click="returnToPresenter">Return to presenter</button>
       </div>
 
@@ -61,7 +61,9 @@
           <button type="button" class="presentation-button" @click="reframePhoto">Reframe</button>
         </template>
       </div>
-      <p v-if="session.status === 'reconnecting'" class="audience-reconnect presentation-muted" role="status">Connection lost. Showing the last synchronized presentation.</p>
+      <p v-if="session.transportState === 'reconnecting'" class="audience-reconnect presentation-muted" role="status">Connection interrupted. Showing the last synchronized presentation.</p>
+      <p v-else-if="session.transportState === 'disabled'" class="audience-reconnect presentation-muted" role="status">{{ session.transportError }} HTTP updates are active.</p>
+      <p v-if="session.error" class="presentation-error" role="alert">{{ session.error }}</p>
     </div>
     <div v-else class="audience-join"><div class="presentation-card audience-join-card"><h1>Waiting for an idea</h1><p class="presentation-muted">The presenter has not selected an idea yet.</p><button type="button" class="presentation-button" @click="returnToPresenter">Return to presenter</button></div></div>
   </section>

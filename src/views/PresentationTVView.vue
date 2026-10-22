@@ -49,8 +49,9 @@
         </div>
         <div v-show="!session.content || !['map', 'photo', 'description'].includes(state.mode)" class="tv-setup"><div class="presentation-card tv-setup-card"><h1>Waiting for an idea</h1><p class="presentation-muted">Choose an idea from Find ideas on the remote.</p></div></div>
 
-        <div class="tv-connection" :class="{ 'is-connected': session.status === 'active', 'is-reconnecting': session.status === 'reconnecting', 'has-error': Boolean(session.error) }" role="status" aria-live="polite">
-          <template v-if="session.status === 'reconnecting'">Reconnecting · showing the last received presentation</template>
+        <div class="tv-connection" :class="{ 'is-connected': session.status === 'active', 'is-reconnecting': session.transportState === 'reconnecting', 'has-error': Boolean(session.error || session.transportError) }" role="status" aria-live="polite">
+          <template v-if="session.transportState === 'reconnecting'">Reconnecting · showing the last received presentation</template>
+          <template v-else-if="session.transportState === 'disabled'">HTTP updates active · {{ session.transportError }}</template>
           <template v-else-if="session.error">Connected · {{ session.error }}</template>
           <template v-else>Presentation connected</template>
           <span v-if="session.receiver?.renderStatus === 'error'"> · Display issue: {{ renderErrorLabel }}</span>

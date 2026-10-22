@@ -38,7 +38,14 @@ export default defineConfig({
     command: 'npm run dev -- --config vite.ux.config.js --host 127.0.0.1 --port 5174 --strictPort',
     url: 'http://127.0.0.1:5174', reuseExistingServer: false,
     timeout: 120000,
-    env: { VITE_FIREBASE_API_KEY: '', VITE_RECAPTCHA_SITE_KEY: '' },
+    env: {
+      ...process.env,
+      VITE_FIREBASE_API_KEY: '',
+      VITE_RECAPTCHA_SITE_KEY: '',
+      VITE_PRESENTATION_ENABLED: 'true',
+      VITE_PRESENTATION_WEBSOCKET_ENABLED: 'false',
+      VITE_API_BASE_URL: 'https://api.presentation.test',
+    },
   },
   projects: profiles.flatMap(([name, use]) => ['light', 'dark'].map(colorScheme => ({
     name: `${name}-${colorScheme}`, use: { ...use, colorScheme },

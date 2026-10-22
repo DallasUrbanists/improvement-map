@@ -30,9 +30,13 @@ test('canonical state validates protocol bounds and excludes server fields from 
 });
 
 test('admission codes normalize separately and enrollment credentials use secure random bytes @unit', () => {
-  expect(normalizePresentationCode(' abcd-2345 ')).toBe('ABCD2345');
-  expect(formatPresentationCode('abcd2345')).toBe('ABCD 2345');
-  expect(normalizePresentationCode('ABCD I345')).toBe('');
+  expect(normalizePresentationCode('01234')).toBe('01234');
+  expect(formatPresentationCode('01234')).toBe('01234');
+  expect(normalizePresentationCode('1234')).toBe('');
+  expect(normalizePresentationCode('012345')).toBe('');
+  expect(normalizePresentationCode('ABCD2345')).toBe('');
+  expect(normalizePresentationCode('012-34')).toBe('');
+  expect(normalizePresentationCode(12345)).toBe('');
   const identity = createEnrollmentIdentity();
   expect(identity.participantId).toMatch(/^[0-9a-f-]{36}$/i);
   expect(identity.participantToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -77,7 +81,7 @@ test('idea changes reset canonical media state and QR output is locally rendered
   expect(changed.photoFrame).toEqual(DEFAULT_PHOTO_FRAME);
   expect(changed.descriptionPage).toBe(0);
   expect(changed.camera).toEqual({ latitude: 32.78, longitude: -96.8, zoom: 16 });
-  const svg = presentationQrSvg('https://example.test/audience#view=ABCD2345');
+  const svg = presentationQrSvg('https://example.test/audience#view=01234');
   expect(svg).toContain('<svg');
   expect(svg).toContain('<path');
   expect(svg).not.toContain('<image');

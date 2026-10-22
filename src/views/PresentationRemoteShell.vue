@@ -10,8 +10,10 @@
       </div>
       <div class="presentation-status" role="status" aria-live="polite">
         <i :class="[connectionIcon, { 'is-connected': session.status === 'active' }]" aria-hidden="true"></i><span>{{ statusText }}</span>
+        <span v-if="session.transportError" class="presentation-muted">· {{ session.transportError }}</span>
         <span v-if="remainingTime" class="presentation-muted">· {{ remainingTime }}</span>
       </div>
+      <p v-if="session.error" class="presentation-error" role="alert">{{ session.error }}</p>
       <button ref="menuTrigger" type="button" class="map-ui map-ui-button map-icon-button remote-menu-trigger" aria-label="Open remote menu" aria-haspopup="menu" :aria-expanded="menuOpen" @click="toggleMenu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
       <button v-if="menuOpen" type="button" class="remote-menu-backdrop" aria-label="Close menu" @click="closeMenu"></button>
       <nav v-if="menuOpen" ref="menuPanel" class="remote-menu map-ui" role="menu" aria-label="Presenter remote pages" @keydown.esc.stop.prevent="closeMenu">
@@ -27,10 +29,10 @@
       <div v-else-if="!connected" class="remote-connection">
         <form class="presentation-card remote-connection-card" @submit.prevent="pair">
           <h1>Connect to a presentation</h1>
-          <p class="presentation-muted">Scan the presenter QR from the TV, or enter its eight-character code. Audience viewing codes use a separate page.</p>
+          <p class="presentation-muted">Scan the presenter QR from the TV, or enter its five-digit code. Audience viewing codes use a separate page.</p>
           <label for="presenter-code">Presenter code</label>
-          <input id="presenter-code" v-model="code" autocomplete="one-time-code" inputmode="text" maxlength="10" aria-describedby="presenter-code-help" placeholder="ABCD 2345" />
-          <small id="presenter-code-help" class="presentation-muted">Letters and numbers are not case-sensitive.</small>
+          <input id="presenter-code" v-model="code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" aria-describedby="presenter-code-help" placeholder="01234" />
+          <small id="presenter-code-help" class="presentation-muted">Enter five digits.</small>
           <button type="submit" class="presentation-button is-primary" :disabled="pairing">{{ pairing ? 'Connecting…' : 'Connect remote' }}</button>
           <p v-if="session.error" class="presentation-error" role="alert">{{ session.error }}</p>
           <RouterLink class="presentation-link" to="/audience">Join as an audience member</RouterLink>
@@ -59,10 +61,10 @@ const code = ref('');
 const now = ref(Date.now());
 const menuTrigger = ref(null);
 const menuPanel = ref(null);
-const connected = computed(() => session.role === 'controller' && ['waiting', 'active', 'reconnecting'].includes(session.status));
+const connected = computed(() => session.role === 'controller' && ['waiting', 'active'].includes(session.status));
 const theme = computed(() => session.state.theme);
-const statusText = computed(() => session.status === 'reconnecting' ? 'Reconnecting' : session.status === 'waiting' ? 'Waiting for TV' : 'TV connected');
-const connectionIcon = computed(() => session.status === 'reconnecting' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle');
+const statusText = computed(() => session.status === 'waiting' ? 'Waiting for TV' : session.transportState === 'reconnecting' ? 'Reconnecting · showing the last presentation' : session.transportState === 'disabled' ? 'TV connected · HTTP updates' : 'TV connected');
+const connectionIcon = computed(() => session.transportState === 'reconnecting' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle');
 const expiresAt = computed(() => session.credential?.expiresAt);
 const remainingTime = computed(() => {
   if (!expiresAt.value || Date.parse(expiresAt.value) - now.value > 5 * 60_000) return '';
