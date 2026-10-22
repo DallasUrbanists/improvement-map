@@ -1,7 +1,16 @@
 import { spawnSync } from 'node:child_process';
 
-function run(command, args, options = {}) {
-  return spawnSync(command, args, { stdio: 'inherit', ...options });
+const [branchType] = process.argv.slice(2);
+const allowedBranchTypes = new Set(['feature', 'refactor']);
+if (!allowedBranchTypes.has(branchType)) {
+  console.error('Usage: node scripts/finish-branch.js <feature|refactor>');
+  process.exit(2);
+}
+
+const command = `npm run finish:${branchType}`;
+
+function run(commandName, args, options = {}) {
+  return spawnSync(commandName, args, { stdio: 'inherit', ...options });
 }
 
 function runNpm(args) {
@@ -15,9 +24,9 @@ function gitOutput(args) {
 }
 
 function runSuite(id) {
-  const suiteInfo = id === 'unit' ? ['unit'] : id.startsWith('ux-') ? ['android-light'] : ['chromium'];
-  console.log(`\nRunning ${id} (${suiteInfo[0]})...`);
-  return runNpm(['run', 'test:suite', '--', id, `--project=${suiteInfo[0]}`]);
+  const project = id === 'unit' ? 'unit' : id.startsWith('ux-') ? 'android-light' : 'chromium';
+  console.log(`\nRunning ${id} (${project})...`);
+  return runNpm(['run', 'test:suite', '--', id, `--project=${project}`]);
 }
 
 const branchResult = gitOutput(['branch', '--show-current']);
@@ -27,8 +36,8 @@ if (branchResult.status !== 0) {
 }
 
 const branch = branchResult.stdout.trim();
-if (!branch.startsWith('feature/')) {
-  console.error(`Expected a feature/* branch, but the current branch is "${branch || '(detached HEAD)'}".`);
+if (!branch.startsWith(`${branchType}/`)) {
+  console.error(`Expected a ${branchType}/* branch, but the current branch is "${branch || '(detached HEAD)'}".`);
   process.exit(1);
 }
 
@@ -62,10 +71,10 @@ if (selectedSuites.length) {
 
 if (runNpm(['run', 'build']).status !== 0) process.exit(1);
 
-console.log('\nReviewing tracked changes against the feature base:');
+console.log('\nReviewing tracked changes against the comparison base:');
 const diffBase = manifest.mergeBase || manifest.comparisonBase;
 if (!diffBase) {
-  console.error('Could not determine a base for reviewing the feature diff.');
+  console.error('Could not determine a comparison base for reviewing the diff.');
   process.exit(1);
 }
 if (run('git', ['diff', '--check', diffBase]).status !== 0) process.exit(1);
@@ -81,14 +90,14 @@ if (workingTree.status !== 0) {
 }
 process.stdout.write(workingTree.stdout);
 if (workingTree.stdout.trim()) {
-  console.log('\nReview and commit the changes, then rerun `npm run finish:feature` to create the draft PR.');
+  console.log(`\nReview and commit the changes, then rerun \`${command}\` to create the draft PR.`);
   process.exit(0);
 }
 
 console.log('\nCreating a draft pull request...');
 const pullRequest = run('gh', ['pr', 'create', '--draft', '--fill']);
 if (pullRequest.error?.code === 'ENOENT') {
-  console.error('GitHub CLI (gh) is not installed or is not on PATH. Install it, authenticate, then rerun `npm run finish:feature`.');
+  console.error(`GitHub CLI (gh) is not installed or is not on PATH. Install it, authenticate, then rerun \`${command}\`.`);
   process.exit(1);
 }
 if (pullRequest.status !== 0) process.exit(pullRequest.status ?? 1);
