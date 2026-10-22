@@ -93,7 +93,10 @@ async function main() {
       throw new Error('Run from an interactive terminal to enter an issue number.');
     }
     issueNumber = await ask('GitHub issue number (press Enter to create one): ');
-    if (!issueNumber) issueNumber = await createIssue(type === 'feature' ? 'Feature' : undefined);
+    if (!issueNumber) {
+      const issueType = type === 'feature' ? 'Feature' : type === 'refactor' ? 'Task' : undefined;
+      issueNumber = await createIssue(issueType);
+    }
     if (!/^\d+$/.test(issueNumber)) throw new Error('Issue number must contain digits only.');
   }
 
@@ -103,6 +106,11 @@ async function main() {
   if (type === 'feature') {
     const labelResult = run('gh', ['issue', 'edit', issueNumber, '--add-label', 'enhancement']);
     if (labelResult.status !== 0) throw new Error(`Could not add the enhancement label to issue #${issueNumber}.`);
+  }
+
+  if (type === 'refactor') {
+    const labelResult = run('gh', ['issue', 'edit', issueNumber, '--add-label', 'refactor']);
+    if (labelResult.status !== 0) throw new Error(`Could not add the refactor label to issue #${issueNumber}.`);
   }
 
   const branch = `${type}/${issueNumber}-${slug}`;
