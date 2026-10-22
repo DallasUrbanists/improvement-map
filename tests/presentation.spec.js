@@ -160,6 +160,7 @@ test('controller subpages preserve the running session and expose local audience
   try {
     await tv.page.goto(appPath(baseURL, '/tv'));
     await tv.page.getByRole('button', { name: 'Start presentation' }).click();
+    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('01234');
     await presenter.page.goto(appPath(baseURL, '/remote#pair=01234'));
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
     const revision = [...server.sessions.values()][0].revision;
@@ -175,13 +176,13 @@ test('controller subpages preserve the running session and expose local audience
     await presenter.page.getByRole('menuitem', { name: 'Audience' }).click();
     await expect(presenter.page.getByRole('heading', { name: 'Audience', exact: true })).toBeVisible();
     await expect(presenter.page.getByText('01234')).toHaveCount(0);
-    await expect(presenter.page.getByText('56789')).toBeVisible();
+    await expect(presenter.page.getByText('56789', { exact: true })).toBeVisible();
     await presenter.page.getByLabel('Show audience QR on TV').check();
     await presenter.page.getByLabel('Show viewing code on TV').check();
     await expect.poll(() => [...server.sessions.values()][0].state.audienceDisplay).toEqual({ showQr: true, showCode: true });
     expect([...server.sessions.values()][0].revision).toBeGreaterThan(revision);
     await expect(tv.page.getByRole('img', { name: 'QR code for audience viewing link' })).toBeVisible();
-    await expect(tv.page.getByText('56789')).toBeVisible();
+    await expect(tv.page.getByText('56789', { exact: true })).toBeVisible();
   } finally {
     await Promise.all([tv.context.close(), presenter.context.close()]);
   }
@@ -194,6 +195,7 @@ test('a reload resumes an uncertain state write from its saved idempotency recor
   try {
     await tv.page.goto(appPath(baseURL, '/tv'));
     await tv.page.getByRole('button', { name: 'Start presentation' }).click();
+    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('01234');
     await presenter.page.goto(appPath(baseURL, '/remote#pair=01234'));
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();
@@ -229,6 +231,7 @@ test('rate-limited controller writes honor Retry-After before retrying', async (
   try {
     await tv.page.goto(appPath(baseURL, '/tv'));
     await tv.page.getByRole('button', { name: 'Start presentation' }).click();
+    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('01234');
     await presenter.page.goto(appPath(baseURL, '/remote#pair=01234'));
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();

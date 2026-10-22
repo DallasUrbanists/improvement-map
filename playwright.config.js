@@ -1,9 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const unitOnly = process.argv.includes('--project=unit');
-const appBaseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
+// Presentation fixtures require a known API origin and transport flags. A running
+// developer server may use a real local API, so focused runs must own their server.
+const focusedPresentation = process.argv.some(arg => /(?:^|[\\/])presentation\.spec\.js$/.test(arg));
+const appBaseURL = process.env.PLAYWRIGHT_BASE_URL
+  || (focusedPresentation ? 'http://127.0.0.1:5176' : 'http://localhost:5173');
+// Workers reload this config without the runner's spec arguments.
+if (focusedPresentation) process.env.PLAYWRIGHT_BASE_URL = appBaseURL;
 const appUrl = new URL(appBaseURL);
-const useFreshServer = Boolean(process.env.PLAYWRIGHT_BASE_URL);
+const useFreshServer = focusedPresentation || Boolean(process.env.PLAYWRIGHT_BASE_URL);
 const reporter = [['list']];
 if (process.env.PLAYWRIGHT_BLOB_DIR) reporter.push(['blob', { outputDir: process.env.PLAYWRIGHT_BLOB_DIR }]);
 

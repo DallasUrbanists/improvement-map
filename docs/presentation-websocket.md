@@ -55,6 +55,19 @@ treated as proof that a credential was revoked.
 
 ## Local test runs
 
+The focused HTTP presentation regression command automatically starts a fresh
+Vite server on `127.0.0.1:5176` with the mock API origin and WebSockets disabled:
+
+```powershell
+npm run test:e2e -- tests/presentation.spec.js --project=chromium --workers=1
+```
+
+Your development server on port 5173 can remain running. Reusing it would inherit
+its API URL and flags, causing enrollment to fail when the fixture blocks requests
+outside its mock API origin. `PLAYWRIGHT_BASE_URL` overrides the test server address;
+the selected port must be free. These tests use five-digit numeric pairing codes,
+including a leading zero. They do not contact the local API or Firestore emulator.
+
 The focused connection config starts a fresh Vite server on `127.0.0.1:5175`,
 sets the presentation and transport flags explicitly, mocks the API origin, and
 blocks unexpected external requests. Its deterministic socket fixture validates
