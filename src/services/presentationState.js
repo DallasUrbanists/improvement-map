@@ -1,6 +1,15 @@
 export const PRESENTATION_PROTOCOL_VERSION = 1;
 export const DEFAULT_PRESENTATION_CAMERA = Object.freeze({ latitude: 32.7767, longitude: -96.797, zoom: 13 });
 export const DEFAULT_PHOTO_FRAME = Object.freeze({ scale: 1, centerX: 0.5, centerY: 0.5 });
+export const DEFAULT_PRESENTATION_ICON_STYLE = Object.freeze({
+  size: 100,
+  animationEnabled: true,
+  pulseSize: 1,
+  pulseSpeed: 1,
+  bobbingRotation: 0,
+  bobbingSpeed: 1,
+  animationEasing: 'ease-in-out',
+});
 export const PRESENTATION_MODES = Object.freeze(['map', 'photo', 'description']);
 export const MAX_MERCATOR_LATITUDE = 85.05112878;
 
@@ -19,10 +28,12 @@ export function createDefaultPresentationState(overrides = {}) {
     captionVisible: true,
     descriptionPage: 0,
     audienceDisplay: { showQr: false, showCode: false },
+    iconStyle: { ...DEFAULT_PRESENTATION_ICON_STYLE },
     ...overrides,
     camera: { ...DEFAULT_PRESENTATION_CAMERA, ...overrides.camera },
     photoFrame: { ...DEFAULT_PHOTO_FRAME, ...overrides.photoFrame },
     audienceDisplay: { showQr: false, showCode: false, ...overrides.audienceDisplay },
+    iconStyle: { ...DEFAULT_PRESENTATION_ICON_STYLE, ...overrides.iconStyle },
   };
 }
 
@@ -51,7 +62,18 @@ export function validatePresentationState(value) {
     && isValidPhotoFrame(value.photoFrame) && typeof value.captionVisible === 'boolean'
     && Number.isSafeInteger(value.descriptionPage) && value.descriptionPage >= 0
     && Boolean(value.audienceDisplay && typeof value.audienceDisplay.showQr === 'boolean'
-      && typeof value.audienceDisplay.showCode === 'boolean');
+      && typeof value.audienceDisplay.showCode === 'boolean')
+    && (value.iconStyle === undefined || isValidPresentationIconStyle(value.iconStyle));
+}
+
+export function isValidPresentationIconStyle(style) {
+  return Boolean(style && Number.isFinite(style.size) && style.size >= 50 && style.size <= 400
+    && Number.isFinite(style.pulseSize) && style.pulseSize >= 1 && style.pulseSize <= 3
+    && Number.isFinite(style.pulseSpeed) && style.pulseSpeed >= 0.5 && style.pulseSpeed <= 3
+    && Number.isFinite(style.bobbingRotation) && style.bobbingRotation >= 0 && style.bobbingRotation <= 90
+    && Number.isFinite(style.bobbingSpeed) && style.bobbingSpeed >= 0.5 && style.bobbingSpeed <= 3
+    && (style.animationEasing === undefined || ['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'].includes(style.animationEasing))
+    && typeof style.animationEnabled === 'boolean');
 }
 
 export function toWritablePresentationState(state) {
@@ -67,6 +89,7 @@ export function toWritablePresentationState(state) {
     captionVisible: state.captionVisible,
     descriptionPage: state.descriptionPage,
     audienceDisplay: { ...state.audienceDisplay },
+    iconStyle: { ...state.iconStyle },
   };
 }
 
@@ -187,7 +210,7 @@ export function reduceAudienceView(local, action, shared, idea) {
       next.photoDetached = true;
       break;
     case 'descriptionPage':
-      next.descriptionPage = Math.max(0, Math.min((idea?.descriptionPages?.length || 1) - 1, action.page));
+      next.descriptionPage = Math.max(0, Math.min(idea?.descriptionPages?.length || 0, action.page));
       next.descriptionDetached = true;
       break;
     case 'camera':
@@ -250,7 +273,8 @@ export function createAudienceView(shared = createDefaultPresentationState(), id
 export function applyControllerChanges(state, changes, idea = null) {
   const next = { ...state, ...changes, camera: { ...state.camera, ...changes.camera },
     photoFrame: { ...state.photoFrame, ...changes.photoFrame },
-    audienceDisplay: { ...state.audienceDisplay, ...changes.audienceDisplay } };
+    audienceDisplay: { ...state.audienceDisplay, ...changes.audienceDisplay },
+    iconStyle: { ...state.iconStyle, ...changes.iconStyle } };
   if (Object.hasOwn(changes, 'selectedIdeaId') && String(changes.selectedIdeaId ?? '') !== String(state.selectedIdeaId ?? '')) {
     next.albumItemId = idea?.album?.[0]?.id || null;
     next.photoFrame = { ...DEFAULT_PHOTO_FRAME };

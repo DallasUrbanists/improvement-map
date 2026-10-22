@@ -10,7 +10,7 @@
       <button type="button" class="map-ui map-ui-button" :disabled="loading" @click="loadFallback">{{ loading ? 'Loading…' : 'Retry preview image' }}</button>
     </div>
     <div v-if="!safeUrl" class="map-ui streetmix-error" role="status">This saved design has an invalid link.</div>
-    <p v-if="item?.stale" class="streetmix-stale">Saved design preview may be out of date.</p>
+    <p v-if="item?.stale" class="map-ui streetmix-stale">Saved design preview may be out of date.</p>
     <button v-if="safeUrl && !useFallback" type="button" class="map-ui map-ui-button streetmix-fallback-button" @click="showFallback">Show preview image</button>
     <span v-if="iframeError" class="sr-only" role="status">Streetmix embed did not load; a preview image can be shown.</span>
   </div>
@@ -72,13 +72,13 @@ onBeforeUnmount(() => { abortController?.abort(); if (verificationTimer) clearTi
 </script>
 
 <style scoped>
-.presentation-streetmix { position: absolute; inset: 0; overflow: hidden; background: #f5f3ee; }
+.presentation-streetmix { position: absolute; inset: 0; overflow: hidden; background: var(--presentation-bg, #f5f3ee); }
 .streetmix-frame, iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
-.streetmix-fallback { position: absolute; inset: 0; display: grid; place-items: center; background: #f5f3ee; }
+.streetmix-fallback { position: absolute; inset: 0; display: grid; place-items: center; background: var(--presentation-bg, #f5f3ee); }
 .streetmix-fallback img { width: 100%; height: 100%; object-fit: contain; }
 .streetmix-fallback button { position: absolute; right: 1rem; bottom: 1rem; }
 .streetmix-fallback p { position: absolute; inset: auto 1rem 4.5rem; padding: .75rem; text-align: center; }
 .streetmix-error { position: absolute; inset: 50% auto auto 50%; translate: -50% -50%; padding: .75rem; }
 .streetmix-fallback-button { position: absolute; z-index: 3; right: .75rem; bottom: .75rem; opacity: .85; }
-.streetmix-stale { position: absolute; top: .5rem; right: .5rem; z-index: 2; padding: .35rem .6rem; border-radius: .5rem; background: #ffffffdd; color: #473b2c; font-size: .75rem; }
+.streetmix-stale { position: absolute; top: .5rem; right: .5rem; z-index: 2; padding: .35rem .6rem; font-size: .75rem; }
 </style>

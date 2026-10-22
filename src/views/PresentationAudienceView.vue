@@ -18,7 +18,7 @@
     </div>
     <div v-else-if="session.content" class="audience-viewer" :data-following="following">
       <div class="audience-stage">
-        <div v-if="displayed.mode === 'map'" class="audience-map">
+        <div v-show="displayed.mode === 'map'" class="audience-map">
           <PresentationMap :camera="displayed.camera" :style="session.state.mapStyle" :theme="session.state.theme" :rails="session.state.railVisible" :idea="session.content" role="audience" label="Audience map" @camera="cameraChanged" />
           <div class="audience-map-controls" role="group" aria-label="Map pan and zoom controls">
             <button type="button" aria-label="Pan map up" @click="panMap('up')"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
@@ -28,16 +28,16 @@
             <button type="button" aria-label="Pan map down" @click="panMap('down')"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
             <button type="button" aria-label="Zoom map in" :disabled="displayed.camera.zoom >= 20" @click="zoomMap(1)"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
           </div>
-          <div class="audience-idea-title">{{ session.content.summary }}</div>
+          <div class="map-ui audience-idea-title">{{ session.content.summary }}</div>
         </div>
-        <div v-else-if="displayed.mode === 'photo'" class="audience-photo">
+        <div v-show="displayed.mode === 'photo'" class="audience-photo">
           <PresentationStreetmix v-if="activeItem?.kind === 'streetmix'" :item="activeItem" :idea-id="session.content.id" :idea-title="session.content.summary" />
           <PresentationPhoto v-else :src="activeItem?.url || ''" :alt="activeItem?.caption || session.content.summary" :frame="displayed.photoFrame" :item="activeItem" :interactive="activeItem?.kind !== 'streetmix'" :aspect-ratio="1" @frame="photoFrameChanged" />
-          <div class="audience-idea-title">{{ session.content.summary }}<span v-if="captionVisible"> · {{ activeItem?.caption }}</span></div>
+          <div class="map-ui audience-idea-title">{{ session.content.summary }}<span v-if="captionVisible"> · {{ activeItem?.caption }}</span></div>
         </div>
-        <div v-else class="audience-description">
+        <div v-show="displayed.mode === 'description'" class="audience-description">
           <article class="presentation-card audience-description-card">
-            <h1>{{ session.content.summary }}</h1><p>{{ descriptionText }}</p>
+            <h1 v-if="displayed.descriptionPage === 0">{{ session.content.summary }}</h1><p v-if="displayed.descriptionPage > 0">{{ descriptionText }}</p>
             <AlbumPaginator :index="displayed.descriptionPage" :total="pages.length" label="Audience description pages" item-label="description page" @previous="moveDescription(-1)" @next="moveDescription(1)" />
           </article>
         </div>
@@ -86,10 +86,11 @@ const following = audienceFollowing;
 const displayed = audienceDisplayedState;
 const terminal = computed(() => ['ended', 'expired'].includes(session.status));
 const album = computed(() => getPresentationAlbum(session.content));
-const pages = computed(() => session.content?.descriptionPages || []);
+const descriptionPages = computed(() => session.content?.descriptionPages || []);
+const pages = computed(() => [session.content?.summary || '', ...descriptionPages.value]);
 const activeItem = computed(() => getAlbumItem(session.content, displayed.value.albumItemId));
 const albumIndex = computed(() => Math.max(0, album.value.findIndex(item => item.id === displayed.value.albumItemId)));
-const descriptionText = computed(() => pages.value[displayed.value.descriptionPage] || '');
+const descriptionText = computed(() => displayed.value.descriptionPage > 0 ? descriptionPages.value[displayed.value.descriptionPage - 1] || '' : '');
 const captionVisible = computed(() => Boolean(session.state.captionVisible && activeItem.value?.kind !== 'streetmix' && activeItem.value?.caption));
 
 async function join() {

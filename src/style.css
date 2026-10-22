@@ -9,6 +9,9 @@
 }
 
 :root {
+  --map-ground-color-light: #ffffff;
+  --map-ground-color-dark: #4d6059;
+  --map-ground-color: var(--map-ground-color-light);
   --color-st-darkblue: #0c2340;
   --color-st-lightblue: #488be3;
   --color-st-yellow: #ffa800;
@@ -19,6 +22,7 @@
 }
 
 .dark {
+  --map-ground-color: var(--map-ground-color-dark);
   --text-input-bg: #1e282a;
   --text-input-color: #fff0ce;
   --text-input-shadow: inset 0 2px 8px #00000059;
@@ -352,8 +356,7 @@ body {
 
 /* Persistent map workspace and route trays. */
 .map-workspace { position: absolute; inset: 0; isolation: isolate; }
-.workspace-map-canvas { --map-ground-color: #ffffff; position: absolute; inset: 0; width: 100%; height: 100%; }
-.dark .workspace-map-canvas { --map-ground-color: #4d6059; }
+.workspace-map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* Override the SDK's inline grey surface while tiles load, including after a theme switch. */
 .workspace-map-canvas, .workspace-map-canvas > div { background-color: var(--map-ground-color) !important; }
 .workspace-map-status { position: absolute; inset: 0; display: grid; place-content: center; padding: 24px; text-align: center; background: #24282b; color: #d8c394; }

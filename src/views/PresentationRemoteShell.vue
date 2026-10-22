@@ -1,15 +1,25 @@
 <template>
-  <section class="presentation-shell presentation-remote-shell" :class="theme" aria-label="Presenter remote">
-    <header v-if="enabled && connected" class="remote-header">
+  <section class="presentation-shell presentation-remote-shell" :class="[theme, { 'is-controller': route.name === 'RemoteController' }]" aria-label="Presenter remote">
+    <header v-if="enabled && connected" class="remote-header" :class="{ 'has-page-title': ['RemoteIdeas', 'RemoteStyles', 'RemoteAudience'].includes(route.name) }">
+      <div v-if="['RemoteIdeas', 'RemoteStyles', 'RemoteAudience'].includes(route.name)" class="remote-header-page-title">
+        <button type="button" class="map-ui map-ui-button" aria-label="Back to controller" @click="backToController"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
+        <h1>{{ route.name === 'RemoteIdeas' ? 'Find ideas' : route.name === 'RemoteStyles' ? 'Style Settings' : 'Audience' }}</h1>
+      </div>
+      <div v-else-if="route.name === 'RemoteController'" class="remote-header-page-title">
+        <h1>Controller</h1>
+      </div>
       <div class="presentation-status" role="status" aria-live="polite">
-        <i :class="connectionIcon" aria-hidden="true"></i><span>{{ statusText }}</span>
+        <i :class="[connectionIcon, { 'is-connected': session.status === 'active' }]" aria-hidden="true"></i><span>{{ statusText }}</span>
         <span v-if="remainingTime" class="presentation-muted">· {{ remainingTime }}</span>
       </div>
-      <button ref="menuTrigger" type="button" class="remote-menu-trigger" aria-label="Open remote menu" aria-haspopup="menu" :aria-expanded="menuOpen" @click="toggleMenu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+      <button ref="menuTrigger" type="button" class="map-ui map-ui-button map-icon-button remote-menu-trigger" aria-label="Open remote menu" aria-haspopup="menu" :aria-expanded="menuOpen" @click="toggleMenu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
       <button v-if="menuOpen" type="button" class="remote-menu-backdrop" aria-label="Close menu" @click="closeMenu"></button>
-      <nav v-if="menuOpen" ref="menuPanel" class="remote-menu presentation-card" role="menu" aria-label="Presenter remote pages" @keydown.esc.stop.prevent="closeMenu">
-        <button v-for="item in menuItems" :key="item.name" type="button" role="menuitem" class="presentation-button" :class="{ 'is-current': route.name === item.name }" :aria-current="route.name === item.name ? 'page' : undefined" @click="openPage(item)">{{ item.label }}</button>
-        <button type="button" role="menuitem" class="presentation-button menu-end" @click="endPresentation">End presentation</button>
+      <nav v-if="menuOpen" ref="menuPanel" class="remote-menu map-ui" role="menu" aria-label="Presenter remote pages" @keydown.esc.stop.prevent="closeMenu">
+        <button v-for="item in menuItems" :key="item.name" type="button" role="menuitem" class="map-ui-button w-full" :class="{ 'is-current': route.name === item.name }" :aria-current="route.name === item.name ? 'page' : undefined" @click="openPage(item)">{{ item.label }}</button>
+        <div class="menu-divider" role="separator"></div>
+        <button v-if="route.name === 'RemoteController'" type="button" role="menuitem" class="map-ui-button w-full" @click="toggleFullscreen"><i :class="fullscreen ? 'fa-solid fa-compress' : 'fa-solid fa-expand'" aria-hidden="true"></i>{{ fullscreen ? 'Exit fullscreen' : 'Fullscreen' }}</button>
+        <div v-if="route.name === 'RemoteController'" class="menu-divider" role="separator"></div>
+        <button type="button" role="menuitem" class="map-ui-button w-full" @click="endPresentation"><i class="fa-solid fa-door-open" aria-hidden="true"></i>End presentation</button>
       </nav>
     </header>
     <main class="remote-pages">
@@ -44,6 +54,7 @@ const router = useRouter();
 const enabled = presentationIsEnabled();
 const menuOpen = ref(false);
 const pairing = ref(false);
+const fullscreen = ref(Boolean(document.fullscreenElement));
 const code = ref('');
 const now = ref(Date.now());
 const menuTrigger = ref(null);
@@ -76,6 +87,7 @@ function closeMenu() {
   menuOpen.value = false;
   nextTick(() => menuTrigger.value?.focus({ preventScroll: true }));
 }
+function backToController() { router.push({ name: 'RemoteController' }); }
 async function openPage(item) {
   closeMenu();
   await router.push({ name: item.name });
@@ -95,8 +107,18 @@ async function endPresentation() {
   await leaveOrEndPresentation({ end: true });
   await router.replace({ name: 'RemoteController' });
 }
+async function toggleFullscreen() {
+  const next = !document.fullscreenElement;
+  closeMenu();
+  try {
+    if (next) await document.documentElement.requestFullscreen?.();
+    else await document.exitFullscreen?.();
+  } catch { /* Fullscreen can be blocked by browser policy or unsupported on the device. */ }
+}
+function updateFullscreenState() { fullscreen.value = Boolean(document.fullscreenElement); }
 
 onMounted(async () => {
+  document.addEventListener('fullscreenchange', updateFullscreenState);
   if (!enabled) return;
   const credential = getActivePresentationCredential();
   if (credential?.role === 'controller') await restorePresentationSession();
@@ -110,6 +132,7 @@ onMounted(async () => {
   clockTimer = setInterval(() => { now.value = Date.now(); }, 1000);
 });
 onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', updateFullscreenState);
   if (clockTimer) clearInterval(clockTimer);
   menuOpen.value = false;
   stopPresentationSession();

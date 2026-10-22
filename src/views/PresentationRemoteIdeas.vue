@@ -1,17 +1,13 @@
 <template>
-  <section class="remote-subpage" aria-label="Find ideas">
-    <header class="remote-subpage-header">
-      <button type="button" class="presentation-button" aria-label="Back to controller" @click="back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
-      <h1>Find ideas</h1>
-    </header>
+  <section class="remote-subpage remote-ideas-subpage" aria-label="Find ideas">
     <div class="remote-finder">
       <div class="remote-finder-controls">
         <input v-model="finder.query" type="search" aria-label="Search ideas and places" placeholder="Search ideas or places" autocomplete="off" />
         <select v-model="finder.sort" aria-label="Sort ideas"><option value="newest">Newest first</option><option value="nearest">Nearest to TV map</option></select>
       </div>
       <div class="remote-finder-filters" role="group" aria-label="Filter ideas">
-        <label>Show <select v-model="finder.filter" aria-label="Idea filter"><option value="all">All ideas</option><option value="saved">Saved ideas</option><option value="streetmix">Has Streetmix</option></select></label>
         <span class="presentation-muted">{{ ideaResults.length }} {{ ideaResults.length === 1 ? 'idea' : 'ideas' }}</span>
+        <label><select v-model="finder.filter" aria-label="Idea filter"><option value="all">All ideas</option><option value="saved">Saved ideas</option><option value="streetmix">Has Streetmix</option></select></label>
       </div>
 
       <section v-if="placeResults.length" class="remote-place-results" aria-label="Places">
@@ -25,9 +21,10 @@
         <p v-if="loading" class="presentation-muted" role="status">Loading ideas…</p>
         <p v-else-if="error" class="presentation-error" role="alert">{{ error }}</p>
         <p v-else-if="ideaResults.length === 0" class="presentation-muted">No ideas match these search and filter settings.</p>
-        <article v-for="idea in ideaResults" :key="idea.id" class="presentation-card remote-idea-result">
-          <span><h2>{{ idea.summary }}</h2><p>{{ idea.location?.address || idea.location?.description || 'Location not provided' }}</p></span>
-          <button type="button" class="presentation-button is-primary" :aria-label="`Present this idea: ${idea.summary}`" @click="present(idea.id)">Present this idea</button>
+        <article v-for="idea in ideaResults" :key="idea.id" class="remote-idea-result">
+          <span class="remote-quick-list-emoji" aria-hidden="true">{{ submissionEmoji(idea.emoji) }}</span>
+          <span class="remote-idea-result-copy"><h2>{{ idea.summary }}</h2><p>{{ idea.location?.address || idea.location?.description || 'Location not provided' }}</p></span>
+          <button type="button" class="presentation-button is-primary" :aria-label="`Present: ${idea.summary}`" @click="present(idea.id)">Present</button>
         </article>
       </section>
       <p v-if="placeError" class="presentation-muted" role="status">{{ placeError }}</p>
@@ -39,6 +36,7 @@
 import { computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { bookmarks } from '../services/bookmarks.js';
+import { submissionEmoji } from '../services/emojiMapMarker.js';
 import { searchAddressWithGoogle, resolveGooglePlace } from '../services/googleMaps.js';
 import { enqueuePresentationChanges, ensurePresentationCatalog, presentationSession as session, selectPresentationIdea } from '../services/presentationSession.js';
 
@@ -99,7 +97,6 @@ async function present(id) {
     await router.push({ name: 'RemoteController' });
   } catch (problem) { finder.placeError = problem?.message || 'This idea could not be presented.'; }
 }
-function back() { router.push({ name: 'RemoteController' }); }
 onMounted(async () => {
   try { await ensurePresentationCatalog(); }
   catch (problem) { finder.placeError = problem?.message || 'Ideas could not be loaded.'; }

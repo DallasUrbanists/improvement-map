@@ -104,12 +104,8 @@ import MapSearchOverlay from './MapSearchOverlay.vue';
 import StyleSettings from './StyleSettings.vue';
 import { ref, computed, onMounted, provide, shallowRef, inject, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-
-dayjs.extend(relativeTime);
-
 import { isDark } from '../services/theme';
+import { formatIdeaCreationDate as formatCreationDate, formatIdeaShortDate } from '../services/ideaDateFormat.js';
 import { railVisible, railThickness, setRailVisible, setRailThickness } from '../services/railSettings.js';
 import { suggestionIconSize, selectedMapStyle, setSuggestionIconSize, setSelectedMapStyle } from '../services/styleSettings.js';
 import { mapWorkspaceKey, detailMotionDuration } from '../services/mapWorkspace';
@@ -694,7 +690,7 @@ function createInfoWindowContent(suggestion) {
   const summary = suggestion.content?.summary || 'Civic Suggestion';
   const photoUrl = getPrimaryPhoto(suggestion);
   const address = suggestion.location?.address?.replace(/,\s*USA\s*$/i, '');
-  const timeStr = formatTime(suggestion.creationDate);
+  const timeStr = formatIdeaShortDate(suggestion.creationDate);
 
   let html = `<button type="button" class="map-ui-button suggestion-popup-close" aria-label="Close suggestion"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button><h4 class="suggestion-popup-title">${escapeHtml(summary)}</h4>`;
 
@@ -914,27 +910,6 @@ function formatBrowseAddress(address) {
   });
 
   return stateIndex > 0 ? parts.slice(0, stateIndex).join(', ') : address;
-}
-
-function formatTime(timestamp) {
-  if (!timestamp) return 'Recently';
-  try {
-    return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  } catch {
-    return 'Recently';
-  }
-}
-
-function formatCreationDate(timestamp) {
-  if (!timestamp) return 'Recently';
-
-  const createdAt = dayjs(timestamp);
-  if (!createdAt.isValid()) return 'Recently';
-
-  const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
-  return Date.now() - createdAt.valueOf() < twoWeeksMs
-    ? createdAt.fromNow()
-    : formatTime(timestamp);
 }
 
 // Search handling with Google Maps Autocomplete / Geocoder

@@ -29,9 +29,12 @@ const session = reactive({
   errorCode: '',
   renderStatus: 'loading',
   renderError: null,
-  reportedRevision: -1,
+  // Revision zero is the initial display state. Never send -1 in receiver presence;
+  // the API accepts only nonnegative applied revisions.
+  reportedRevision: 0,
   finder: { query: '', sort: 'newest', filter: 'all', placeQuery: '', placeResults: [], placeError: '' },
   audienceView: createAudienceView(),
+  inflightChanges: {},
   pendingChanges: {},
   pending: false,
 });
@@ -51,18 +54,18 @@ let lastContentVersion = null;
 let localAudienceIdeaEpoch = null;
 let callbackRevision = 0;
 let latestAppliedEnvelopeSequence = 0;
-let inflightChanges = {};
-
 const rolePollInterval = { receiver: 500, audience: 1000, controller: 2000 };
 const terminalCodes = new Set(['SESSION_EXPIRED', 'SESSION_ENDED', 'INVALID_SESSION_CREDENTIAL', 'ROLE_FORBIDDEN']);
 
 export const presentationSession = session;
 export const writableViewState = computed(() => ({
   ...session.state,
+  ...session.inflightChanges,
   ...session.pendingChanges,
-  camera: { ...session.state.camera, ...session.pendingChanges.camera },
-  photoFrame: { ...session.state.photoFrame, ...session.pendingChanges.photoFrame },
-  audienceDisplay: { ...session.state.audienceDisplay, ...session.pendingChanges.audienceDisplay },
+  camera: { ...session.state.camera, ...session.inflightChanges.camera, ...session.pendingChanges.camera },
+  photoFrame: { ...session.state.photoFrame, ...session.inflightChanges.photoFrame, ...session.pendingChanges.photoFrame },
+  audienceDisplay: { ...session.state.audienceDisplay, ...session.inflightChanges.audienceDisplay, ...session.pendingChanges.audienceDisplay },
+  iconStyle: { ...session.state.iconStyle, ...session.inflightChanges.iconStyle, ...session.pendingChanges.iconStyle },
 }));
 export const selectedAlbumItem = computed(() => getAlbumItem(session.content, writableViewState.value.albumItemId));
 export const audienceFollowing = computed(() => shouldFollowPresenter(session.audienceView, writableViewState.value, ['active', 'reconnecting'].includes(session.status)));
@@ -114,10 +117,10 @@ function resetSession() {
   session.lastSuccessAt = 0;
   session.error = '';
   session.errorCode = '';
-  session.reportedRevision = -1;
+  session.reportedRevision = 0;
   session.pendingChanges = {};
   session.pending = false;
-  inflightChanges = {};
+  session.inflightChanges = {};
   session.audienceView = createAudienceView();
   lastRequestRevision = -1;
   lastContentVersion = null;
@@ -154,14 +157,14 @@ function applyEnvelope(envelope, sequence = ++callbackRevision) {
   if (revision < session.state.revision) return false;
   if (envelope.state) {
     if (!validatePresentationState(envelope.state)) throw new Error('The presentation service returned invalid display settings.');
-    session.state = envelope.state;
+    session.state = createDefaultPresentationState(envelope.state);
   }
   if (envelope.content !== undefined) {
     if (envelope.content === null) {
       if (session.state.selectedIdeaId === null
         || (session.content?.id !== session.state.selectedIdeaId
           && session.pendingChanges.selectedIdeaId !== session.content?.id
-          && inflightChanges.selectedIdeaId !== session.content?.id)) {
+          && session.inflightChanges.selectedIdeaId !== session.content?.id)) {
         session.content = null;
         lastContentVersion = null;
       }
@@ -174,7 +177,7 @@ function applyEnvelope(envelope, sequence = ++callbackRevision) {
   } else if (session.state.selectedIdeaId === null
     || (session.content?.id !== session.state.selectedIdeaId
       && session.pendingChanges.selectedIdeaId !== session.content?.id
-      && inflightChanges.selectedIdeaId !== session.content?.id)) {
+      && session.inflightChanges.selectedIdeaId !== session.content?.id)) {
     session.content = null;
     lastContentVersion = null;
   }
@@ -255,20 +258,20 @@ async function startPresentationSession(credential, initialState, content = null
   session.receiver = null;
   session.catalog = [];
   session.catalogLoaded = false;
-  session.reportedRevision = -1;
+  session.reportedRevision = 0;
   session.pendingChanges = {};
   session.pending = false;
   session.finder = { query: '', sort: 'newest', filter: 'all', placeQuery: '', placeResults: [], placeError: '' };
-  inflightChanges = credential.role === 'controller' && credential.pendingMutation?.sentChanges
+  session.inflightChanges = credential.role === 'controller' && credential.pendingMutation?.sentChanges
     ? { ...credential.pendingMutation.sentChanges } : {};
-  session.pendingChanges = { ...inflightChanges };
+  session.pendingChanges = { ...session.inflightChanges };
   session.pending = Object.keys(session.pendingChanges).length > 0;
   session.audienceView = createAudienceView();
   localAudienceIdeaEpoch = null;
   lastContentVersion = null;
   session.status = initialState?.session?.status || 'waiting';
-  if (initialState?.state && validatePresentationState(initialState.state)) session.state = initialState.state;
-  else if (initialState && validatePresentationState(initialState)) session.state = initialState;
+  if (initialState?.state && validatePresentationState(initialState.state)) session.state = createDefaultPresentationState(initialState.state);
+  else if (initialState && validatePresentationState(initialState)) session.state = createDefaultPresentationState(initialState);
   if (content && validatePresentationIdea(content)) session.content = normalizePresentationIdea(content);
   if (initialState?.content && validatePresentationIdea(initialState.content)) session.content = normalizePresentationIdea(initialState.content);
   if (session.content) lastContentVersion = session.content.contentVersion;
@@ -350,7 +353,7 @@ export async function connectAudience(code) {
 export function enqueuePresentationChanges(changes, { immediate = false } = {}) {
   if (session.role !== 'controller' || session.status === 'ended' || !session.credential) return false;
   const merged = { ...session.pendingChanges, ...changes };
-  for (const nested of ['camera', 'photoFrame', 'audienceDisplay']) {
+  for (const nested of ['camera', 'photoFrame', 'audienceDisplay', 'iconStyle']) {
     if (changes[nested]) merged[nested] = { ...(session.pendingChanges[nested] || session.state[nested]), ...changes[nested] };
   }
   const item = getAlbumItem(session.content, merged.albumItemId ?? session.state.albumItemId);
@@ -379,7 +382,7 @@ async function flushPresentationChanges() {
     }
     session.pendingChanges = queuedChanges;
   }
-  inflightChanges = sentChanges;
+  session.inflightChanges = sentChanges;
   const sentEpoch = requestRecord?.sentEpoch ?? session.state.ideaEpoch;
   const body = requestRecord?.body || {
     baseRevision: session.state.revision,
@@ -387,6 +390,7 @@ async function flushPresentationChanges() {
       camera: { ...session.state.camera, ...sentChanges.camera },
       photoFrame: { ...session.state.photoFrame, ...sentChanges.photoFrame },
       audienceDisplay: { ...session.state.audienceDisplay, ...sentChanges.audienceDisplay },
+      iconStyle: { ...session.state.iconStyle, ...sentChanges.iconStyle },
     }),
   };
   const key = requestRecord?.key || globalThis.crypto.randomUUID();
@@ -396,7 +400,7 @@ async function flushPresentationChanges() {
     if (!persistCredential()) {
       session.credential = requestCredential;
       session.pendingChanges = { ...sentChanges, ...session.pendingChanges };
-      inflightChanges = {};
+      session.inflightChanges = {};
       session.pending = true;
       session.error = 'This browser could not safely save the display update. Check session storage and try again.';
       session.errorCode = 'SESSION_STORAGE_UNAVAILABLE';
@@ -427,7 +431,7 @@ async function flushPresentationChanges() {
     applyEnvelope(result);
     session.credential = { ...session.credential, pendingMutation: null };
     persistCredential();
-    inflightChanges = {};
+    session.inflightChanges = {};
     session.pending = Object.keys(session.pendingChanges).length > 0;
   } catch (error) {
     if (epoch !== writeEpoch) return;
@@ -435,7 +439,7 @@ async function flushPresentationChanges() {
       session.credential = { ...session.credential, pendingMutation: null };
       persistCredential();
       session.pendingChanges = {};
-      inflightChanges = {};
+      session.inflightChanges = {};
       session.pending = false;
       if (error.code === 'IDEA_UNAVAILABLE') {
         const rejectedId = sentChanges.selectedIdeaId ?? session.state.selectedIdeaId;
@@ -453,7 +457,7 @@ async function flushPresentationChanges() {
       for (const field of ['camera', 'albumItemId', 'photoFrame', 'descriptionPage']) delete relevant[field];
     }
     session.pendingChanges = relevant;
-    inflightChanges = {};
+    session.inflightChanges = {};
     session.pending = true;
     if (error?.name !== 'AbortError') onTransportFailure(error);
     if (error?.name !== 'AbortError' && !terminal(error) && !stopped) {

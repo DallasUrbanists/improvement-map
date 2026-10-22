@@ -34,6 +34,7 @@ gcp-key.json
 # Testing & Playwright
 # Local agent attachments
 /.codex-remote-attachments/
+/.codex-attachments/
 
 test-results/
 playwright-report/

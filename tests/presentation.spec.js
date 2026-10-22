@@ -147,6 +147,8 @@ test('controller subpages preserve the running session and expose local audience
     await presenter.page.getByRole('menuitem', { name: 'Style Settings' }).click();
     await presenter.page.getByLabel('Rail lines').check();
     await presenter.page.getByLabel('Presentation theme').selectOption('light');
+    await presenter.page.getByLabel('Animation easing').selectOption('linear');
+    await expect.poll(() => [...server.sessions.values()][0].state.iconStyle.animationEasing).toBe('linear');
     await presenter.page.goBack();
     await expect(presenter.page.getByRole('button', { name: 'Map', exact: true })).toBeVisible();
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();
