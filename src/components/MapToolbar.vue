@@ -14,7 +14,8 @@
         <div class="p-1" role="menu" aria-label="Map options">
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Saved ideas</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/my-actions')">My actions</button>
-          <button v-if="presentationEnabled" type="button" role="menuitem" class="map-ui-button w-full" @click="openPresentationSetup">Present on TV</button>
+          <button v-if="presentationEnabled" type="button" role="menuitem" class="map-ui-button w-full" @click="openPresentationSetup">Enter TV mode</button>
+          <button v-if="presentationEnabled" type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/remote')">Remote controller</button>
           <div class="menu-divider" role="separator"></div>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('welcome')">Welcome &amp; guide</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('history')">What's new</button>
