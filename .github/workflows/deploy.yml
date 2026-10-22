@@ -78,7 +78,23 @@ jobs:
         run: npm ci
 
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        shell: bash
+        run: |
+          set +e
+          npm audit --audit-level=high 2>&1 | tee "$RUNNER_TEMP/npm-audit.log"
+          audit_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$audit_status" -eq 0 ]; then
+            exit 0
+          fi
+
+          if grep -Eiq 'network timeout|request-timeout' "$RUNNER_TEMP/npm-audit.log"; then
+            echo "::warning::npm audit could not reach the advisory service; continuing deployment."
+            exit 0
+          fi
+
+          exit "$audit_status"
 
       - name: Test release pipeline
         run: node --test tests/releases.node.mjs
