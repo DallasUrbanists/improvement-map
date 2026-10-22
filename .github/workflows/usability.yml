@@ -84,10 +84,13 @@ jobs:
           UX_HTML_DIR: playwright-report/${{ matrix.artifact }}
           PLAYWRIGHT_OUTPUT_DIR: test-results/${{ matrix.artifact }}
           PLAYWRIGHT_BLOB_DIR: blob-report/${{ matrix.artifact }}
+          PROJECT_THIRD: ${{ matrix.projects[2] || '' }}
         run: |
           set +e
           TEST_STARTED=$(date +%s)
-          npm run test:suite -- "${{ matrix.suite }}" "--project=${{ matrix.projects[0] }}" "--project=${{ matrix.projects[1] }}"
+          PROJECT_ARGS=("--project=${{ matrix.projects[0] }}" "--project=${{ matrix.projects[1] }}")
+          if [[ -n "$PROJECT_THIRD" ]]; then PROJECT_ARGS+=("--project=$PROJECT_THIRD"); fi
+          npm run test:suite -- "${{ matrix.suite }}" "${PROJECT_ARGS[@]}"
           TEST_EXIT=$?
           set -e
           TEST_FINISHED=$(date +%s)

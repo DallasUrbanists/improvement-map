@@ -26,6 +26,8 @@ On `/submit` in the Vite development server, press **Ctrl+Alt+Enter** to preview
 - **Testing**: [Playwright](https://playwright.dev/) automated end-to-end regression test suite
 - **Backend API**: [Dallas Urbanists Cloud API](http://api.dallasurbanists.org/swagger) (Cloud Run + Express + Firestore `public-improvements` database)
 
+TV presentations, presenter controls, and audience views can use authenticated WebSocket state delivery with HTTPS fallback. It is opt-in through `VITE_PRESENTATION_WEBSOCKET_ENABLED`; see [presentation WebSocket transport](docs/presentation-websocket.md) for protocol behavior and local test commands.
+
 ---
 
 ## 📱 Core Pages & User Experience

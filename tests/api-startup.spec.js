@@ -5,12 +5,13 @@ const suggestion = {
   location: { latitude: 32.78, longitude: -96.8 },
 };
 
-test.beforeEach(async ({ page }) => {
-  await page.route('**/*', route => new URL(route.request().url()).origin === 'http://localhost:5173'
+test.beforeEach(async ({ page, baseURL }) => {
+  const appOrigin = new URL(baseURL).origin;
+  await page.route('**/*', route => new URL(route.request().url()).origin === appOrigin
     ? route.continue() : route.abort('blockedbyclient'));
   // Exercise the production API module in a fresh browser, without mounting
   // the app (which would make its own competing startup requests).
-  await page.route('http://localhost:5173/', route => route.fulfill({
+  await page.route(new URL('/', baseURL).href, route => route.fulfill({
     contentType: 'text/html', body: '<html><body></body></html>',
   }));
   await page.route(/\/src\/services\/firebase(?:\.js)?(?:\?|$)/, route => route.fulfill({

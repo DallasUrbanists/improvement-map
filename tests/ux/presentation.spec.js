@@ -38,11 +38,10 @@ test('presentation setup shells stay separate from the regular workspace on a na
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(321);
 });
 
-test('audience view fits narrow and landscape layouts with clear top-corner controls', async ({ page }) => {
-  const server = new PresentationTestServer();
+test('audience view fits narrow and landscape layouts with clear top-corner controls', async ({ page, baseURL }) => {
+  const server = new PresentationTestServer({ appOrigin: new URL(baseURL).origin });
   const checkpoint = audit(page, test.info());
   await installPresentationServer(page, server);
-  await page.setViewportSize({ width: 844, height: 390 });
 
   await page.goto('/tv');
   await page.getByRole('button', { name: 'Start presentation' }).click();
@@ -52,9 +51,10 @@ test('audience view fits narrow and landscape layouts with clear top-corner cont
   await page.getByRole('button', { name: 'Connect remote' }).click();
   await page.getByRole('button', { name: 'Open remote menu' }).click();
   await page.getByRole('menuitem', { name: 'Find ideas' }).click();
-  await page.getByRole('button', { name: 'Present this idea: Protected bike lane on Main Street' }).click();
+  await page.getByRole('button', { name: 'Present: Protected bike lane on Main Street' }).click();
   const audienceCode = await page.evaluate(async () => (await import('/src/services/presentationSession.js')).presentationSession.credential.audienceCode);
 
+  await page.setViewportSize({ width: 844, height: 390 });
   await page.goto('/audience');
   await page.getByLabel('Audience viewing code').fill(audienceCode);
   await page.getByRole('button', { name: 'Join presentation' }).click();

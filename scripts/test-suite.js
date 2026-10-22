@@ -30,6 +30,14 @@ if (suite.kind === 'ux') {
     process.exit(2);
   }
   projects = ['unit'];
+} else if (suite.kind === 'presentation') {
+  const allowed = ['chromium', 'Mobile Chrome', 'WebKit'];
+  if (requestedProjects.some(project => !allowed.includes(project))) {
+    console.error(`Unsupported presentation connection project for ${id}. Choose: ${allowed.join(', ')}`);
+    process.exit(2);
+  }
+  projects = requestedProjects.length ? requestedProjects : allowed;
+  process.env.PRESENTATION_SOCKET_TEST_MODE = process.env.PRESENTATION_SOCKET_TEST_MODE === 'off' ? 'off' : 'on';
 } else {
   const allowed = ['chromium', 'Mobile Chrome'];
   if (requestedProjects.some(project => !allowed.includes(project))) {
@@ -39,7 +47,8 @@ if (suite.kind === 'ux') {
   projects = requestedProjects.length ? requestedProjects : allowed;
 }
 
-const config = suite.kind === 'ux' ? 'playwright.ux.config.js' : 'playwright.config.js';
+const config = suite.kind === 'ux' ? 'playwright.ux.config.js'
+  : suite.kind === 'presentation' ? 'playwright.presentation.config.js' : 'playwright.config.js';
 const cli = ['node_modules/@playwright/test/cli.js', 'test', `--config=${config}`];
 if (suite.kind === 'unit') cli.push('--project=unit', '--grep', '@unit');
 else {

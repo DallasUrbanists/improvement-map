@@ -94,13 +94,11 @@ export function toWritablePresentationState(state) {
 }
 
 export function normalizePresentationCode(value) {
-  const code = String(value ?? '').toUpperCase().replace(/[\s-]/g, '');
-  return /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(code) ? code : '';
+  return typeof value === 'string' && /^\d{5}$/.test(value) ? value : '';
 }
 
 export function formatPresentationCode(value) {
-  const code = normalizePresentationCode(value);
-  return code ? `${code.slice(0, 4)} ${code.slice(4)}` : '';
+  return normalizePresentationCode(value);
 }
 
 export function createEnrollmentIdentity() {

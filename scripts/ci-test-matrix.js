@@ -205,9 +205,11 @@ const rows = [];
 for (const id of selected) {
   const suite = suiteById[id];
   if (!suite || suite.kind === 'unit') continue;
-  const profiles = suite.kind === 'ux' ? (onlySnapshotChanges && snapshotProfiles.has(id) ? [...snapshotProfiles.get(id)] : profileNames) : ['regression'];
+  const profiles = suite.kind === 'ux' ? (onlySnapshotChanges && snapshotProfiles.has(id) ? [...snapshotProfiles.get(id)] : profileNames)
+    : suite.kind === 'presentation' ? ['socket'] : ['regression'];
   for (const profile of profiles) {
-    const projects = suite.kind === 'ux' ? fullProfiles[profile] : ['chromium', 'Mobile Chrome'];
+    const projects = suite.kind === 'ux' ? fullProfiles[profile]
+      : suite.kind === 'presentation' ? ['chromium', 'Mobile Chrome', 'WebKit'] : ['chromium', 'Mobile Chrome'];
     rows.push({ suite: id, kind: suite.kind, profile, projects, artifact: `${id}-${profile}` });
   }
 }

@@ -17,8 +17,8 @@ function list(args, env = {}) {
   return JSON.parse(result.stdout);
 }
 
-function suiteList(id, args = []) {
-  const result = spawnSync(process.execPath, [runner, id, ...args, '--list', '--reporter=json'], { cwd: root, encoding: 'utf8' });
+function suiteList(id, args = [], env = {}) {
+  const result = spawnSync(process.execPath, [runner, id, ...args, '--list', '--reporter=json'], { cwd: root, encoding: 'utf8', env: { ...process.env, ...env } });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return JSON.parse(result.stdout);
 }
@@ -72,21 +72,25 @@ async function selectForPush(repo, t, mutate) {
 
 test('routine UX suite selectors partition the existing device/theme matrix exactly once', () => {
   const before = list(['--config=playwright.ux.config.js']);
-  const after = ['ux-browse', 'ux-submit', 'ux-saved', 'ux-navigation', 'ux-motion', 'ux-content', 'ux-actions', 'ux-streetmix'].flatMap(id => cases(suiteList(id)));
+  const after = ['ux-browse', 'ux-submit', 'ux-saved', 'ux-navigation', 'ux-motion', 'ux-content', 'ux-actions', 'ux-streetmix', 'ux-presentation'].flatMap(id => cases(suiteList(id)));
   assert.deepEqual(after.sort(), cases(before));
-  assert.equal(after.length, 316);
+  assert.equal(after.length, 324);
 });
 
 test('expanded UX selectors retain every expanded device/theme case exactly once', () => {
   const before = list(['--config=playwright.ux.config.js'], { UX_FULL: '1' });
-  const after = ['ux-browse', 'ux-submit', 'ux-saved', 'ux-navigation', 'ux-motion', 'ux-content', 'ux-actions', 'ux-streetmix'].flatMap(id => cases(suiteList(id, ['--full'])));
+  const after = ['ux-browse', 'ux-submit', 'ux-saved', 'ux-navigation', 'ux-motion', 'ux-content', 'ux-actions', 'ux-streetmix', 'ux-presentation'].flatMap(id => cases(suiteList(id, ['--full'])));
   assert.deepEqual(after.sort(), cases(before));
 });
 
 test('regression app, diagram, and browserless unit selectors preserve extended discovery', () => {
-  const before = list(['--grep-invert', '@critical']);
-  const after = ['regression-app', 'regression-diagrams', 'unit'].flatMap(id => cases(suiteList(id)));
-  assert.deepEqual(after.sort(), cases(before));
+  const before = [
+    ...cases(list(['--grep-invert', '@critical'])),
+    ...cases(list(['--config=playwright.presentation.config.js'], { PRESENTATION_SOCKET_TEST_MODE: 'on' })),
+  ].sort();
+  const after = ['regression-app', 'regression-diagrams', 'regression-presentation', 'unit']
+    .flatMap(id => cases(suiteList(id, [], id === 'regression-presentation' ? { PRESENTATION_SOCKET_TEST_MODE: 'on' } : {})));
+  assert.deepEqual(after.sort(), before);
 });
 
 test('docs changes select no jobs and a Streetmix spec selects only its suite', async t => {
@@ -107,7 +111,7 @@ test('bookmark, diagram, shared fixture, and toolbar snapshot gates stay scoped'
   });
   assert.deepEqual(diagrams.manifest.rows.map(row => row.suite), ['regression-diagrams']);
   const fixture = await selectForPush({ ...repo, base: git(repo.directory, ['rev-parse', 'HEAD']) }, t, async directory => writeFile(path.join(directory, 'tests/ux/fixture.js'), 'export {}'));
-  assert.equal(new Set(fixture.manifest.rows.map(row => row.suite)).size, 8);
+  assert.equal(new Set(fixture.manifest.rows.map(row => row.suite)).size, 9);
   const snapshot = await selectForPush({ ...repo, base: git(repo.directory, ['rev-parse', 'HEAD']) }, t, async directory => {
     const file = path.join(directory, 'tests/ux/snapshots/win32/android-light/toolbar.png');
     await mkdir(path.dirname(file), { recursive: true });
@@ -123,9 +127,9 @@ test('unknown source changes select all suites; common CSS selects all explicitl
     await writeFile(path.join(directory, 'src/new/unknown.js'), 'export const value = true;');
   });
   assert.equal(unknown.manifest.runUnit, true);
-  assert.equal(new Set(unknown.manifest.selectedSuites).size, 11);
+  assert.equal(new Set(unknown.manifest.selectedSuites).size, 13);
   const css = await selectForPush({ ...repo, base: git(repo.directory, ['rev-parse', 'HEAD']) }, t, async directory => writeFile(path.join(directory, 'src/style.css'), 'body { color: black; }'));
-  assert.equal(css.manifest.selectedSuites.length, 11);
+  assert.equal(css.manifest.selectedSuites.length, 13);
 });
 
 test('renames and deletions keep the prior and new owning test paths in the diff', async t => {
