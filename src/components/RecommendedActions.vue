@@ -21,6 +21,7 @@
           <button v-if="full && visible.length < filtered.length" class="action-button" @click="limit += 10">Show 10 more</button>
         </template>
       </template>
+      <a class="action-idea-link" :href="`https://api.dallasurbanists.org/playground/recommendables?idea=${encodeURIComponent(suggestion.id)}`">Go to 311 search</a>
     </div>
   </PreviewSection>
 </template>
