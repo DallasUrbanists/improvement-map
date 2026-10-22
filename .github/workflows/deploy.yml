@@ -89,7 +89,7 @@ jobs:
             exit 0
           fi
 
-          if grep -Eiq 'network timeout|request-timeout' "$RUNNER_TEMP/npm-audit.log"; then
+          if grep -Eiq 'network timeout|request-timeout|npm warn audit 5[0-9]{2}( |$)' "$RUNNER_TEMP/npm-audit.log"; then
             echo "::warning::npm audit could not reach the advisory service; continuing deployment."
             exit 0
           fi
