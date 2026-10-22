@@ -1,16 +1,15 @@
 <template>
-  <PreviewSection title="Recommended actions" button="View all actions" :count="loaded ? filtered.length : undefined" :available="loaded && actions.length > 0" @toggle="onToggle" v-slot="{ full }">
+  <PreviewSection class="recommended-actions-section" title="Recommended actions" button="View all actions" :count="loaded ? filtered.length : undefined" :available="loaded && actions.length > 0" @toggle="onToggle" v-slot="{ full }">
     <div class="actions-panel">
-      <router-link class="action-button" to="/my-actions">My actions ({{ savedActions.length }})</router-link>
       <p v-if="storageNotice" role="alert">{{ storageNotice }}</p>
       <p v-if="message" role="status" aria-live="polite">{{ message }}</p>
       <p v-if="loading" role="status">Loading recommended actions…</p>
       <div v-else-if="error" role="alert"><p>{{ error }}</p><button class="action-button" @click="load">Retry loading</button></div>
       <template v-else-if="loaded">
         <template v-if="!actions.length">
-          <p>{{ generated ? 'No matching actions found.' : 'No actions yet.' }}</p>
+          <p>{{ generated ? 'No recommendations found.' : 'No actions yet.' }}</p>
 
-          <button class="action-button" :disabled="generating" @click="generate">{{ generating ? 'Generating…' : 'Find actions' }}</button>
+          <button v-if="!generationAttempted" class="action-button recommended-find-actions" :disabled="generating" @click="generate">Find actions</button>
           <p v-if="generating" role="status">Finding relevant actions…</p>
           <p v-if="generationError" role="alert">{{ generationError }}</p>
         </template>
@@ -33,13 +32,14 @@ import { getSuggestionRecommendedActions, matchSuggestionRecommendations } from 
 import { savedActions, storageNotice, isSaved, isHidden, saveAction, removeAction, setHidden, normalizeActions, recommendationInput, cachedActions, cacheActions } from '../services/localActions';
 const props = defineProps({ suggestion: { type: Object, required: true }, refreshVersion: Number });
 const actions = ref([]), loaded = ref(false), loading = ref(false), generating = ref(false), generated = ref(false);
+const generationAttempted = ref(false);
 const error = ref(''), generationError = ref(''), message = ref(''), showHidden = ref(false), limit = ref(10), hiddenToggle = ref(null);
 let controller, version = 0;
 const hiddenCount = computed(() => actions.value.filter(a => isHidden(a.key)).length);
 const filtered = computed(() => actions.value.filter(a => showHidden.value || !isHidden(a.key)));
 const visible = computed(() => filtered.value.slice(0, limit.value));
 function reset() {
-  version++; controller?.abort(); actions.value = []; loaded.value = loading.value = generating.value = generated.value = showHidden.value = false;
+  version++; controller?.abort(); actions.value = []; loaded.value = loading.value = generating.value = generated.value = generationAttempted.value = showHidden.value = false;
   error.value = generationError.value = message.value = ''; limit.value = 10;
 }
 watch(() => [props.suggestion.id, props.refreshVersion], reset);
@@ -59,6 +59,7 @@ async function load() {
 }
 async function generate() {
   if (generating.value) return;
+  generationAttempted.value = true;
   const request = ++version; controller?.abort(); controller = new AbortController(); generating.value = true; generationError.value = '';
   const suggestion = props.suggestion, input = recommendationInput(suggestion);
   try {
@@ -66,7 +67,7 @@ async function generate() {
     if (request !== version) return;
     actions.value = normalizeActions(result, suggestion.id, true); generated.value = true;
     cacheActions(suggestion.id, JSON.stringify(input), actions.value);
-    message.value = `${actions.value.length} recommendations found.`;
+    message.value = actions.value.length ? `${actions.value.length} recommendations found.` : '';
   } catch (e) { if (request === version) generationError.value = e.message; }
   finally { if (request === version) generating.value = false; }
 }

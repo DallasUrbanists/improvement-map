@@ -1340,36 +1340,38 @@ async function submitFinalSuggestion() {
       longitude: Number(draft.location?.longitude ?? -96.7970),
     };
 
-    dynamicProgressMessage.value = 'Preparing location diagram renderer…';
-    const [{ fetchLocationData }, { generateVersionTwoLocationDiagram }, { railCatalog }] = await Promise.all([
-      import('../services/liveLocationData'),
-      import('../services/locationDiagramVersionTwo'),
-      import('../services/railCatalog'),
-    ]);
-    dynamicProgressMessage.value = 'Generating location thumbnail…';
-    const { data } = await fetchLocationData({
-      lat: location.latitude,
-      lon: location.longitude,
-    }, {
-      onProgress: (message) => { dynamicProgressMessage.value = message; },
-    });
-    const { svg } = generateVersionTwoLocationDiagram(data, {
-      ...data.center,
-      railCatalog,
-    });
-    submissionProgress.value = 15;
-    dynamicProgressMessage.value = 'Uploading location thumbnail…';
-    const thumbnailType = 'image/svg+xml';
-    const { uploadUrl: thumbnailUploadUrl, publicUrl: thumbnailUrl } = await requestPhotoUploadUrl({
-      contentType: thumbnailType,
-      filename: 'location-diagram.svg',
-    });
-    await uploadPhotoBinary(thumbnailUploadUrl, new Blob([svg], { type: thumbnailType }), thumbnailType);
-    uploadedPhotos.push({
-      url: thumbnailUrl,
-      caption: 'Location diagram',
-      timestamp: new Date().toISOString(),
-    });
+    if (!import.meta.env.DEV) {
+      dynamicProgressMessage.value = 'Preparing location diagram renderer…';
+      const [{ fetchLocationData }, { generateVersionTwoLocationDiagram }, { railCatalog }] = await Promise.all([
+        import('../services/liveLocationData'),
+        import('../services/locationDiagramVersionTwo'),
+        import('../services/railCatalog'),
+      ]);
+      dynamicProgressMessage.value = 'Generating location thumbnail…';
+      const { data } = await fetchLocationData({
+        lat: location.latitude,
+        lon: location.longitude,
+      }, {
+        onProgress: (message) => { dynamicProgressMessage.value = message; },
+      });
+      const { svg } = generateVersionTwoLocationDiagram(data, {
+        ...data.center,
+        railCatalog,
+      });
+      submissionProgress.value = 15;
+      dynamicProgressMessage.value = 'Uploading location thumbnail…';
+      const thumbnailType = 'image/svg+xml';
+      const { uploadUrl: thumbnailUploadUrl, publicUrl: thumbnailUrl } = await requestPhotoUploadUrl({
+        contentType: thumbnailType,
+        filename: 'location-diagram.svg',
+      });
+      await uploadPhotoBinary(thumbnailUploadUrl, new Blob([svg], { type: thumbnailType }), thumbnailType);
+      uploadedPhotos.push({
+        url: thumbnailUrl,
+        caption: 'Location diagram',
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     const photosToUpload = (draft.photos || []).filter((p) => p.blob || p.url || p.dataUrl);
 

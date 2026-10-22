@@ -1,5 +1,5 @@
 <template>
-  <details class="detail-accordion" @toggle="$emit('toggle', $event)">
+  <details v-bind="$attrs" class="detail-accordion" @toggle="$emit('toggle', $event)">
     <summary>{{ title }}<span v-if="count != null" class="section-count">{{ count }}</span></summary>
     <div class="actions-panel">
       <div :aria-hidden="full || undefined" :inert="full"><slot :full="false" /></div>
@@ -11,6 +11,7 @@
 <script setup>
 import { ref } from 'vue';
 import DetailSheet from './DetailSheet.vue';
+defineOptions({ inheritAttrs: false });
 defineProps({ title: String, button: String, count: Number, available: Boolean });
 defineEmits(['toggle']);
 const full = ref(false);

@@ -94,13 +94,13 @@
 
         <StreetmixPanel v-if="String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" />
 
-        <PreviewSection :key="`areas-${suggestion.id}`" title="Neighborhoods &amp; districts" button="View all areas" :count="boundariesLoaded ? boundaries.length : undefined" :available="boundaries.length > 0" @toggle="handleBoundariesToggle" v-slot="{ full }">
+        <PreviewSection class="areas-section" :key="`areas-${suggestion.id}`" title="Neighborhoods &amp; districts" :button="`View ${boundaries.length} areas`" :count="boundariesLoaded ? boundaries.length : undefined" :available="boundaries.length > 0" @toggle="handleBoundariesToggle" v-slot="{ full }">
           <p v-if="boundariesLoading" role="status">Loading areas…</p>
           <div v-else-if="boundariesError" role="alert"><p>{{ boundariesError }}</p><button class="action-button" @click="loadBoundaries">Retry</button></div>
           <p v-else-if="boundariesLoaded && !boundaries.length">No areas found.</p>
           <article v-for="boundary in (full ? prioritizedBoundaries : prioritizedBoundaries.slice(0, 2))" :key="boundary.id" class="context-card">
-            <h3>{{ boundary.districtName || boundary.entityName || boundary.bodyName }}</h3>
-            <p class="secondary-copy">{{ [boundary.entityName, boundary.bodyName].filter(v => v && v !== boundary.districtName).filter((v, i, values) => values.indexOf(v) === i).join(' · ') }}</p>
+            <h3>{{ [boundary.bodyName, boundary.districtName].filter(Boolean).join(' · ') || boundary.entityName || 'Area' }}</h3>
+            <p class="secondary-copy">{{ boundary.entityName && boundary.entityName !== boundary.districtName ? boundary.entityName : '' }}</p>
             <template v-if="full">
               <p v-if="boundary.description">{{ boundary.description }}</p>
               <p v-if="boundary.whenToContact"><strong>When to contact:</strong> {{ boundary.whenToContact }}</p>
@@ -108,16 +108,22 @@
           </article>
         </PreviewSection>
 
-        <PreviewSection :key="`representatives-${suggestion.id}`" title="Representatives" button="View all representatives" :count="representativesLoaded ? representatives.length : undefined" :available="representatives.length > 0" @toggle="handleRepresentativesToggle" v-slot="{ full }">
+        <PreviewSection class="representatives-section" :key="`representatives-${suggestion.id}`" title="Representatives" :button="`View ${representatives.length} representatives`" :count="representativesLoaded ? representatives.length : undefined" :available="representatives.length > 0" @toggle="handleRepresentativesToggle" v-slot="{ full }">
           <p v-if="representativesLoading" role="status">Loading representatives…</p>
           <div v-else-if="representativesError" role="alert"><p>{{ representativesError }}</p><button class="action-button" @click="loadRepresentatives">Retry</button></div>
           <p v-else-if="representativesLoaded && !representatives.length">No representatives found.</p>
           <article v-for="representative in (full ? prioritizedRepresentatives : prioritizedRepresentatives.slice(0, 2))" :key="representative.id" class="context-card">
-            <h3>{{ representative.name || 'Name unavailable' }}</h3>
-            <p v-if="representative.title">{{ representative.title }}</p>
-            <p class="secondary-copy">{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
-            <div class="action-card-controls">
-              <a v-for="contact in (full ? getRepresentativeContactItems(representative) : getRepresentativeContactItems(representative).slice(0, 3))" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`" :title="contact.label">{{ contact.buttonLabel }}</a>
+            <div class="representative-row-copy">
+              <h3>{{ representative.name || 'Name unavailable' }}</h3>
+              <p class="secondary-copy"><template v-if="representative.title">{{ representative.title }}<br /></template>{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
+            </div>
+            <div class="action-card-controls representative-contact-controls">
+              <details v-if="getRepresentativeContactItems(representative).length" class="representative-contact-menu" @toggle="positionRepresentativeContactMenu">
+                <summary class="action-button"><i class="fa-solid fa-address-card" aria-hidden="true"></i> Contact</summary>
+                <div class="representative-contact-options">
+                  <a v-for="contact in getRepresentativeContactItems(representative)" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`" :title="contact.label"><i :class="['fa-solid', contact.external ? 'fa-globe' : contact.type === 'email' ? 'fa-envelope' : 'fa-phone']" aria-hidden="true"></i><span>{{ contact.buttonLabel }}</span></a>
+                </div>
+              </details>
             </div>
             <p v-if="!getRepresentativeContactItems(representative).length" class="secondary-copy">Contact information unavailable</p>
           </article>
@@ -434,6 +440,25 @@ function localPriority(boundary) {
 const prioritizedBoundaries = computed(() => [...boundaries.value].sort((a, b) => localPriority(a) - localPriority(b)));
 const prioritizedRepresentatives = computed(() => [...representatives.value].sort((a, b) => localPriority(a.boundary) - localPriority(b.boundary)));
 function contactLabel(contact) { return contact.href.startsWith('tel:') ? 'Call' : contact.href.startsWith('mailto:') ? 'Email' : 'Website'; }
+
+function positionRepresentativeContactMenu(event) {
+  const menu = event.currentTarget;
+  if (!menu.open) {
+    menu.classList.remove('opens-up');
+    return;
+  }
+  requestAnimationFrame(() => {
+    const options = menu.querySelector('.representative-contact-options');
+    const trigger = menu.querySelector('summary');
+    if (!options || !trigger) return;
+    const triggerRect = trigger.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - triggerRect.bottom - 12;
+    const spaceAbove = triggerRect.top - 12;
+    const opensUp = spaceBelow < Math.min(options.scrollHeight, 240) && spaceAbove > spaceBelow;
+    menu.classList.toggle('opens-up', opensUp);
+    options.style.maxHeight = `${Math.max(120, Math.min(320, opensUp ? spaceAbove : spaceBelow))}px`;
+  });
+}
 const boundariesLoading = ref(false);
 const boundariesLoaded = ref(false);
 const boundariesError = ref('');
