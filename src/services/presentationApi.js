@@ -61,6 +61,19 @@ export function clearPresentationCredentialForRole(role) {
   removeStored(PENDING_PREFIX + role);
 }
 
+export function clearPresentationCredentialIfMatches(credential) {
+  if (!credential || !['receiver', 'controller', 'audience'].includes(credential.role)) return false;
+  const value = getActivePresentationCredential();
+  const matches = value?.role === credential.role
+    && value.sessionId === credential.sessionId
+    && value.participantId === credential.participantId;
+  if (matches) removeStored(ACTIVE_KEY);
+  const pendingKey = PENDING_PREFIX + credential.role;
+  const pending = readJson(pendingKey);
+  if (pending?.body?.participantId === credential.participantId) removeStored(pendingKey);
+  return matches;
+}
+
 function pendingEnrollment(role, code, reuse = true) {
   const key = PENDING_PREFIX + role;
   const pending = readJson(key);
@@ -77,11 +90,14 @@ function pendingEnrollment(role, code, reuse = true) {
   return value;
 }
 
-function retryDelay(value) {
+export function parsePresentationRetryAfter(value, now = Date.now()) {
   if (!value) return 0;
-  if (/^\d+(?:\.\d+)?$/.test(value)) return Math.min(60000, Number(value) * 1000);
+  if (/^\d+(?:\.\d+)?$/.test(value)) {
+    const milliseconds = Number(value) * 1000;
+    return Number.isFinite(milliseconds) ? Math.max(0, milliseconds) : 0;
+  }
   const date = Date.parse(value);
-  return Number.isFinite(date) ? Math.max(0, Math.min(60000, date - Date.now())) : 0;
+  return Number.isFinite(date) ? Math.max(0, date - now) : 0;
 }
 
 function authHeaders(credential) {
@@ -106,7 +122,7 @@ async function request(path, { method = 'GET', body, credential, idempotencyKey,
   const responseBody = response.status === 204 ? null : json
     ? await response.json().catch(() => null)
     : await response.blob().catch(() => null);
-  if (!response.ok) throw new PresentationApiError(response.status, responseBody, retryDelay(response.headers.get('Retry-After')));
+  if (!response.ok) throw new PresentationApiError(response.status, responseBody, parsePresentationRetryAfter(response.headers.get('Retry-After')));
   if (json && responseBody && responseBody.protocolVersion !== PRESENTATION_PROTOCOL_VERSION) {
     throw new PresentationApiError(426, { error: 'PROTOCOL_UNSUPPORTED', message: 'This presentation uses a newer protocol. Update the app and try again.' });
   }
@@ -114,8 +130,16 @@ async function request(path, { method = 'GET', body, credential, idempotencyKey,
 }
 
 function enrolledCredential(role, result, pending) {
+  const currentPending = readJson(PENDING_PREFIX + role);
+  if (currentPending?.idempotencyKey !== pending.idempotencyKey) {
+    throw new DOMException('This enrollment was superseded by a newer request.', 'AbortError');
+  }
   if (!result || !result.sessionId || result.participantId !== pending.body.participantId || result.role !== role) {
     throw new PresentationApiError(502, { error: 'INVALID_ENROLLMENT_RESPONSE', message: 'The presentation service returned an invalid enrollment response.' });
+  }
+  if ((role === 'receiver' && (!normalizePresentationCode(result.presenterCode) || !normalizePresentationCode(result.audienceCode)))
+    || (role === 'controller' && !normalizePresentationCode(result.audienceCode))) {
+    throw new PresentationApiError(502, { error: 'INVALID_ENROLLMENT_RESPONSE', message: 'The presentation service returned an invalid admission code.' });
   }
   const credential = {
     role,
@@ -144,7 +168,7 @@ export async function createReceiverEnrollment({ signal } = {}) {
 
 export async function pairController(codeInput, { signal } = {}) {
   const code = normalizePresentationCode(codeInput);
-  if (!code) throw new Error('Enter the eight-character presenter code.');
+  if (!code) throw new Error('Enter the five-digit presenter code.');
   const pending = pendingEnrollment('controller', code, true);
   const result = await request('/pair', { method: 'POST', body: pending.body, idempotencyKey: pending.idempotencyKey, signal });
   return enrolledCredential('controller', result, pending);
@@ -152,7 +176,7 @@ export async function pairController(codeInput, { signal } = {}) {
 
 export async function joinAudience(codeInput, { signal } = {}) {
   const code = normalizePresentationCode(codeInput);
-  if (!code) throw new Error('Enter the eight-character audience viewing code.');
+  if (!code) throw new Error('Enter the five-digit audience viewing code.');
   const pending = pendingEnrollment('audience', code, true);
   const result = await request('/audience/join', { method: 'POST', body: pending.body, idempotencyKey: pending.idempotencyKey, signal });
   return enrolledCredential('audience', result, pending);
@@ -202,6 +226,10 @@ export async function loadStreetmixThumbnail(credential, ideaId, { signal } = {}
 
 export async function rotatePresenterCode(credential, { signal } = {}) {
   const persisted = getActivePresentationCredential();
+  if (!persisted || persisted.role !== credential.role || persisted.sessionId !== credential.sessionId
+    || persisted.participantId !== credential.participantId) {
+    throw new DOMException('This presentation connection is no longer current.', 'AbortError');
+  }
   const idempotencyKey = credential.pendingPairingRotation || (persisted?.sessionId === credential.sessionId && persisted.pendingPairingRotation)
     || createEnrollmentIdentity().idempotencyKey;
   const pending = { ...credential, pendingPairingRotation: idempotencyKey };
@@ -211,8 +239,15 @@ export async function rotatePresenterCode(credential, { signal } = {}) {
   const result = await request(`/sessions/${encodeURIComponent(credential.sessionId)}/pairing`, {
     method: 'POST', body: { protocolVersion: PRESENTATION_PROTOCOL_VERSION }, credential: pending, idempotencyKey, signal,
   });
+  if (!normalizePresentationCode(result?.presenterCode)) {
+    throw new PresentationApiError(502, { error: 'INVALID_PAIRING_RESPONSE', message: 'The presentation service returned an invalid presenter code.' });
+  }
   const recovered = { ...pending, ...result };
   delete recovered.pendingPairingRotation;
+  const active = getActivePresentationCredential();
+  if (!active || active.role !== credential.role || active.sessionId !== credential.sessionId || active.participantId !== credential.participantId) {
+    throw new DOMException('This presentation connection is no longer current.', 'AbortError');
+  }
   if (!saveActivePresentationCredential(recovered)) {
     throw new Error('The new pairing code is ready, but this browser could not save it. Retry pairing from the TV.');
   }
@@ -228,6 +263,10 @@ export async function endPresentation(credential, { signal } = {}) {
 }
 
 export function presentationIsEnabled() {
-  const configured = import.meta.env.VITE_PRESENTATION_ENABLED;
-  return configured === undefined || configured === '' ? Boolean(import.meta.env.DEV) : configured === 'true';
+  const configured = import.meta.env?.VITE_PRESENTATION_ENABLED;
+  return configured === undefined || configured === '' ? Boolean(import.meta.env?.DEV) : configured === 'true';
+}
+
+export function presentationWebSocketIsEnabled() {
+  return import.meta.env?.VITE_PRESENTATION_WEBSOCKET_ENABLED === 'true';
 }

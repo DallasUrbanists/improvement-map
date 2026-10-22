@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { PresentationTestServer, presentationBrowserInit } from './fixtures/presentationServer.js';
 
-async function presentationPage(browser, server, viewport = { width: 1280, height: 800 }) {
+const appPath = (baseURL, path) => new URL(path, baseURL).toString();
+
+async function presentationPage(browser, server, baseURL, viewport = { width: 1280, height: 800 }) {
   const context = await browser.newContext({ viewport, serviceWorkers: 'block' });
   await context.route('**/*', route => server.route(route));
   await context.addInitScript(presentationBrowserInit);
@@ -11,17 +13,26 @@ async function presentationPage(browser, server, viewport = { width: 1280, heigh
   return { context, page, errors };
 }
 
-test('TV, presenter, and two audience contexts stay synchronized without sharing viewer state', async ({ browser }) => {
-  const server = new PresentationTestServer();
-  const tv = await presentationPage(browser, server, { width: 1920, height: 1080 });
-  const presenter = await presentationPage(browser, server, { width: 390, height: 844 });
-  const audienceA = await presentationPage(browser, server, { width: 844, height: 390 });
-  const audienceB = await presentationPage(browser, server, { width: 844, height: 390 });
+async function waitForWritesSettled(page) {
+  await expect.poll(() => page.evaluate(async () => {
+    const { presentationSession: session } = await import('/src/services/presentationSession.js');
+    return !session.credential?.pendingMutation
+      && Object.keys(session.pendingChanges).length === 0
+      && Object.keys(session.inflightChanges).length === 0;
+  })).toBe(true);
+}
+
+test('TV, presenter, and two audience contexts stay synchronized without sharing viewer state', async ({ browser, baseURL }) => {
+  const server = new PresentationTestServer({ appOrigin: new URL(baseURL).origin });
+  const tv = await presentationPage(browser, server, baseURL, { width: 1920, height: 1080 });
+  const presenter = await presentationPage(browser, server, baseURL, { width: 390, height: 844 });
+  const audienceA = await presentationPage(browser, server, baseURL, { width: 844, height: 390 });
+  const audienceB = await presentationPage(browser, server, baseURL, { width: 844, height: 390 });
   const contexts = [tv, presenter, audienceA, audienceB];
   try {
-    await tv.page.goto('http://localhost:5173/tv');
+    await tv.page.goto(appPath(baseURL, '/tv'));
     await tv.page.getByRole('button', { name: 'Start presentation' }).click();
-    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('ABCD 2345');
+    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('01234');
     await expect(tv.page.getByRole('img', { name: 'QR code for presenter pairing link' })).toBeVisible();
     await expect(tv.page.locator('.map-workspace')).toHaveCount(0);
     const enrollment = server.enrollmentRequests.find(item => item.method === 'POST' && !item.body.code);
@@ -33,12 +44,12 @@ test('TV, presenter, and two audience contexts stay synchronized without sharing
     expect(transport.some(item => item.hasBearer)).toBe(true);
     expect(await tv.page.evaluate(() => Object.keys(localStorage).filter(key => /presentation-active|presentation-pending|participantToken/i.test(key)))).toEqual([]);
 
-    await audienceA.page.goto('http://localhost:5173/audience#view=WXYZ6789');
-    await audienceB.page.goto('http://localhost:5173/audience#view=WXYZ6789');
+    await audienceA.page.goto(appPath(baseURL, '/audience#view=56789'));
+    await audienceB.page.goto(appPath(baseURL, '/audience#view=56789'));
     await expect(audienceA.page.getByText('Waiting for the presenter')).toBeVisible();
     await expect.poll(() => [...server.sessions.values()][0].participants.size).toBe(3);
 
-    await presenter.page.goto('http://localhost:5173/remote#pair=ABCD2345');
+    await presenter.page.goto(appPath(baseURL, '/remote#pair=01234'));
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
     await expect(presenter.page.getByText('TV connected')).toBeVisible();
     await expect.poll(() => [...server.sessions.values()][0].participants.size).toBe(4);
@@ -46,12 +57,12 @@ test('TV, presenter, and two audience contexts stay synchronized without sharing
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();
     await presenter.page.getByRole('menuitem', { name: 'Find ideas' }).click();
     await expect(presenter.page.getByText('Protected bike lane on Main Street')).toBeVisible();
-    await presenter.page.getByRole('button', { name: 'Present this idea: Protected bike lane on Main Street' }).click();
+    await presenter.page.getByRole('button', { name: 'Present: Protected bike lane on Main Street' }).click();
     await expect(tv.page.getByText('Protected bike lane on Main Street').first()).toBeVisible();
     await expect(tv.page.locator('[data-presentation-map="receiver"]')).toHaveCount(1);
     await expect.poll(() => [...server.sessions.values()][0].state.selectedIdeaId).toBe('202');
 
-    await presenter.page.getByRole('button', { name: 'Photo', exact: true }).click();
+    await presenter.page.getByRole('button', { name: 'Photos', exact: true }).click();
     await expect(tv.page.locator('.tv-photo')).toBeVisible();
     await expect(tv.page.locator('.tv-photo img')).toBeVisible();
     await audienceA.page.getByRole('button', { name: 'Photos' }).click();
@@ -61,9 +72,11 @@ test('TV, presenter, and two audience contexts stay synchronized without sharing
     await audienceA.page.getByRole('button', { name: 'Next photo' }).click();
     await expect(audienceA.page.locator('.presentation-streetmix iframe')).toBeVisible();
     await expect(audienceA.page.getByRole('button', { name: 'Zoom photo in' })).toHaveCount(0);
+    await expect(audienceB.page.locator('.audience-description-card')).toContainText('Protected bike lane on Main Street');
+    await audienceB.page.getByRole('button', { name: 'Next description page' }).click();
     await expect(audienceB.page.locator('.audience-description-card')).toContainText('Connect the protected lane');
     await audienceB.page.getByRole('button', { name: 'Next description page' }).click();
-    await expect(audienceB.page.locator('.paginator-count')).toHaveText('2 / 2');
+    await expect(audienceB.page.locator('.paginator-count')).toHaveText('3 / 3');
 
     await presenter.page.getByRole('button', { name: 'Description', exact: true }).click();
     await expect(tv.page.locator('.tv-description')).toContainText('Protected bike lane on Main Street');
@@ -101,24 +114,31 @@ test('TV, presenter, and two audience contexts stay synchronized without sharing
   }
 });
 
-test('manual code entry and a lost state response retry the original idempotent write', async ({ browser }) => {
-  const server = new PresentationTestServer();
-  const tv = await presentationPage(browser, server);
-  const presenter = await presentationPage(browser, server, { width: 390, height: 844 });
+test('manual code entry and a lost state response retry the original idempotent write', async ({ browser, baseURL }) => {
+  const server = new PresentationTestServer({ appOrigin: new URL(baseURL).origin });
+  const tv = await presentationPage(browser, server, baseURL);
+  const presenter = await presentationPage(browser, server, baseURL, { width: 390, height: 844 });
   try {
-    await tv.page.goto('http://localhost:5173/tv');
+    await tv.page.goto(appPath(baseURL, '/tv'));
     await tv.page.getByRole('button', { name: 'Start presentation' }).click();
-    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('ABCD 2345');
-    await presenter.page.goto('http://localhost:5173/remote');
-    await presenter.page.getByLabel('Presenter code').fill(' abcd-2345 ');
+    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('01234');
+    await presenter.page.goto(appPath(baseURL, '/remote'));
+    const presenterCodeInput = presenter.page.getByLabel('Presenter code');
+    await expect(presenterCodeInput).toHaveAttribute('inputmode', 'numeric');
+    await expect(presenterCodeInput).toHaveAttribute('maxlength', '5');
+    await presenterCodeInput.fill('ABCD2345');
+    await presenter.page.getByRole('button', { name: 'Connect remote' }).click();
+    await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toHaveCount(0);
+    await presenterCodeInput.fill('01234');
     await presenter.page.getByRole('button', { name: 'Connect remote' }).click();
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
 
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();
     await presenter.page.getByRole('menuitem', { name: 'Find ideas' }).click();
-    await presenter.page.getByRole('button', { name: 'Present this idea: Safer crossing at Elm Street' }).click();
+    await presenter.page.getByRole('button', { name: 'Present: Safer crossing at Elm Street' }).click();
     await expect(tv.page.getByText('Safer crossing at Elm Street').first()).toBeVisible();
 
+    await waitForWritesSettled(presenter.page);
     server.dropNextStateResponse = true;
     const attemptsBefore = server.stateAttempts;
     const mutationsBefore = server.stateMutations;
@@ -133,14 +153,15 @@ test('manual code entry and a lost state response retry the original idempotent 
   }
 });
 
-test('controller subpages preserve the running session and expose local audience access', async ({ browser }) => {
-  const server = new PresentationTestServer();
-  const tv = await presentationPage(browser, server);
-  const presenter = await presentationPage(browser, server, { width: 390, height: 844 });
+test('controller subpages preserve the running session and expose local audience access', async ({ browser, baseURL }) => {
+  const server = new PresentationTestServer({ appOrigin: new URL(baseURL).origin });
+  const tv = await presentationPage(browser, server, baseURL);
+  const presenter = await presentationPage(browser, server, baseURL, { width: 390, height: 844 });
   try {
-    await tv.page.goto('http://localhost:5173/tv');
+    await tv.page.goto(appPath(baseURL, '/tv'));
     await tv.page.getByRole('button', { name: 'Start presentation' }).click();
-    await presenter.page.goto('http://localhost:5173/remote#pair=ABCD2345');
+    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('01234');
+    await presenter.page.goto(appPath(baseURL, '/remote#pair=01234'));
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
     const revision = [...server.sessions.values()][0].revision;
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();
@@ -154,33 +175,35 @@ test('controller subpages preserve the running session and expose local audience
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();
     await presenter.page.getByRole('menuitem', { name: 'Audience' }).click();
     await expect(presenter.page.getByRole('heading', { name: 'Audience', exact: true })).toBeVisible();
-    await expect(presenter.page.getByText('ABCD 2345')).toHaveCount(0);
-    await expect(presenter.page.getByText('WXYZ 6789')).toBeVisible();
+    await expect(presenter.page.getByText('01234')).toHaveCount(0);
+    await expect(presenter.page.getByText('56789', { exact: true })).toBeVisible();
     await presenter.page.getByLabel('Show audience QR on TV').check();
     await presenter.page.getByLabel('Show viewing code on TV').check();
     await expect.poll(() => [...server.sessions.values()][0].state.audienceDisplay).toEqual({ showQr: true, showCode: true });
     expect([...server.sessions.values()][0].revision).toBeGreaterThan(revision);
     await expect(tv.page.getByRole('img', { name: 'QR code for audience viewing link' })).toBeVisible();
-    await expect(tv.page.getByText('WXYZ 6789')).toBeVisible();
+    await expect(tv.page.getByText('56789', { exact: true })).toBeVisible();
   } finally {
     await Promise.all([tv.context.close(), presenter.context.close()]);
   }
 });
 
-test('a reload resumes an uncertain state write from its saved idempotency record', async ({ browser }) => {
-  const server = new PresentationTestServer();
-  const tv = await presentationPage(browser, server);
-  const presenter = await presentationPage(browser, server, { width: 390, height: 844 });
+test('a reload resumes an uncertain state write from its saved idempotency record', async ({ browser, baseURL }) => {
+  const server = new PresentationTestServer({ appOrigin: new URL(baseURL).origin });
+  const tv = await presentationPage(browser, server, baseURL);
+  const presenter = await presentationPage(browser, server, baseURL, { width: 390, height: 844 });
   try {
-    await tv.page.goto('http://localhost:5173/tv');
+    await tv.page.goto(appPath(baseURL, '/tv'));
     await tv.page.getByRole('button', { name: 'Start presentation' }).click();
-    await presenter.page.goto('http://localhost:5173/remote#pair=ABCD2345');
+    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('01234');
+    await presenter.page.goto(appPath(baseURL, '/remote#pair=01234'));
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();
     await presenter.page.getByRole('menuitem', { name: 'Find ideas' }).click();
-    await presenter.page.getByRole('button', { name: 'Present this idea: Safer crossing at Elm Street' }).click();
+    await presenter.page.getByRole('button', { name: 'Present: Safer crossing at Elm Street' }).click();
     await expect(tv.page.getByText('Safer crossing at Elm Street').first()).toBeVisible();
 
+    await waitForWritesSettled(presenter.page);
     const attemptsBefore = server.stateAttempts;
     const mutationsBefore = server.stateMutations;
     server.dropStateResponses = 2;
@@ -201,20 +224,22 @@ test('a reload resumes an uncertain state write from its saved idempotency recor
   }
 });
 
-test('rate-limited controller writes honor Retry-After before retrying', async ({ browser }) => {
-  const server = new PresentationTestServer();
-  const tv = await presentationPage(browser, server);
-  const presenter = await presentationPage(browser, server, { width: 390, height: 844 });
+test('rate-limited controller writes honor Retry-After before retrying', async ({ browser, baseURL }) => {
+  const server = new PresentationTestServer({ appOrigin: new URL(baseURL).origin });
+  const tv = await presentationPage(browser, server, baseURL);
+  const presenter = await presentationPage(browser, server, baseURL, { width: 390, height: 844 });
   try {
-    await tv.page.goto('http://localhost:5173/tv');
+    await tv.page.goto(appPath(baseURL, '/tv'));
     await tv.page.getByRole('button', { name: 'Start presentation' }).click();
-    await presenter.page.goto('http://localhost:5173/remote#pair=ABCD2345');
+    await expect(tv.page.locator('.tv-presenter-code')).toHaveText('01234');
+    await presenter.page.goto(appPath(baseURL, '/remote#pair=01234'));
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
     await presenter.page.getByRole('button', { name: 'Open remote menu' }).click();
     await presenter.page.getByRole('menuitem', { name: 'Find ideas' }).click();
-    await presenter.page.getByRole('button', { name: 'Present this idea: Safer crossing at Elm Street' }).click();
+    await presenter.page.getByRole('button', { name: 'Present: Safer crossing at Elm Street' }).click();
     await expect(tv.page.getByText('Safer crossing at Elm Street').first()).toBeVisible();
 
+    await waitForWritesSettled(presenter.page);
     const attemptsBefore = server.stateAttempts;
     const mutationsBefore = server.stateMutations;
     server.rateLimitNextStateResponses = 1;
