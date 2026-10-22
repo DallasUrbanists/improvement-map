@@ -18,10 +18,10 @@ async function presentationPage(browser, server, baseURL, viewport = { width: 12
 }
 
 async function waitForLive(page) {
-  await page.waitForFunction(async () => {
+  await expect.poll(() => page.evaluate(async () => {
     const { presentationSession } = await import('/src/services/presentationSession.js');
     return presentationSession.transportState === 'live' && Boolean(presentationSession.credential?.sessionId);
-  });
+  })).toBe(true);
 }
 
 async function sessionId(page) {
@@ -54,10 +54,14 @@ test('socket ready owns TV, remote, and independent audience sessions without po
     await waitForLive(tv.page);
     const receiverSessionId = await sessionId(tv.page);
 
-    await audienceA.page.goto(appPath(baseURL, '/audience#view=01234'));
-    await audienceB.page.goto(appPath(baseURL, '/audience#view=01234'));
+    await audienceA.page.goto(appPath(baseURL, '/audience#view=56789'));
+    await audienceB.page.goto(appPath(baseURL, '/audience#view=56789'));
     await waitForLive(audienceA.page);
     await waitForLive(audienceB.page);
+    expect(await sessionId(audienceA.page)).toBe(receiverSessionId);
+    expect(await sessionId(audienceB.page)).toBe(receiverSessionId);
+    await expect(audienceA.page.getByText('Waiting for the presenter')).toBeVisible();
+    await expect(audienceB.page.getByText('Waiting for the presenter')).toBeVisible();
 
     await presenter.page.goto(appPath(baseURL, '/remote#pair=01234'));
     await expect(presenter.page.getByRole('button', { name: 'Open remote menu' })).toBeVisible();
