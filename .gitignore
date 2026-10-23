@@ -50,3 +50,5 @@ playwright/.cache/
 ehthumbs.db
 Thumbs.db
 
+# Storybook
+/storybook-static/
