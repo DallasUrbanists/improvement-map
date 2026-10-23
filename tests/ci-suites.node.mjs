@@ -123,7 +123,7 @@ test('bookmark, diagram, shared fixture, and toolbar snapshot gates stay scoped'
 test('storybook-only changes do not select application suites', async t => {
   const repo = await tempRepo(t);
   const result = await selectForPush(repo, t, async directory => {
-    for (const file of ['src/components/Example.stories.js', 'stories/Browse.stories.js', '.storybook/preview.js', 'vitest.config.js', 'tests/storybook/catalog.spec.js']) {
+    for (const file of ['src/components/Example.stories.js', 'src/components/GoogleMap.stories.js', '.storybook/preview.js', 'vitest.config.js', 'tests/storybook/catalog.spec.js']) {
       await mkdir(path.dirname(path.join(directory, file)), { recursive: true });
       await writeFile(path.join(directory, file), 'export {};');
     }

@@ -47,26 +47,19 @@ for (const story of stories) {
     await openStory(page, story.id, info.project.use.colorScheme);
     await expect(page.locator('html')).toHaveClass(new RegExp(info.project.use.colorScheme));
     expect(errors).toEqual([]);
-    if (story.title.startsWith('REFERENCE/Components/') || story.title.startsWith('BUTTONS/') || story.title === 'BARS/Idea row') {
+    if (story.title.startsWith('BUTTONS/') || story.title === 'BARS/Idea row') {
       // Enforce the review contract at the rendered boundary, without resetting
       // component-owned padding, shadows, positioning or modal backdrops.
       const body = page.locator('body');
       for (const [property, value] of Object.entries({ margin: '0px', padding: '0px', 'border-radius': '0px', 'box-shadow': 'none', 'border-top-width': '0px' })) await expect(body).toHaveCSS(property, value);
       const root = page.locator('#storybook-root');
       const expectedRoot = {
-        'REFERENCE/Components/Controls/Map control button': '.map-ui-button',
-        'REFERENCE/Components/Controls/Bookmark toggle': '.idea-bookmark',
         'BARS/Idea row': 'ul.idea-list',
-        'REFERENCE/Components/Navigation/Album paginator': '.album-paginator',
-        'REFERENCE/Components/Panels/Map tray': '.map-tray',
         'BUTTONS/Square Icon Button': '.square-icon-button',
         'BUTTONS/New Idea Special Button': '.new-idea-special-button',
       }[story.title];
-      if (story.title === 'REFERENCE/Components/Panels/Detail sheet' || story.id === 'reference-components-panels-map-tray--closed') await expect(root.locator(':scope > *')).toHaveCount(0);
-      else {
-        await expect(root.locator(':scope > *')).toHaveCount(1);
-        await expect(root.locator(`:scope > ${expectedRoot}`)).toHaveCount(1);
-      }
+      await expect(root.locator(':scope > *')).toHaveCount(1);
+      await expect(root.locator(`:scope > ${expectedRoot}`)).toHaveCount(1);
       if (story.title === 'BARS/Idea row') {
         for (const property of ['margin', 'padding']) await expect(root.locator('ul')).toHaveCSS(property, '0px');
       }
@@ -81,49 +74,13 @@ for (const story of stories) {
   });
 }
 
-test('map tray keyboard scrolls plain content', async ({ page }, info) => {
-  await openStory(page, 'reference-components-panels-map-tray--long-content', info.project.use.colorScheme || 'light');
-  const content = page.locator('.map-tray-content');
-  expect(await content.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
-  await page.getByRole('button', { name: 'Close Browse ideas' }).focus();
-  await page.keyboard.press('Tab');
-  await expect(content).toBeFocused();
-  await expect(content).toHaveCSS('outline-style', 'solid');
-  await expect(content).toHaveCSS('outline-width', '2px');
-  await page.keyboard.press('PageDown');
-  await expect.poll(() => content.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
-});
-
-test('map tray keyboard excludes busy and fixed content', async ({ page }, info) => {
-  for (const state of ['busy', 'fixed-content']) {
-    await openStory(page, `reference-components-panels-map-tray--${state}`, info.project.use.colorScheme || 'light');
-    await expect(page.locator('.map-tray-content')).not.toHaveAttribute('tabindex');
-    if (state === 'busy') await expect(page.locator('.map-tray-content')).toHaveAttribute('inert', '');
-    else {
-      await page.getByRole('button', { name: 'Close Browse ideas' }).focus();
-      await page.keyboard.press('Tab');
-      await expect(page.locator('.map-tray-content')).not.toBeFocused();
-    }
-  }
-});
-
-test('dialog keyboard restores the opener', async ({ page }, info) => {
-  await openStory(page, 'reference-patterns-detail-sheet-with-opener--open', info.project.use.colorScheme || 'light');
-  const dialog = page.getByRole('dialog', { name: 'Idea details' });
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(dialog).not.toBeVisible();
-  await expect(page.getByRole('button', { name: 'Open details' })).toBeFocused();
-});
-
 test('catalog documents and manifests load under the public subpath', async ({ page, request }) => {
-  expect(Object.values(index.entries).every(entry => entry.title.startsWith('REFERENCE/') || entry.title.startsWith('BUTTONS/') || entry.title.startsWith('BARS/') || entry.title.startsWith('CONTAINERS/') || entry.title.startsWith('FORM/') || entry.title === 'Colors'), 'Catalog entries belong to documented component groups or Colors').toBe(true);
-  expect(index.entries['reference-start-here--docs']?.type).toBe('docs');
-  await page.goto('?path=/docs/reference-start-here--docs');
+  expect(Object.values(index.entries).every(entry => entry.title.startsWith('BUTTONS/') || entry.title.startsWith('BARS/') || entry.title.startsWith('CONTAINERS/') || entry.title.startsWith('FORM/') || entry.title.startsWith('EMBEDDABLES/') || entry.title === 'Colors'), 'Catalog entries belong to the supported component groups or Colors').toBe(true);
+  await page.goto('?path=/docs/buttons-square-icon-button--docs');
   const menu = page.getByRole('button', { name: 'Open navigation menu' });
   if (await menu.isVisible()) await menu.click();
   await expect(page.getByRole('link', { name: /Improvement Map/ })).toHaveAttribute('href', '../');
-  for (const file of ['index.json', 'manifests/components.json', 'manifests/docs.json', 'fixtures/crossing.svg']) {
+  for (const file of ['index.json', 'manifests/components.json', 'manifests/docs.json']) {
     const response = await request.get(file); expect(response.ok(), file).toBeTruthy();
   }
 });

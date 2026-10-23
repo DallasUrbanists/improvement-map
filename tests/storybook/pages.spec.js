@@ -2,21 +2,20 @@ import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
 test('Pages catalog survives refresh with and without the app service worker', async ({ page }) => {
-  await page.goto('?path=/docs/reference-start-here--docs');
-  await expect(page.frameLocator('#storybook-preview-iframe').getByRole('heading', { name: /Improvement Map UI catalog/ })).toBeVisible();
-  await expect(page.frameLocator('#storybook-preview-iframe').getByRole('table').getByRole('row')).toHaveCount(8);
+  await page.goto('?path=/story/buttons-square-icon-button--floating');
+  await expect(page.frameLocator('#storybook-preview-iframe').locator('.square-icon-button')).toBeVisible();
   await page.reload();
-  await expect(page.frameLocator('#storybook-preview-iframe').getByRole('heading', { name: /Improvement Map UI catalog/ })).toBeVisible();
+  await expect(page.frameLocator('#storybook-preview-iframe').locator('.square-icon-button')).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     await navigator.serviceWorker.ready;
   });
   await page.reload();
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-  await page.goto('iframe.html?id=reference-screens-browse-list--loading&viewMode=story');
-  await expect(page.getByText('Loading ideas…', { exact: true })).toBeVisible();
+  await page.goto('iframe.html?id=buttons-square-icon-button--floating&viewMode=story');
+  await expect(page.locator('.square-icon-button')).toBeVisible();
   await page.reload();
-  await expect(page.getByText('Loading ideas…', { exact: true })).toBeVisible();
+  await expect(page.locator('.square-icon-button')).toBeVisible();
   const precached = await page.evaluate(async () => {
     const names = (await caches.keys()).filter(name => name.includes('precache'));
     return (await Promise.all(names.map(async name => (await (await caches.open(name)).keys()).map(request => new URL(request.url).pathname)))).flat();

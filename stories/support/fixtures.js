@@ -5,4 +5,3 @@ export const idea = {
   location: { address: 'Elm Street, Dallas, TX', latitude: 32.78, longitude: -96.8 },
   _formattedDistance: '0.2 mi', emoji: '🚶',
 };
-export const ideas = Array.from({ length: 8 }, (_, index) => ({ ...idea, id: `crossing-${index + 1}`, content: { ...idea.content, summary: index ? `Safer neighborhood crossing ${index + 1}` : idea.content.summary } }));

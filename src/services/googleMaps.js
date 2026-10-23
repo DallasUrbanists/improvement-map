@@ -114,11 +114,16 @@ const mapThemeBindings = new WeakMap();
  * @param {boolean} isDarkTheme
  * @param {string} mapType 'roadmap' | 'hybrid' | 'satellite' | 'terrain'
  */
-export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
+export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap', options = {}) {
   if (!map) return;
   let binding = mapThemeBindings.get(map);
   if (!binding) {
-    binding = { isDarkTheme, railVisible: railVisible.value };
+    const configuredThickness = Number(options.railsThickness);
+    binding = {
+      isDarkTheme,
+      railVisible: options.railsEnabled === undefined ? railVisible.value : Boolean(options.railsEnabled),
+      railThickness: Number.isFinite(configuredThickness) ? Math.max(1, Math.min(9, Math.round(configuredThickness))) : null,
+    };
     const refresh = () => {
       const type = map.getMapTypeId();
       let styles = getMapStyles(binding.isDarkTheme, type, map.getZoom());
@@ -150,7 +155,7 @@ export function updateMapTheme(map, isDarkTheme, mapType = 'roadmap') {
     Promise.all([import('./googleMapsRailOverlay'), import('./railCatalog')])
       .then(([{ createGoogleMapsRailOverlay }, { railCatalog }]) => {
         if (!binding.disposed) {
-          binding.railLayer = createGoogleMapsRailOverlay(map, window.google.maps, railCatalog);
+          binding.railLayer = createGoogleMapsRailOverlay(map, window.google.maps, railCatalog, { thickness: binding.railThickness });
           binding.refresh();
         }
       })
@@ -166,6 +171,14 @@ export function setMapRailsVisible(map, visible) {
   binding.railVisible = Boolean(visible);
   binding.railLayer?.setVisible(binding.railVisible);
   binding.refresh?.();
+}
+
+export function setMapRailsThickness(map, thickness) {
+  const binding = map && mapThemeBindings.get(map);
+  const value = Number(thickness);
+  if (!binding || !Number.isFinite(value)) return;
+  binding.railThickness = Math.max(1, Math.min(9, Math.round(value)));
+  binding.railLayer?.setThickness(binding.railThickness);
 }
 
 export function disposeMapTheme(map) {

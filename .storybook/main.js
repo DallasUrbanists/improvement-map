@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 
 export default {
-  stories: ['../stories/**/*.mdx', '../src/**/*.stories.js', '../stories/**/*.stories.js'],
+  stories: ['../stories/**/*.mdx', '../src/**/*.stories.js'],
   framework: {
     name: '@storybook/vue3-vite',
     options: { docgen: 'vue-component-meta', builder: { viteConfigPath: '.storybook/vite.config.js' } },

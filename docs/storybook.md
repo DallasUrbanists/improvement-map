@@ -4,7 +4,7 @@ The public catalog publishes alongside the app at **https://map.dallasurbanists.
 
 See [pilot validation and known existing test failures](storybook-validation.md) for the initial evidence.
 
-The earlier pilot catalog lives under **REFERENCE**: Start here, Foundations, Components, Patterns and Screens. Shared bars, buttons, containers and forms live under **BARS**, **BUTTONS**, **CONTAINERS** and **FORM**. **Colors** is a standalone top-level page defining principal hues, surface levels, button gradients and text roles. Its light/dark documentation sections use matching surfaces; raw component previews retain their existing presentation. Docs and stories remain with their parent component. Reference URLs retain their prefix (for example, `?path=/docs/reference-start-here--docs`).
+The catalog contains shared bars, buttons, containers, forms and embeddable elements under **BARS**, **BUTTONS**, **CONTAINERS**, **FORM** and **EMBEDDABLES**. **Colors** is a standalone top-level page defining principal hues, surface levels, button gradients and text roles. Its light/dark documentation sections use matching surfaces; raw component previews retain their existing presentation. Docs and stories remain with their parent component.
 
 ## Local workflow
 
@@ -25,7 +25,7 @@ The local **Component tests** widget discovers `vitest.config.js`, which supplie
 
 ## Find a reusable solution
 
-All pilot entries are **Draft**, pending explicit maintainer review. The source of truth is the production component and its adjacent story. Start here in the catalog supplies the same task-oriented navigation.
+All catalog entries are **Draft**, pending explicit maintainer review. The source of truth is the production component and its adjacent story.
 
 | Need | Source | Story title | Status |
 | --- | --- | --- | --- |
@@ -37,6 +37,7 @@ All pilot entries are **Draft**, pending explicit maintainer review. The source 
 | Raw full-width text input with optional placeholder and icon | `src/components/TextInput.vue` | FORM/Text Input | Draft |
 | Full-width text input joined to an icon or text action | `src/components/TextWithInlineButton.vue` | FORM/Text With Inline Button | Draft |
 | Address, search and location bar composed from existing controls and result rows | `src/components/AddressBar.vue` | FORM/Address Bar | Draft |
+| Interactive Google Map with theme, map style and rail overlay controls | `src/components/GoogleMap.vue` | EMBEDDABLES/Google Map | Draft |
 | Full-width header with optional subtitle and icon actions | `src/components/HeaderBar.vue` | BARS/Header Bar | Draft |
 | Full-width header-style row with optional leading symbol and icon actions | `src/components/RowItem.vue` | BARS/Row Item | Draft |
 | Full-width, palette-themed row of shared icon or text actions | `src/components/Toolbar.vue` | BARS/Toolbar | Draft |
@@ -47,12 +48,6 @@ All pilot entries are **Draft**, pending explicit maintainer review. The source 
 | Collapsible header and content section composition | `src/components/Accordion.vue` | CONTAINERS/Accordion | Draft |
 | Viewport-height floating panel with fixed header | `src/components/FloatingModal.vue` | CONTAINERS/Floating Modal | Draft |
 | Surface-aware tab strip and selected content | `src/components/TabNavigation.vue` | CONTAINERS/Tab Navigation | Draft |
-| Map-surface action/toggle | `src/components/MapControlButton.vue` | REFERENCE/Components/Controls/Map control button | Draft |
-| Stateless bookmarking | `src/components/BookmarkToggle.vue` | REFERENCE/Components/Controls/Bookmark toggle | Draft |
-| Nonmodal workspace panel | `src/components/MapTray.vue` | REFERENCE/Components/Panels/Map tray | Draft |
-| Modal details | `src/components/DetailSheet.vue` | REFERENCE/Components/Panels/Detail sheet | Draft |
-| Previous/next item | `src/components/AlbumPaginator.vue` | REFERENCE/Components/Navigation/Album paginator | Draft |
-| Complete Browse list | `src/views/BrowseView.vue` | REFERENCE/Screens/Browse/List | Draft |
 
 Reuse a pattern, then extend a documented variant if its responsibility is unchanged. Compose content with slots rather than unrelated boolean props or screen-specific overrides. New components need a clear missing responsibility. Keep props/events/slots documented in stories and source comments; preserve stable story titles and export names.
 
@@ -69,6 +64,8 @@ Text Input is a raw `<input type="text">` with no rendered label or wrapper. It 
 Text With Inline Button composes Text Input with either Square Icon Button or Text Button. At least one of `buttonIcon` or `buttonText` must be supplied: an icon without text selects the square icon action; text selects Text Button, with an optional icon before its label. The joined controls have no gap; the input has square right corners, while the button has square left corners and no left border. Floating preserves 4px around the joined group and puts one shadow on its container; nested controls have no shadows. Tight removes the outer margin and shadow. Theme, variant, placeholder, input icon, button icon, button text and icon-only accessible label are editable. Stories cover Floating and Tight with each button type.
 
 Address Bar is a floating composition of the menu Square Icon Button, Text With Inline Button and (while searching) a shadowed list of Row Items. Browsing shows the current address and changes to Searching on input focus; Searching shows place/address results with location symbols and trailing arrow actions; Viewing locks the address input and changes the trailing action to a location pin. Theme and mode are the only Storybook controls. The address value synchronizes through `v-model`, mode changes emit `update:mode` and `mode-change`, menu activation emits `menu-click`, and result actions emit `select-result`.
+
+Google Map embeds an interactive Google map centered on Dallas with road or satellite styling and the shared transit-rail overlay. Theme, `railsEnabled`, integer `railsThickness`, CSS `width` and `height`, and `coverViewport` are configurable. The default size is full width by 33vh. `coverViewport` fixes it edge-to-edge behind page content and does not affect surface depth. The app supplies its Maps API key; Storybook does not bundle credentials.
 
 Row Button reuses Text Button's Tight treatment and fills the available width with a left-aligned label and optional leading icon. Its With icon and Without icon stories show both forms. The With icon story uses a fixed icon column so labels align across rows. It keeps only a bottom border; its theme, variant, icon, disabled and label controls match Text Button.
 
@@ -94,7 +91,7 @@ Floating Modal is a full-height, 4px-inset panel with an 8px radius, shadow, and
 
 Tab Navigation is a transparent full-width column containing a borderless Toolbar and a selected Contained Section. The Toolbar uses Tight neutral Text Buttons; their `isActive` state and the selected section share the active surface color at the inherited `surfaceLevel`. Its `tabs` entries provide an id, label, HTML content and optional padding. The `selectedIndex` model lets the parent control selection, and `tab-change` reports the selected tab and index. Left/Right Arrow and Home/End provide keyboard tab navigation. Stories demonstrate surface levels 1, 2 and 3.
 
-`BookmarkButton` and `IdeaRow` retain their app contracts, including bookmark event arguments and workspace formatters. Their inner presentation is reusable without persistence. Browse stories render the real view with a fixture workspace. Storybook-only aliases replace bookmark and scroll-storage services with resettable memory implementations; the app builder never loads those aliases.
+`BookmarkButton` and `IdeaRow` retain their app contracts, including bookmark event arguments and workspace formatters. Storybook-only aliases replace bookmark and scroll-storage services with resettable memory implementations; the app builder never loads those aliases.
 
 ## Approval and current conventions
 
@@ -104,13 +101,11 @@ All stories default to fullscreen. Under **Components**, render the production c
 
 The Konsta provider is renderless. The existing preview body supplies the production map-control tokens, with its own border, radius, shadow, padding and surface removed. No extra theme container is rendered. An Idea row requires a semantic `ul` parent; its `idea-list` host has zero margin/padding and no surface. Slot examples supply plain text or the necessary icon content, without added spacing or decoration. Closed/empty components may correctly show nothing.
 
-Opener/focus-restoration examples live under **Patterns → Detail sheet with opener**, separate from the raw sheet. Foundations is a reference document, and REFERENCE/Screens/Browse is an explicitly documented screen fixture. Positioned/teleported panels use isolated Docs iframes so their own viewport behavior does not cover the documentation page. Record any future required semantic host in the component contract; put application compositions and helper controls under Patterns or Screens.
+Positioned and teleported panels use isolated Docs iframes so their own viewport behavior does not cover the documentation page. Record any future required semantic host in the component contract and keep reusable compositions in the relevant component group.
 
 Draft means documented for review. Approved means a maintainer reviewed intended use, interactions, accessibility and screenshots, with an issue/PR reference recorded in this index. Deprecated entries name the replacement and remain available while consumers migrate. Update the story status tag and this index together: `tags: ['!draft', 'approved']` removes the inherited Draft tag when approving. Tests passing never automatically promotes a pattern.
 
 The pilot preserves existing appearance and behavior. Current body text uses the Tailwind sans stack, map controls explicitly use Roboto, and editable fields use Courier New. Earlier README claims about Inter/DM Serif do not describe the implementation. The catalog reads existing semantic map-control and text-input variables; no new visual system is imposed.
-
-Map tray's enabled, scrollable content is a keyboard Tab stop, including when its slot contains only text. Its focus-visible outline uses the existing control text token and stays inside the scroll area. Busy/inert and fixed-content modes do not add a content Tab stop. The Long Content and Fixed Content stories cover these states; built-catalog keyboard checks verify actual scrolling in Chromium and WebKit.
 
 Record questionable behavior or conflicting design expectations as `needs-intent-confirmation` with evidence before changing it. Do not change screenshot baselines to conceal failures.
 
