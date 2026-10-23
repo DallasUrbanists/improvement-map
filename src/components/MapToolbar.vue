@@ -19,6 +19,7 @@
           <div class="menu-divider" role="separator"></div>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('welcome')">Welcome &amp; guide</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('history')">What's new</button>
+          <a role="menuitem" class="map-ui-button w-full" :href="catalogUrl" target="_blank" rel="noopener noreferrer" @click="menuOpen = false">UI component catalog ↗</a>
           <div class="menu-divider" role="separator"></div>
           <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings()">Map settings<i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
           <div class="menu-divider" role="separator"></div>
@@ -162,6 +163,7 @@
 </template>
 
 <script setup>
+const catalogUrl = import.meta.env.DEV ? 'http://localhost:6006/' : `${import.meta.env.BASE_URL}storybook/`;
 import { computed, ref, useId, watch, onDeactivated, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { kPopover } from 'konsta/vue';

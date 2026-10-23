@@ -3,10 +3,10 @@
     <template #header><h1>Browse ideas <span v-if="!workspace.isLoading.value" class="idea-count">({{ sortedListSuggestions.length }})</span></h1></template>
     <template #controls>
       <div class="tray-sort-controls" role="group" aria-label="Sort ideas">
-        <button type="button" class="map-ui-button" :aria-pressed="activeSort === 1" @click="setSortMode(1)">Newest</button>
-        <button type="button" class="map-ui-button" :aria-pressed="activeSort === 2" :aria-busy="isLocating" @click="setSortMode(2)">
+        <MapControlButton :pressed="activeSort === 1" @click="setSortMode(1)">Newest</MapControlButton>
+        <MapControlButton :pressed="activeSort === 2" :aria-busy="isLocating" @click="setSortMode(2)">
           <i class="fa-solid fa-crosshairs" :class="{ 'animate-spin': isLocating }" aria-hidden="true"></i> Nearest to me
-        </button>
+        </MapControlButton>
       </div>
       <p v-if="workspace.locationError.value" class="idea-notice" role="status">{{ workspace.locationError.value }} <button type="button" class="map-ui-button" @click="setSortMode(2); workspace.requestGps()">Retry location</button><button type="button" class="map-ui-button" @click="workspace.locationError.value = ''">Dismiss</button></p>
       <p v-else-if="isLocating" class="idea-notice" role="status">Finding your location…</p>
@@ -27,6 +27,7 @@
 <script setup>
 import { inject, ref, watch, nextTick, onActivated } from 'vue';
 import MapTray from '../components/MapTray.vue';
+import MapControlButton from '../components/MapControlButton.vue';
 import IdeaRow from '../components/IdeaRow.vue';
 import { mapWorkspaceKey } from '../services/mapWorkspace';
 import { bookmarkNotice, bookmarkMessage } from '../services/bookmarks';

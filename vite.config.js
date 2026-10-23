@@ -94,6 +94,8 @@ export default defineConfig({
         ]
       },
       workbox: {
+        globIgnores: ['**/storybook/**'],
+        navigateFallbackDenylist: [/\/storybook(?:\/|$)/],
         runtimeCaching: [
           {
             urlPattern: /^https?:\/\/[^/]+\/api\/public-improvements\/presentation(?:\/|$)/i,

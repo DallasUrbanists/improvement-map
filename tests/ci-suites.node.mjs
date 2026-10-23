@@ -120,6 +120,18 @@ test('bookmark, diagram, shared fixture, and toolbar snapshot gates stay scoped'
   assert.deepEqual(snapshot.manifest.rows.map(row => [row.suite, row.profile]), [['ux-browse', 'android']]);
 });
 
+test('storybook-only changes do not select application suites', async t => {
+  const repo = await tempRepo(t);
+  const result = await selectForPush(repo, t, async directory => {
+    for (const file of ['src/components/Example.stories.js', 'stories/Browse.stories.js', '.storybook/preview.js', 'vitest.config.js', 'tests/storybook/catalog.spec.js']) {
+      await mkdir(path.dirname(path.join(directory, file)), { recursive: true });
+      await writeFile(path.join(directory, file), 'export {};');
+    }
+  });
+  assert.deepEqual(result.manifest.selectedSuites, []);
+  assert.equal(result.manifest.runUnit, false);
+});
+
 test('unknown source changes select all suites; common CSS selects all explicitly', async t => {
   const repo = await tempRepo(t);
   const unknown = await selectForPush(repo, t, async directory => {

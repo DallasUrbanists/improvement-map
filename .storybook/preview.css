@@ -1,0 +1,53 @@
+/* Preview context only: production component styles come from src/style.css. */
+html { overflow: auto; scroll-behavior: auto; }
+body { margin: 0; background-image: none !important; }
+/* Reuse production map-control tokens on the existing body, without a surface.
+   Toolbar backgrounds can still override the transparent canvas. */
+body.sb-preview.map-ui { margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+/* Layout for the Browse screen fixture only, never raw component stories. */
+.sb-workspace { position: relative; height: 640px; min-height: 320px; }
+.sb-stack { display: grid; gap: 12px; }
+.sb-tokens { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.sb-swatch { display: block; height: 64px; border: 1px solid currentColor; border-radius: 8px; margin-bottom: 8px; }
+.colors-doc { color: inherit; }
+.colors-principal-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.colors-principal { min-height: 92px; display: flex; flex-direction: column; justify-content: end; gap: 5px; padding: 16px; border-radius: 10px; }
+.colors-principal code, .colors-doc code { font-family: var(--font-mono, ui-monospace, monospace); }
+.colors-surface-themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.colors-theme-surface { min-width: 0; padding: 20px; border-radius: 12px; }
+.colors-theme-surface h3, .colors-button-theme h3, .colors-text-card > strong { color: inherit; }
+.colors-palette + .colors-palette { margin-top: 20px; }
+.colors-palette h4 { margin: 0 0 10px; }
+.colors-swatch-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.colors-swatch { min-height: 108px; display: flex; flex-direction: column; align-items: center; justify-content: end; gap: 5px; padding: 10px 5px; text-align: center; }
+.colors-swatch:first-child { border-radius: 8px 0 0 8px; }
+.colors-swatch:last-child { border-radius: 0 8px 8px 0; }
+.colors-button-theme { margin: 18px 0; }
+.colors-button-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.colors-variant-card { min-width: 0; padding: 16px; border-radius: 10px; }
+.colors-variant-card h4 { margin: 0 0 12px; }
+.colors-state-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.colors-state { min-height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 5px; border: 1px solid; border-radius: 6px; text-align: center; font-size: .78em; }
+.colors-variant-card p { line-height: 1.7; }
+.colors-sample-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 0; }
+.colors-sample { min-height: 36px; padding: 7px 11px; border: 1px solid; border-radius: 6px; font: inherit; font-size: .85em; font-weight: 400; }
+.colors-sample:disabled { cursor: not-allowed; }
+.colors-neutral-levels { margin: 18px 0; }
+.colors-neutral-headings, .colors-muted-headings, .colors-neutral-row, .colors-muted-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.colors-neutral-headings, .colors-muted-headings { margin-bottom: 8px; }
+.colors-neutral-row + .colors-neutral-row, .colors-muted-row + .colors-muted-row { margin-top: 8px; }
+.colors-neutral-cell { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; }
+.colors-neutral-cell > div { display: flex; flex-direction: column; gap: 4px; }
+.colors-text-themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.colors-text-card { padding: 18px; border-radius: 10px; }
+.colors-muted-grid { margin: 18px 0; }
+.colors-muted-cell { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-radius: 8px; }
+.colors-css { overflow: auto; max-height: 560px; padding: 16px; background: #20252a; color: #f4f6f8; font-size: .8em; line-height: 1.5; white-space: pre; }
+@media (max-width: 760px) {
+  .colors-principal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .colors-surface-themes, .colors-button-grid, .colors-text-themes { grid-template-columns: minmax(0, 1fr); }
+  .colors-swatch-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .colors-swatch { border-radius: 6px !important; }
+  .colors-neutral-cell { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .sb-preview *, .sb-preview *::before, .sb-preview *::after { scroll-behavior: auto !important; } }

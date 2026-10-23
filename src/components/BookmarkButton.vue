@@ -1,11 +1,9 @@
 <template>
-  <button type="button" class="map-ui-button idea-bookmark" :aria-label="isBookmarked(item.id) ? 'Remove bookmark' : 'Bookmark idea'"
-    :data-tooltip="isBookmarked(item.id) ? 'Remove bookmark' : 'Bookmark idea'" :aria-pressed="isBookmarked(item.id)" :disabled="disabled" @click="toggle">
-    <i :class="[isBookmarked(item.id) ? 'fa-solid' : 'fa-regular', 'fa-bookmark']" aria-hidden="true"></i>
-  </button>
+  <BookmarkToggle :bookmarked="isBookmarked(item.id)" :disabled="disabled" @toggle="toggle" />
 </template>
 <script setup>
 import { isBookmarked, toggleBookmark, bookmarks } from '../services/bookmarks';
+import BookmarkToggle from './BookmarkToggle.vue';
 const props = defineProps({ item: { type: Object, required: true }, disabled: Boolean });
 const emit = defineEmits(['changed']);
 function toggle(event) {

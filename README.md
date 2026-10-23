@@ -1,5 +1,7 @@
 # Dallas Urbanists Improvement Map
 
+**[Public UI component catalog](https://map.dallasurbanists.org/storybook/)** | [Storybook development and reuse guide](docs/storybook.md). The catalog publishes with the app; the Browse/shared-panel pilot is Draft and its new tests are advisory initially.
+
 For focused development tests, integration checks, and launch-polish audits, see [the mobile usability audit guide](docs/usability-audit.md).
 
 For Welcome behavior and the GitHub release-note publishing workflow, see [release notes and onboarding](docs/releases.md).
@@ -18,7 +20,7 @@ On `/submit` in the Vite development server, press **Ctrl+Alt+Enter** to preview
 
 - **Framework**: [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`) + [Vue Router 4](https://router.vuejs.org/)
 - **Bundler & PWA Engine**: [Vite](https://vitejs.dev/) + `vite-plugin-pwa` (Workbox Service Worker caching)
-- **Styling & Design System**: [Tailwind CSS](https://tailwindcss.com/) adhering to the [Strong Towns Brand Guidelines](https://www.strongtowns.org/resources/brand) (Dark Blue `#0c2340`, Light Blue `#488BE3`, Yellow `#ffa800`, Sidewalk `#f5f3ee`, Inter & DM Serif Display typefaces)
+- **Styling & Design System**: [Tailwind CSS](https://tailwindcss.com/) adhering to the [Strong Towns Brand Guidelines](https://www.strongtowns.org/resources/brand) (Dark Blue `#0c2340`, Light Blue `#488BE3`, Yellow `#ffa800`, Sidewalk `#f5f3ee`, current typography: Tailwind sans body text, Roboto map controls, Courier New editable fields)
 - **Theme**: High-contrast Dark Mode (default) with persistent Light Mode toggle
 - **Geospatial & Distance Sorting**: [Turf.js](https://turfjs.org/) (`@turf/turf`) for high-precision spherical distance calculation between user coordinates and suggestions
 - **Maps & Geocoding**: Official [Google Maps JavaScript SDK](https://developers.google.com/maps/documentation/javascript) for map embedding, native Google Maps markers, theme-adaptive Streets (`ROADMAP`) basemap (dark/night in dark mode, light/day in light mode) with Satellite toggle, and Google Maps Places / Geocoding API for address search autocomplete and reverse geocoding

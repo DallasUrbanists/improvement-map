@@ -1,0 +1,48 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="REFERENCE/Start here" />
+
+# Improvement Map UI catalog
+
+Find an existing solution before designing or implementing another one. These are production Vue components, rendered with deterministic fixtures.
+
+**Pilot status: Draft.** Publication documents current behavior; it does not imply design approval. Test results are advisory during adoption.
+
+The earlier pilot documentation and examples live under **REFERENCE**: Start here, Foundations, Components, Patterns and Screens. Shared bars live under **BARS**, new button designs under **BUTTONS**, containers under **CONTAINERS**, and inputs and composed fields under **FORM**. The standalone **Colors** page defines the shared palette.
+
+## Find the right starting point
+
+<table>
+  <thead><tr><th>Need</th><th>Start with</th></tr></thead>
+  <tbody>
+    <tr><td>An action or toggle on a map surface</td><td>Components → Controls → Map control button</td></tr>
+    <tr><td>Save/remove an idea</td><td>Components → Controls → Bookmark toggle</td></tr>
+    <tr><td>Start an idea and confirm its map pin</td><td>BUTTONS → New Idea Special Button</td></tr>
+    <tr><td>An idea summary with a thumbnail and navigation</td><td>BARS → Idea row</td></tr>
+    <tr><td>Nonmodal content over the shared map</td><td>Components → Panels → Map tray</td></tr>
+    <tr><td>Modal details with focus restoration</td><td>Components → Panels → Detail sheet</td></tr>
+    <tr><td>Previous/next items</td><td>Components → Navigation → Album paginator</td></tr>
+    <tr><td>List feedback, sorting, and rows together</td><td>Screens → Browse → List</td></tr>
+  </tbody>
+</table>
+
+Use the theme toolbar and Controls to explore states. Story links are suitable for issues and design requests. The **Code** panel shows usage; source contracts document required context and events.
+
+Component previews are fullscreen and show the raw component without a decorative card, added spacing or width wrapper. Backgrounds, grid and outlines are toolbar tools. Component-owned spacing, borders, shadows and backdrops remain visible. Idea rows keep only their required unstyled list parent. Slot examples identify supplied content; opener and other multi-component examples belong under Patterns. A closed component can produce an intentionally blank preview.
+
+## Contribution workflow
+
+1. Find a matching component and read its contract and stories.
+2. Reuse it or extend a documented variant. Use slots for content composition.
+3. If no pattern fits, record the missing responsibility before adding a component.
+4. Add realistic states and interaction checks alongside the implementation.
+5. Review in light/dark themes, narrow and desktop widths, and with keyboard navigation.
+6. Ask a maintainer to review the pattern and its visual evidence. Record approval in the component index before changing its tag from Draft to Approved.
+
+**Status:** Draft = available for review; Approved = reviewed for reuse; Deprecated = use the documented replacement. Questionable existing behavior is recorded as `needs-intent-confirmation`, with evidence. Do not silently redesign it during extraction.
+
+## Public sandbox
+
+Browse examples use in-memory bookmark/storage replacements, memory routing, and a fixture workspace. They do not submit ideas, load Google Maps, request GPS permission, or modify application bookmarks. Use the application tests for persistence, navigation history, data sorting, map lifecycle, and real integration behavior.
+
+The catalog is published with the app. The brand link returns to the app. Local development: `npm run storybook`. See the repository's `docs/storybook.md` for tests, deployment, and optional local MCP access.

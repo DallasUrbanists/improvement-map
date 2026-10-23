@@ -5,12 +5,12 @@
       <header class="map-tray-header">
         <div class="map-tray-heading"><slot name="header"><h1>{{ title }}</h1></slot></div>
         <slot name="header-actions" />
-        <button type="button" class="map-ui-button map-tray-close" data-tooltip="Close" :aria-label="`Close ${title}`" :disabled="closeDisabled" @click="$emit('close')">
+        <MapControlButton class="map-tray-close" data-tooltip="Close" :aria-label="`Close ${title}`" :disabled="closeDisabled" @click="$emit('close')">
           <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-        </button>
+        </MapControlButton>
       </header>
       <div v-if="$slots.controls" class="map-tray-controls"><slot name="controls" /></div>
-      <div ref="content" class="map-tray-content" :class="{ 'map-tray-content-fixed': !scrollable }" :inert="contentDisabled" @scroll="$emit('scroll', $event)">
+      <div ref="content" class="map-tray-content" :class="{ 'map-tray-content-fixed': !scrollable }" :tabindex="scrollable && !contentDisabled ? 0 : undefined" :inert="contentDisabled" @scroll="$emit('scroll', $event)">
         <slot />
       </div>
       <footer v-if="$slots.footer" class="map-tray-footer"><slot name="footer" /></footer>
@@ -20,6 +20,7 @@
 
 <script setup>
 import { ref, h, Transition } from 'vue';
+import MapControlButton from './MapControlButton.vue';
 const props = defineProps({
   open: { type: Boolean, default: true },
   title: { type: String, required: true },
