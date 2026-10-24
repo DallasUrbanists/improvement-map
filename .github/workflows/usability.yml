@@ -2,7 +2,7 @@ name: Playwright suites
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
   release:
     types: [published, edited, deleted]

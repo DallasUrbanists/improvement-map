@@ -1,5 +1,6 @@
 import { createInterface } from 'node:readline/promises';
 import { spawnSync } from 'node:child_process';
+import { branchBase, comparisonBase, gitRefExists } from './branch-policy.js';
 
 const [type, slug, issueNumberArg, ...extraArgs] = process.argv.slice(2);
 const branchTypes = new Set([
@@ -75,6 +76,9 @@ async function main() {
     process.exit(1);
   }
 
+  const base = branchBase(type);
+  // Fail before issue creation/label changes if staging has not been bootstrapped.
+  comparisonBase({ branch: `${type}/preflight`, exists: gitRefExists });
   const ghCheck = run('gh', ['auth', 'status']);
   if (ghCheck.error?.code === 'ENOENT') {
     throw new Error('GitHub CLI (gh) is not installed or is not on PATH. Install it before creating a branch.');
@@ -115,7 +119,7 @@ async function main() {
 
   const branch = `${type}/${issueNumber}-${slug}`;
   assertBranchDoesNotExist(branch);
-  const result = run('gh', ['issue', 'develop', issueNumber, '--base', 'main', '--name', branch, '--checkout']);
+  const result = run('gh', ['issue', 'develop', issueNumber, '--base', base, '--name', branch, '--checkout']);
   process.exit(result.status ?? 1);
 }
 

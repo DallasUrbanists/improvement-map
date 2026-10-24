@@ -21,7 +21,7 @@
           <button v-if="full && visible.length < filtered.length" class="action-button" @click="limit += 10">Show 10 more</button>
         </template>
       </template>
-      <a class="action-idea-link" :href="`https://api.dallasurbanists.org/playground/recommendables?idea=${encodeURIComponent(suggestion.id)}`">Go to 311 search</a>
+      <a class="action-idea-link" :href="`${API_BASE_URL}/playground/recommendables?idea=${encodeURIComponent(suggestion.id)}`">Go to 311 search</a>
     </div>
   </PreviewSection>
 </template>
@@ -29,6 +29,7 @@
 import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 import ActionCard from './ActionCard.vue';
 import PreviewSection from './PreviewSection.vue';
+import { API_BASE_URL } from '../services/apiBaseUrl.js';
 import { getSuggestionRecommendedActions, matchSuggestionRecommendations } from '../services/api';
 import { savedActions, storageNotice, isSaved, isHidden, saveAction, removeAction, setHidden, normalizeActions, recommendationInput, cachedActions, cacheActions } from '../services/localActions';
 const props = defineProps({ suggestion: { type: Object, required: true }, refreshVersion: Number });

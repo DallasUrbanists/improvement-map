@@ -523,6 +523,9 @@
         <p v-if="submissionStatus !== 'success'" class="submission-status-message text-sm mb-6 px-2 min-h-[40px] flex items-center justify-center" role="status">
           {{ dynamicProgressMessage }}
         </p>
+        <p v-if="submissionThumbnailNotice && submissionStatus !== 'failed'" class="text-sm mb-4" role="status">
+          {{ submissionThumbnailNotice }}
+        </p>
 
         <!-- Progress Bar -->
         <div v-if="submissionStatus === 'submitting'" class="w-full mb-6">
@@ -620,6 +623,8 @@ import { mapWorkspaceKey } from '../services/mapWorkspace';
 import PhotoSlider from '../components/PhotoSlider.vue';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
 import { reverseGeocodeWithGoogle } from '../services/googleMaps';
+import { createOptionalLocationThumbnail } from '../services/submissionThumbnail.js';
+import { restoreSubmissionPhotoBlob } from '../services/submissionPhoto.js';
 
 const router = useRouter();
 const workspace = inject(mapWorkspaceKey);
@@ -746,6 +751,7 @@ const showSubmissionOverlay = ref(false);
 const submissionStatus = ref('submitting');
 const submissionProgress = ref(0);
 const dynamicProgressMessage = ref('');
+const submissionThumbnailNotice = ref('');
 const createdSuggestionId = ref('');
 const submissionErrorMessage = ref('');
 const isSubmissionPreview = ref(false);
@@ -1330,6 +1336,7 @@ async function submitFinalSuggestion() {
   setSubmitting(true);
   showSubmissionOverlay.value = true;
   submissionStatus.value = 'submitting';
+  submissionThumbnailNotice.value = '';
   submissionProgress.value = 10;
   dynamicProgressMessage.value = 'Preparing suggestion data...';
 
@@ -1348,29 +1355,27 @@ async function submitFinalSuggestion() {
         import('../services/railCatalog'),
       ]);
       dynamicProgressMessage.value = 'Generating location thumbnail…';
-      const { data } = await fetchLocationData({
-        lat: location.latitude,
-        lon: location.longitude,
-      }, {
-        onProgress: (message) => { dynamicProgressMessage.value = message; },
+      const thumbnail = await createOptionalLocationThumbnail({
+        acquire: () => fetchLocationData({ lat: location.latitude, lon: location.longitude }, {
+          onProgress: (message) => { dynamicProgressMessage.value = message; },
+        }),
+        render: ({ data }) => generateVersionTwoLocationDiagram(data, { ...data.center, railCatalog }).svg,
+        upload: async (svg) => {
+          submissionProgress.value = 15;
+          dynamicProgressMessage.value = 'Uploading location thumbnail…';
+          const thumbnailType = 'image/svg+xml';
+          const { uploadUrl, publicUrl } = await requestPhotoUploadUrl({
+            contentType: thumbnailType, filename: 'location-diagram.svg',
+          });
+          await uploadPhotoBinary(uploadUrl, new Blob([svg], { type: thumbnailType }), thumbnailType);
+          return { url: publicUrl, caption: 'Location diagram', timestamp: new Date().toISOString() };
+        },
+        onUnavailable: () => {
+          submissionThumbnailNotice.value = 'The map preview was unavailable. Your location and any added photos are included.';
+          dynamicProgressMessage.value = 'Map preview unavailable; continuing submission…';
+        },
       });
-      const { svg } = generateVersionTwoLocationDiagram(data, {
-        ...data.center,
-        railCatalog,
-      });
-      submissionProgress.value = 15;
-      dynamicProgressMessage.value = 'Uploading location thumbnail…';
-      const thumbnailType = 'image/svg+xml';
-      const { uploadUrl: thumbnailUploadUrl, publicUrl: thumbnailUrl } = await requestPhotoUploadUrl({
-        contentType: thumbnailType,
-        filename: 'location-diagram.svg',
-      });
-      await uploadPhotoBinary(thumbnailUploadUrl, new Blob([svg], { type: thumbnailType }), thumbnailType);
-      uploadedPhotos.push({
-        url: thumbnailUrl,
-        caption: 'Location diagram',
-        timestamp: new Date().toISOString(),
-      });
+      if (thumbnail) uploadedPhotos.push(thumbnail);
     }
 
     const photosToUpload = (draft.photos || []).filter((p) => p.blob || p.url || p.dataUrl);
@@ -1383,25 +1388,14 @@ async function submitFinalSuggestion() {
         submissionProgress.value = Math.round(15 + i * stepPercent);
         dynamicProgressMessage.value = `Uploading photo ${i + 1} of ${photosToUpload.length}...`;
 
-        // If blob is missing (e.g. restored from localStorage draft), reconstitute from dataUrl
-        let photoBlob = p.blob;
-        if (!photoBlob && p.dataUrl && p.dataUrl.startsWith('data:')) {
-          try {
-            const res = await fetch(p.dataUrl);
-            photoBlob = await res.blob();
-          } catch (e) {
-            console.warn('Failed to convert dataUrl to blob:', e);
-          }
-        }
+        const photoBlob = await restoreSubmissionPhotoBlob(p);
 
         const { uploadUrl, publicUrl } = await requestPhotoUploadUrl({
           contentType: 'image/webp',
           filename: p.name || `photo-${i + 1}.webp`,
         });
 
-        if (photoBlob) {
-          await uploadPhotoBinary(uploadUrl, photoBlob, 'image/webp');
-        }
+        await uploadPhotoBinary(uploadUrl, photoBlob, 'image/webp');
 
         uploadedPhotos.push({
           url: publicUrl,

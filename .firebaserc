@@ -1,0 +1,9 @@
+{
+  "targets": {
+    "urbanists-mixer-slides-helper": {
+      "hosting": {
+        "staging": ["map-staging-143738155808"]
+      }
+    }
+  }
+}

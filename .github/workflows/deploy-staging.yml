@@ -1,0 +1,180 @@
+name: Deploy Firebase staging
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-hosting-staging
+  cancel-in-progress: false
+
+jobs:
+  checks-and-build:
+    if: github.ref == 'refs/heads/staging' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Record tested commit
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:critical
+      - run: npm run test:unit -- tests/submissionThumbnail.spec.js tests/submissionPhoto.spec.js tests/liveLocationData.spec.js
+      - run: node --test tests/releases.node.mjs tests/staging.node.mjs tests/ci-suites.node.mjs
+      - name: Audit dependencies
+        shell: bash
+        run: |
+          set +e
+          npm audit --audit-level=high 2>&1 | tee "$RUNNER_TEMP/npm-audit.log"
+          audit_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$audit_status" -eq 0 ]; then exit 0; fi
+          if grep -Eiq 'network timeout|request-timeout|npm warn audit 5[0-9]{2}( |$)' "$RUNNER_TEMP/npm-audit.log"; then
+            echo "::warning::npm audit could not reach the advisory service; continuing deployment."
+            exit 0
+          fi
+          exit "$audit_status"
+      - name: Sync eligible release notes (read only)
+        run: node scripts/releaseManifest.js
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Require receipt inputs before building
+        run: node scripts/staging-cloud-inputs.js
+        env:
+          STAGING_API_ORIGIN: ${{ vars.STAGING_API_ORIGIN }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - name: Validate staging configuration, build, then write metadata
+        run: npm run build
+        env:
+          VITE_DEPLOY_ENV: staging
+          BASE_PATH: /
+          BUILD_COMMIT: ${{ steps.source.outputs.commit }}
+          STAGING_API_ORIGIN: ${{ vars.STAGING_API_ORIGIN }}
+          VITE_API_BASE_URL: ${{ vars.STAGING_API_ORIGIN }}
+          VITE_API_KEY: ${{ secrets.STAGING_API_KEY }}
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.STAGING_GOOGLE_MAPS_API_KEY }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.STAGING_FIREBASE_API_KEY }}
+          VITE_RECAPTCHA_SITE_KEY: ${{ secrets.STAGING_RECAPTCHA_SITE_KEY }}
+          VITE_PRESENTATION_ENABLED: ${{ vars.VITE_PRESENTATION_ENABLED }}
+          VITE_PRESENTATION_WEBSOCKET_ENABLED: ${{ vars.VITE_PRESENTATION_WEBSOCKET_ENABLED }}
+          RELEASE_MANIFEST: node_modules/.cache/improvement-map-releases.json
+      - uses: actions/upload-artifact@v6
+        with:
+          name: staging-dist-${{ steps.source.outputs.commit }}
+          path: dist/
+          include-hidden-files: false
+          retention-days: 7
+
+  deploy:
+    needs: checks-and-build
+    if: github.ref == 'refs/heads/staging' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: staging
+      url: https://map-staging-143738155808.web.app
+    env:
+      BUILD_COMMIT: ${{ needs.checks-and-build.outputs.commit }}
+      STAGING_API_ORIGIN: ${{ vars.STAGING_API_ORIGIN }}
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.checks-and-build.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v6
+        with:
+          name: staging-dist-${{ needs.checks-and-build.outputs.commit }}
+          path: dist/
+      - name: Require receipt identity inputs
+        run: |
+          node scripts/staging-cloud-inputs.js
+          node scripts/verify-staging.js artifact
+      - name: Skip superseded source
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/staging" --jq .object.sha)
+          if [ "$latest" = "$BUILD_COMMIT" ]; then
+            echo 'publish=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'publish=false' >> "$GITHUB_OUTPUT"
+            echo 'Superseded commit; publication skipped.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Authenticate with staging Workload Identity
+        if: steps.current.outputs.publish == 'true'
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - name: Verify backend staging identity
+        if: steps.current.outputs.publish == 'true'
+        id: backend
+        run: node scripts/verify-staging.js backend
+      - name: Publish only the staging Hosting target
+        if: steps.current.outputs.publish == 'true'
+        id: publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/staging" --jq .object.sha)
+          if [ "$latest" != "$BUILD_COMMIT" ]; then
+            echo 'Superseded before publication; skipped.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npx --no-install firebase deploy --project urbanists-mixer-slides-helper --only hosting:staging --non-interactive
+          echo 'published=true' >> "$GITHUB_OUTPUT"
+      - name: Verify published frontend and backend pair
+        if: steps.publication.outputs.published == 'true'
+        id: verification
+        run: node scripts/verify-staging.js frontend
+        env:
+          BACKEND_COMMIT: ${{ steps.backend.outputs.backendCommit }}
+          BACKEND_REVISION: ${{ steps.backend.outputs.backendRevision }}
+      - name: Record rollout outcome
+        if: always()
+        env:
+          BACKEND_COMMIT: ${{ steps.backend.outputs.backendCommit }}
+          BACKEND_REVISION: ${{ steps.backend.outputs.backendRevision }}
+          PUBLISHED: ${{ steps.publication.outputs.published }}
+          VERIFIED: ${{ steps.verification.outcome }}
+        run: |
+          {
+            echo 'Staging URL: https://map-staging-143738155808.web.app'
+            echo "Frontend SHA: $BUILD_COMMIT"
+            echo "Backend SHA: $BACKEND_COMMIT"
+            echo "Backend revision: $BACKEND_REVISION"
+            echo "Published: ${PUBLISHED:-false}; HTTP validation: ${VERIFIED:-skipped}"
+            echo 'Browser Auth, App Check, Maps, upload and PWA acceptance require separate recorded checks.'
+          } >> "$GITHUB_STEP_SUMMARY"

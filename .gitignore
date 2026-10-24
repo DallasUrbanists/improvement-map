@@ -19,6 +19,8 @@ storybook-static/
 .env.*
 !.env.example
 gcp-key.json
+gha-creds-*.json
+.firebase/
 *.pem
 
 # Editor / IDE
@@ -51,3 +53,5 @@ playwright/.cache/
 ehthumbs.db
 Thumbs.db
 
+# Storybook
+/storybook-static/

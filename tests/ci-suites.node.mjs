@@ -64,7 +64,8 @@ async function selectForPush(repo, t, mutate) {
   const result = spawnSync(process.execPath, [matrixScript], {
     cwd: repo.directory,
     encoding: 'utf8',
-    env: { ...process.env, GITHUB_EVENT_NAME: 'push', GITHUB_EVENT_PATH: eventPath, GITHUB_SHA: head },
+    // This fixture consumes stdout JSON even when its parent is a GitHub job.
+    env: { ...process.env, GITHUB_OUTPUT: '', GITHUB_EVENT_NAME: 'push', GITHUB_EVENT_PATH: eventPath, GITHUB_SHA: head },
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return JSON.parse(result.stdout);
@@ -74,7 +75,8 @@ test('routine UX suite selectors partition the existing device/theme matrix exac
   const before = list(['--config=playwright.ux.config.js']);
   const after = ['ux-browse', 'ux-submit', 'ux-saved', 'ux-navigation', 'ux-motion', 'ux-content', 'ux-actions', 'ux-streetmix', 'ux-presentation'].flatMap(id => cases(suiteList(id)));
   assert.deepEqual(after.sort(), cases(before));
-  assert.equal(after.length, 324);
+  // The staging-origin link assertion adds one case on each routine profile.
+  assert.equal(after.length, 328);
 });
 
 test('expanded UX selectors retain every expanded device/theme case exactly once', () => {

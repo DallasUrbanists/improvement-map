@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { comparisonBase as resolveComparisonBase, gitRefExists } from './branch-policy.js';
 import { browserSuiteIds, fullProfiles, playwrightImage, suiteById, suites, uxSuiteIds } from './playwright-suites.js';
 
 const localMode = process.argv[2] === '--local';
@@ -41,13 +42,11 @@ function parsePaths(output) {
 
 function changedPaths() {
   if (localMode) {
-    let baseRef = process.argv[3] || 'origin/main';
-    try {
-      execFileSync('git', ['rev-parse', '--verify', '--quiet', baseRef], { stdio: 'ignore' });
-    } catch {
-      baseRef = 'main';
-      execFileSync('git', ['rev-parse', '--verify', '--quiet', baseRef], { stdio: 'ignore' });
-    }
+    const baseRef = resolveComparisonBase({
+      explicit: process.argv[3],
+      branch: execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim(),
+      exists: gitRefExists,
+    });
     comparisonBase = baseRef;
     mergeBase = execFileSync('git', ['merge-base', baseRef, 'HEAD'], { encoding: 'utf8' }).trim();
     const tracked = parsePaths(execFileSync('git', ['diff', '--name-status', '--find-renames', '-z', mergeBase], { encoding: 'utf8' }));
@@ -194,6 +193,10 @@ try {
   changed = changedPaths();
   selected = selectSuites(changed);
 } catch (error) {
+  if (localMode && !comparisonBase) {
+    console.error(error.message);
+    process.exit(1);
+  }
   diffFallback = true;
   selected = new Set(allIds);
   notes.push(`Diff selection fell back to every suite: ${error.message}`);
