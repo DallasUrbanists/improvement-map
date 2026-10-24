@@ -206,6 +206,7 @@ test('production and staging workflow guards cover dispatch and release refs', (
   assert.equal(staging.match(/    if: github.ref/g).length, 2);
   assert.match(production, /github.event_name == 'release' && 'main' \|\| github.sha/);
   assert.match(staging, /--only hosting:staging --non-interactive/);
+  assert.match(staging, /run: npm run build:pages/);
   assert.doesNotMatch(staging.split('  deploy:')[0], /id-token: write/);
   assert.match(staging, /ref: \$\{\{ needs.checks-and-build.outputs.commit \}\}/);
   assert.doesNotMatch(staging, /secrets\.VITE_|FIREBASE_TOKEN|pull_request_target/);
@@ -216,6 +217,7 @@ test('Firebase local server applies rewrite and overlapping cache headers correc
   const cwd = fixture(t);
   mkdirSync(path.join(cwd, 'dist/assets'), { recursive: true });
   mkdirSync(path.join(cwd, 'dist/icons'), { recursive: true });
+  mkdirSync(path.join(cwd, 'dist/storybook/assets'), { recursive: true });
   const files = {
     'index.html': '<html>staging fixture</html>', '404.html': '<html>404</html>',
     'sw.js': '// service worker', 'registerSW.js': '// registration', 'workbox-12345678.js': '// workbox',
@@ -223,6 +225,10 @@ test('Firebase local server applies rewrite and overlapping cache headers correc
     'robots.txt': 'User-agent: *', 'icons/icon.png': 'fixture',
     'assets/app-abcdefgh.js': '// hashed script', 'assets/unversioned.js': '// public fixture',
     'assets/public.png': 'unhashed image',
+    'storybook/index.html': '<html>storybook manager</html>',
+    'storybook/iframe.html': '<html>storybook preview</html>',
+    'storybook/index.json': '{"v":5}',
+    'storybook/assets/manager-abcdefgh.js': '// storybook asset',
   };
   for (const [name, body] of Object.entries(files)) writeFileSync(path.join(cwd, 'dist', name), body);
   const require = createRequire(import.meta.url);
@@ -248,11 +254,12 @@ test('Firebase local server applies rewrite and overlapping cache headers correc
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }));
   const base = `http://127.0.0.1:${server.address().port}`;
-  for (const route of ['/', '/submit', '/suggestion/fixture', ...Object.keys(files).map(file => `/${file}`)]) {
+  for (const route of ['/', '/submit', '/suggestion/fixture', '/storybook/', ...Object.keys(files).map(file => `/${file}`)]) {
     const response = await fetch(`${base}${route}`);
     assert.equal(response.status, route === '/404.html' ? 404 : 200, route);
     try { verifyHeaders(response.headers, route === '/assets/app-abcdefgh.js'); }
     catch (error) { throw new Error(`${route}: ${error.message}; headers=${JSON.stringify([...response.headers])}`, { cause: error }); }
-    assert.equal(await response.text(), files[route.slice(1)] || files['index.html'], route);
+    const expected = route === '/storybook/' ? files['storybook/index.html'] : files[route.slice(1)] || files['index.html'];
+    assert.equal(await response.text(), expected, route);
   }
 });

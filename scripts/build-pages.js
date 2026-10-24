@@ -10,4 +10,4 @@ for (const script of ['build', 'build-storybook']) {
 }
 if (!existsSync('storybook-static/iframe.html')) throw Error('Storybook output is incomplete');
 cpSync('storybook-static', path.resolve('dist/storybook'), { recursive: true });
-console.log('Pages artifact contains app and /storybook/ from the same commit.');
+console.log('Distribution artifact contains the app and /storybook/ from the same commit.');

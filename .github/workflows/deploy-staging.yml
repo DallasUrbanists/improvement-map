@@ -62,8 +62,8 @@ jobs:
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
-      - name: Validate staging configuration, build, then write metadata
-        run: npm run build
+      - name: Build staging app and Storybook catalog
+        run: npm run build:pages
         env:
           VITE_DEPLOY_ENV: staging
           BASE_PATH: /

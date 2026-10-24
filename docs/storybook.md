@@ -1,6 +1,6 @@
 # Storybook pilot
 
-The public catalog publishes alongside the app at **https://map.dallasurbanists.org/storybook/** when the changed deployment workflow runs on `main`. README and app-menu links make it discoverable. PRs produce downloadable static review artifacts rather than replacing the canonical catalog.
+The public catalog publishes alongside the app at **https://map.dallasurbanists.org/storybook/** when the changed deployment workflow runs on `main`. Staging deployments also include the catalog at **https://map-staging-143738155808.web.app/storybook/**. README and app-menu links make the public catalog discoverable. PRs produce downloadable static review artifacts rather than replacing the canonical catalog.
 
 See [pilot validation and known existing test failures](storybook-validation.md) for the initial evidence.
 

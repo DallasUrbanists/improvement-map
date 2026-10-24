@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { appendFileSync, readFileSync, readdirSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { stagingOrigin } from '../src/services/stagingOrigin.js';
 
@@ -42,6 +42,12 @@ export function frontendTextAssets(names) {
   return [...required, ...names.filter(name => ['robots.txt', 'registerSW.js'].includes(name) || /^workbox-[\w-]+\.js$/.test(name))];
 }
 
+export function verifyStorybookArtifact() {
+  for (const file of ['index.html', 'iframe.html', 'index.json']) {
+    assert.ok(existsSync(`dist/storybook/${file}`), `Staging artifact is missing Storybook: ${file}`);
+  }
+}
+
 export async function waitForPublishedMetadata(expected, read, { attempts = 7, pause = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
   let lastError;
   for (let attempt = 0; attempt < attempts; attempt++) {
@@ -66,7 +72,8 @@ async function main() {
   const origin = stagingOrigin(process.env.STAGING_API_ORIGIN);
   if (process.argv[2] === 'artifact') {
     verifyArtifactInfo(JSON.parse(readFileSync('dist/build-info.json', 'utf8')), process.env.BUILD_COMMIT, origin);
-    console.log('Artifact identifies the tested staging commit and approved API origin.');
+    verifyStorybookArtifact();
+    console.log('Artifact contains the tested app and Storybook catalog for the approved API origin.');
     return;
   }
   if (process.argv[2] === 'backend') {
@@ -78,6 +85,7 @@ async function main() {
   assert.equal(process.argv[2], 'frontend', 'Choose backend or frontend verification');
   const expected = JSON.parse(readFileSync('dist/build-info.json', 'utf8'));
   verifyArtifactInfo(expected, process.env.BUILD_COMMIT, origin);
+  verifyStorybookArtifact();
   const nonce = `?verify=${expected.buildCommit}-${Date.now()}`;
   // Hosting publication can briefly return the previous release at an edge.
   // Retry only within a bounded window; the exact metadata contract still applies.
@@ -93,6 +101,16 @@ async function main() {
     assert.match(response.headers.get('content-type') || '', /text\/html/);
     assert.equal(await response.text(), index, `Direct route ${route} must serve this build's index`);
   }
+  const storybookIndex = readFileSync('dist/storybook/index.html', 'utf8');
+  const storybookEntry = await get(`${stagingSite}/storybook/${nonce}`);
+  verifyHeaders(storybookEntry.headers);
+  assert.equal(storybookEntry.headers.get('content-type')?.split(';')[0], 'text/html');
+  assert.equal(await storybookEntry.text(), storybookIndex, 'Unexpected Storybook entry page');
+  for (const file of ['index.html', 'iframe.html', 'index.json']) {
+    const response = await get(`${stagingSite}/storybook/${file}${nonce}`);
+    verifyHeaders(response.headers);
+    assert.equal(await response.text(), readFileSync(`dist/storybook/${file}`, 'utf8'), `Unexpected Storybook file: ${file}`);
+  }
   for (const file of frontendTextAssets(readdirSync('dist'))) {
     const response = await get(`${stagingSite}/${file}${nonce}`);
     verifyHeaders(response.headers);
@@ -104,7 +122,7 @@ async function main() {
   const backend = verifyBackendIdentity(await (await get(`${origin}/api/health`)).json());
   assert.equal(backend.backendCommit, process.env.BACKEND_COMMIT, 'Backend changed during publication; revalidate the pair');
   assert.equal(backend.backendRevision, process.env.BACKEND_REVISION, 'Backend revision changed during publication');
-  console.log('Frontend metadata, direct routes, headers, assets and backend pair verified (HTTP only).');
+  console.log('Frontend metadata, app and Storybook routes, headers, assets and backend pair verified (HTTP only).');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

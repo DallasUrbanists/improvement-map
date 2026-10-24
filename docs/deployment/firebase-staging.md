@@ -84,7 +84,11 @@ Staging requires `BASE_PATH=/`, `VITE_DEPLOY_ENV=staging`, approved
 `STAGING_API_ORIGIN` matching `VITE_API_BASE_URL`, all four browser inputs,
 explicit feature flags, production Vite semantics, no App Check debug token, and full tested `BUILD_COMMIT`
 matching checked-out HEAD. CLI base overrides cannot bypass validation.
-Non-staging builds retain production defaults and subpath support.
+Non-staging builds retain production defaults and subpath support. The staging
+artifact uses the same `build:pages` packaging step as GitHub Pages, so the app
+and static Storybook catalog deploy together. Storybook is available at
+`https://map-staging-143738155808.web.app/storybook/` and inherits staging's
+`noindex, nofollow` headers.
 
 After Workbox finishes, the build writes `dist/build-info.json` with only
 `environment`, `buildCommit`, and normalized `apiBaseUrl`. Metadata is excluded
