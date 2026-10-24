@@ -70,16 +70,11 @@
       @rails-visible="setRailVisibility" @rail-thickness="setRailThickness" @more-settings="openAdvancedMapSettings"
       :locating="isLocating || !!submission?.isLocating?.value" :recenter-disabled="readOnlyAddress" @center="onCenterOnLocationClick"
       @before-open="mapToolbar?.closeMarkerSettings?.()" />
-    <button v-if="!isSubmitting" ref="primaryMapActionButton" type="button" class="map-ui new-idea-fab" :data-testid="isSubmitLocate ? 'pin-and-continue' : undefined" :class="{ 'is-primary': !isSubmit || isSubmitLocate, 'is-pin-continue': isSubmitLocate, 'is-morphing': fabMorphing, 'is-morph-prep': isSubmitLocate && fabMorphPhase === 'travel' && fabMorphing, 'is-morph-circle': fabMorphPhase === 'reverse-expand' }" :style="isSubmitLocate ? { top: pinContinueTop } : fabReverseTravelOffset ? { translate: fabReverseTravelOffset } : undefined" :inert="detailLoading"
-      :aria-label="isSubmitLocate ? 'Set pin and continue' : isSubmit ? 'Close' : 'New'" :title="isSubmitLocate ? 'Set pin and continue' : isSubmit ? 'Close' : 'New'"
-      :disabled="isSubmitLocate && !pinContinueReady" @click="activatePrimaryMapAction">
-      <i :class="['fa-solid', isSubmit && !isSubmitLocate ? 'fa-xmark' : 'fa-plus']" aria-hidden="true"></i>
-      <span class="new-idea-fab-labels" :class="{ 'is-pin-continue': isSubmitLocate }">
-        <span class="new-idea-fab-label" :class="{ 'is-active': !isSubmitLocate && fabMorphPhase !== 'reverse-travel', 'is-fading': isSubmitLocate }">{{ isSubmitLocate ? 'New' : isSubmit ? 'Close' : 'New' }}</span>
-        <span class="new-idea-fab-label new-idea-fab-label-pin" :class="{ 'is-active': isSubmitLocate && fabMorphPhase === 'complete' }">Set pin and continue</span>
-      </span>
-    </button>
-    <button v-if="isSubmitLocate && !isSubmitting" type="button" class="map-ui map-ui-button cancel-pin-button" :style="{ top: `calc(${pinContinueTop} + 60px)` }" :inert="detailLoading" @click="cancelPin">Cancel pin</button>
+    <NewIdeaSpecialButton v-if="!isSubmitting" ref="primaryMapActionButton"
+      :state="isSubmitLocate ? 'pin' : isSubmit ? 'close' : 'new'" :theme="isDark ? 'dark' : 'light'"
+      :pin-top="pinContinueTop" :pin-ready="pinContinueReady" :inert="detailLoading"
+      :morphing="fabMorphing" :morph-phase="fabMorphPhase" :reverse-travel-offset="fabReverseTravelOffset"
+      @new="startNewIdea" @set-pin="submission?.nextStep?.()" @cancel-pin="cancelPin" @close="closeTray" />
     <MapToolbar v-if="!isSubmitting" class="absolute bottom-8 left-6 z-10" :inert="detailLoading"
       ref="mapToolbar" :model-value="trayOpen && !isSubmit ? 'list' : 'map'" :marker-zoom-threshold="markerZoomThreshold" :map-zoom="mapZoom"
       @present-on-tv="openPresentationSetup"
@@ -100,6 +95,7 @@
 <script setup>
 
 import MapToolbar from './MapToolbar.vue';
+import NewIdeaSpecialButton from './NewIdeaSpecialButton.vue';
 import MapSearchOverlay from './MapSearchOverlay.vue';
 import StyleSettings from './StyleSettings.vue';
 import { ref, computed, onMounted, provide, shallowRef, inject, onBeforeUnmount, watch, nextTick } from 'vue';
@@ -1173,7 +1169,7 @@ watch(isSubmitLocate, async active => {
     fabMorphing.value = true;
     void (async () => {
       await nextTick();
-      const button = primaryMapActionButton.value;
+      const button = getPrimaryActionButton();
       if (button) button.classList.remove('is-morph-prep');
       const endRect = button?.getBoundingClientRect();
       if (button) button.classList.add('is-morph-prep');
@@ -1206,7 +1202,7 @@ watch(isSubmitLocate, async active => {
     fabMorphing.value = true;
     void (async () => {
       await nextTick();
-      const button = primaryMapActionButton.value;
+      const button = getPrimaryActionButton();
       if (!button || !endRect || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         fabMorphing.value = false;
         fabMorphPhase.value = 'idle';
@@ -1268,7 +1264,7 @@ watch(isSubmitLocate, async active => {
   }).catch(() => {});
 }, { immediate: true });
 async function cancelPin() {
-  const button = primaryMapActionButton.value;
+  const button = getPrimaryActionButton();
   if (!button || !isSubmitLocate.value || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     await closeTray();
     return;
@@ -1296,10 +1292,11 @@ async function cancelPin() {
   await closeTray();
   contract.cancel();
 }
-function activatePrimaryMapAction() {
-  if (isSubmitLocate.value) { submission.value?.nextStep?.(); return; }
-  if (isSubmit.value) { closeTray(); return; }
-  pendingFabMorphRect = primaryMapActionButton.value?.getBoundingClientRect() || null;
+function getPrimaryActionButton() {
+  return primaryMapActionButton.value?.getMainButtonElement?.() || null;
+}
+function startNewIdea() {
+  pendingFabMorphRect = getPrimaryActionButton()?.getBoundingClientRect() || null;
   fabMorphing.value = true;
   router.push('/submit').catch(() => { fabMorphing.value = false; pendingFabMorphRect = null; });
 }

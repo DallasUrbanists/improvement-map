@@ -95,8 +95,8 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        globIgnores: ['**/build-info.json'],
-        navigateFallbackDenylist: [/\/build-info\.json$/],
+        globIgnores: ['**/storybook/**', '**/build-info.json'],
+        navigateFallbackDenylist: [/\/storybook(?:\/|$)/, /\/build-info\.json$/],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname === '/build-info.json',

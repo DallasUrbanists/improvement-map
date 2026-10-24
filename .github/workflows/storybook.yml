@@ -1,0 +1,85 @@
+name: Storybook advisory
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 13 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: storybook-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  catalog:
+    name: Component checks (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.12.0'
+          cache: npm
+      - name: Select affected stories
+        id: selection
+        run: node scripts/storybook-selection.js
+      - name: Install dependencies
+        if: steps.selection.outputs.has-tests == 'true'
+        run: npm ci
+      - name: Test selector and packaging contracts
+        if: steps.selection.outputs.has-tests == 'true'
+        id: tooling
+        continue-on-error: true
+        run: |
+          node --test tests/storybook-tooling.node.mjs
+          node --test --test-name-pattern=storybook tests/ci-suites.node.mjs
+      - name: Build public catalog
+        if: steps.selection.outputs.has-tests == 'true'
+        id: build
+        run: npm run build:pages
+      - name: Install browsers
+        if: steps.selection.outputs.has-tests == 'true'
+        run: npx playwright install --with-deps chromium webkit
+      - name: Component interactions and accessibility
+        if: steps.selection.outputs.has-tests == 'true'
+        id: interactions
+        continue-on-error: true
+        run: node scripts/test-storybook-selected.js
+      - name: Built catalog and visual candidates
+        if: steps.selection.outputs.has-tests == 'true'
+        id: visual
+        continue-on-error: true
+        env:
+          STORYBOOK_SELECTED: '1'
+        run: npm run test:storybook:visual
+      - name: Pages and service worker isolation
+        if: steps.selection.outputs.has-tests == 'true'
+        id: pages
+        continue-on-error: true
+        run: npm run test:storybook:pages
+      - name: Publish advisory summary
+        if: always()
+        env:
+          STORYBOOK_BUILD: ${{ steps.build.outcome }}
+          STORYBOOK_TOOLING: ${{ steps.tooling.outcome }}
+          STORYBOOK_INTERACTIONS: ${{ steps.interactions.outcome }}
+          STORYBOOK_VISUAL: ${{ steps.visual.outcome }}
+          STORYBOOK_PAGES: ${{ steps.pages.outcome }}
+        run: node scripts/storybook-summary.js
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: storybook-review-${{ github.run_attempt }}
+          path: |
+            storybook-static/
+            test-results/storybook/
+            playwright-report/storybook/
+            playwright-report/storybook-pages/
+          retention-days: 14
+          if-no-files-found: warn

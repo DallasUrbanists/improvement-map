@@ -1,0 +1,224 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import { buttonColors } from '../src/design/buttonColors.js';
+import { principalColors, principalHues } from '../src/design/principalColors.js';
+import { surfaceColors } from '../src/design/surfaceColors.js';
+import { textColors } from '../src/design/textColors.js';
+import { luminance } from '../src/design/colorMath.js';
+
+<Meta title="Colors" />
+
+# Colors
+
+**Draft shared color reference for the whole app.** These colors define shared visual roles across pages, surfaces, text, controls, and components. Individual components use the palette while defining their own layout and interaction behavior.
+
+## 1. Principal colors
+
+Primary is yellow; Secondary is navy. They keep 40° and 218° hues across themes and derived colors. Principal colors use 100% saturation. Light principals target about 56.5% relative luminance; dark principals target about 22% after the requested additional darkening.
+
+<div className="colors-doc">
+  <div className="colors-principal-grid">
+    {Object.entries({light: 'Light', dark: 'Dark'}).flatMap(([theme, label]) =>
+      ['primary', 'secondary'].map(name => {
+        const color = principalColors[theme][name];
+        const ink = theme === 'dark' ? '#ffffff' : '#000000';
+        return <div className="colors-principal" style={{backgroundColor: color, color: ink}}>
+          <strong>{label} {name === 'primary' ? 'Primary' : 'Secondary'} · {principalHues[name]}°</strong>
+          <code>{color} · {(luminance(color) * 100).toFixed(1)}%</code>
+        </div>;
+      })
+    )}
+  </div>
+</div>
+
+Use principal colors as hue anchors. Adjust saturation and luminance for each role while retaining its Primary or Secondary hue.
+
+## 2. Surface colors
+
+Surface colors are for non-button backgrounds throughout the app, including page backgrounds, containers, text fields, and text areas. Each theme has Neutral and Active sets with six levels. Level 0 is deepest; level 5 is lightest. Active levels use the Primary hue at 100% saturation and match the corresponding Neutral level's luminance.
+
+The Light Neutral scale starts at level 0 **#d1d1d1** and reaches **#eeeeee** at level 5. The Dark Neutral scale starts at **#333333** and reaches **#767676**. Swatch labels and codes use black on light-theme colors and white on dark-theme colors.
+
+<div className="colors-doc colors-surface-themes">
+  {Object.entries({light: 'Light', dark: 'Dark'}).map(([theme, label]) => {
+    const ink = theme === 'light' ? '#000000' : '#ffffff';
+    const panel = surfaceColors[theme].neutral.level2;
+    return <section aria-label={label + ' theme surfaces'} className={'colors-theme-surface colors-' + theme} style={{backgroundColor: panel, color: ink}}>
+      <h3>{label} theme surfaces</h3>
+      {['neutral', 'active'].map(tone => <div className="colors-palette">
+        <h4>{tone === 'neutral' ? 'Neutral' : 'Active · Primary hue matched to Neutral luminance'}</h4>
+        <div className="colors-swatch-grid">
+          {Object.entries(surfaceColors[theme][tone]).map(([level, color]) =>
+            <div className="colors-swatch" style={{backgroundColor: color, color: ink}}>
+              <span>{level.replace('level', 'Level ')}</span><code>{color}</code>
+            </div>
+          )}
+        </div>
+      </div>)}
+    </section>;
+  })}
+</div>
+
+Choose page background level 1. A surface directly on a page uses level 2; a surface inside it uses level 3. Continue one level at a time through level 4. Sticky or fixed surfaces use level 5. Choose Neutral for ordinary surfaces and Active when the same depth needs the Primary hue.
+
+## 3. Button colors
+
+Button colors are shared across the app wherever a button is used. Primary and Secondary use their principal hue at 100% saturation; Neutral uses the surface color at the level the button occupies. The gradient uses luminance 5% above the base at the top, the base from 10% through 90%, and 5% below the base at the bottom. Hover increases luminance by 5%; press decreases it by 5% and reverses the gradient. Button font weight is normal.
+
+<div className="colors-doc colors-button-themes">
+  {Object.entries({light: 'Light', dark: 'Dark'}).map(([theme, label]) => {
+    const ink = theme === 'light' ? '#000000' : '#ffffff';
+    const panel = surfaceColors[theme].neutral.level2;
+    return <section aria-label={label + ' theme button colors'} className={'colors-button-theme colors-' + theme} style={{color: ink}}>
+      <h3>{label} theme buttons</h3>
+      <div className="colors-button-grid">
+        {['neutral', 'primary', 'secondary'].map(variant => {
+          const palette = buttonColors[theme][variant];
+          const disabled = buttonColors[theme].disabled[variant];
+          const surface = variant === 'neutral' ? surfaceColors[theme].neutral.level3 : panel;
+          const states = [
+            ['Default', palette.backgroundGradient, palette.background],
+            ['Hover · +5%', palette.hoverGradient, palette.hover],
+            ['Press · −5%', palette.pressGradient, palette.press],
+          ];
+          return <article className="colors-variant-card" style={{backgroundColor: panel, color: ink}}>
+            <h4>{variant[0].toUpperCase() + variant.slice(1)}</h4>
+            <div className="colors-state-grid">
+              {states.map(([name, gradient, color]) => <div className="colors-state" style={{background: gradient, color: ink, borderColor: palette.border}}>
+                <span>{name}</span><code>{color}</code>
+              </div>)}
+            </div>
+            <p>Foreground: <code>{palette.foreground}</code><br />Border: <code>{palette.border}</code><br />Focus: <code>{palette.focus}</code></p>
+            <div className="colors-sample-row" style={{backgroundColor: surface}}>
+              <button className="colors-sample" style={{background: palette.backgroundGradient, color: palette.foreground, borderColor: palette.border}}>{variant[0].toUpperCase() + variant.slice(1)} sample</button>
+              <button className="colors-sample" disabled style={{backgroundColor: disabled.background, color: disabled.foreground, border: 'none'}}>Disabled · {disabled.background}</button>
+            </div>
+          </article>;
+        })}
+      </div>
+    </section>;
+  })}
+</div>
+
+Disabled buttons use solid backgrounds with 5% saturation at the variant's base luminance. Their foreground is black in light theme and #f2f2f2 in dark theme. Disabled buttons have no border, focus, hover, or press styling.
+
+### Neutral buttons against every surface level
+
+Neutral buttons inherit the surface level they occupy. Each preview shows a Neutral button on its matching Neutral surface; corresponding light and dark levels align in rows. The button outline uses muted text selected for that surface.
+
+<div className="colors-doc colors-neutral-levels">
+  <div className="colors-neutral-headings"><strong>Light theme</strong><strong>Dark theme</strong></div>
+  {Array.from({length: 6}, (_, level) => <div className="colors-neutral-row">
+    {['light', 'dark'].map(theme => {
+      const surface = surfaceColors[theme].neutral['level' + level];
+      const palette = buttonColors[theme].neutralByLevel[level];
+      const ink = theme === 'light' ? '#000000' : '#ffffff';
+      return <div className={'colors-neutral-cell colors-' + theme} style={{backgroundColor: surface, color: ink}}>
+        <div><strong>Level {level}</strong><code>Surface {surface}</code></div>
+        <button className="colors-sample" style={{background: palette.backgroundGradient, color: palette.foreground, borderColor: palette.border}}>Neutral button</button>
+      </div>;
+    })}
+  </div>)}
+</div>
+
+Primary and Secondary borders match their principal colors. Neutral border matches muted text for its surface level. Primary and Secondary focus use the theme foreground; Neutral focus uses Primary. Disabled buttons use solid 5%-saturation backgrounds, have no border, and have no hover, press, or keyboard focus. Button font weight is normal.
+
+## 4. Text colors
+
+Text roles apply throughout the app. Default and Bold are distinct. To maintain cross-theme contrast, Light-theme headings use Dark Primary and inline links use Dark Secondary; Dark-theme headings use Light Primary and inline links use Light Secondary. Muted text is selected per surface at a minimum 4.5:1 contrast with normal text.
+
+<div className="colors-doc colors-text-themes">
+  {Object.entries({light: 'Light', dark: 'Dark'}).map(([theme, label]) => {
+    const ink = theme === 'light' ? '#000000' : '#ffffff';
+    return <section className={'colors-text-card colors-' + theme} style={{backgroundColor: surfaceColors[theme].neutral.level2, color: ink}}>
+      <strong>{label} theme</strong>
+      <p style={{color: textColors.default[theme]}}>Default <code>{textColors.default[theme]}</code></p>
+      <p style={{color: textColors.bold[theme]}}><b>Bold <code>{textColors.bold[theme]}</code></b></p>
+      <p style={{color: textColors.heading[theme]}}>Heading · {theme === 'light' ? 'Dark' : 'Light'} Primary <code>{textColors.heading[theme]}</code></p>
+      <p style={{color: textColors.link[theme]}}>Inline link · {theme === 'light' ? 'Dark' : 'Light'} Secondary <code>{textColors.link[theme]}</code></p>
+    </section>;
+  })}
+</div>
+
+### Muted text by surface
+
+Light theme uses the lightest gray that meets the contrast target. Dark theme uses the darkest gray that meets it while staying brighter than the muted text on the level below. This preserves readable progression through six levels.
+
+<div className="colors-doc colors-muted-grid">
+  <div className="colors-muted-headings"><strong>Light theme</strong><strong>Dark theme</strong></div>
+  {Array.from({length: 6}, (_, level) => <div className="colors-muted-row">
+    {['light', 'dark'].map(theme => {
+      const surface = surfaceColors[theme].neutral['level' + level];
+      const color = textColors.muted[theme].neutral['level' + level];
+      return <div className={'colors-muted-cell colors-' + theme} style={{backgroundColor: surface, color}}>
+        <span>Neutral · level {level}</span><code>{color}</code>
+      </div>;
+    })}
+  </div>)}
+</div>
+
+## Interaction color meanings
+
+- **Background**: default fill for a surface or control.
+- **Foreground**: text, icon, or other content on a surface.
+- **Border**: boundary or outline around an element.
+- **Hover**: pointer-over feedback.
+- **Press**: active interaction feedback, where supported.
+- **Focus**: visible keyboard-focus indicator; each component defines its shape and placement.
+- **Disabled**: unavailable interaction; disabled buttons do not respond to hover or press.
+
+Colors define shared visual meaning. Individual components define dimensions, spacing, shadows, and interaction behavior.
+
+## CSS variables
+
+These variables are generated from the same definitions that power this palette and its previews.
+
+{(() => {
+  const variables = [];
+  const add = (name, value) => variables.push('  --' + name + ': ' + value + ';');
+  for (const [theme, principals] of Object.entries(principalColors)) {
+    for (const [name, color] of Object.entries(principals)) add('color-' + name + '-' + theme, color);
+  }
+  for (const [theme, tones] of Object.entries(surfaceColors)) {
+    for (const [tone, levels] of Object.entries(tones)) {
+      for (const [level, color] of Object.entries(levels)) add('surface-' + theme + '-' + tone + '-' + level, color);
+    }
+  }
+  add('text-default-light', textColors.default.light);
+  add('text-default-dark', textColors.default.dark);
+  add('text-bold-light', textColors.bold.light);
+  add('text-bold-dark', textColors.bold.dark);
+  add('text-heading-light', textColors.heading.light);
+  add('text-heading-dark', textColors.heading.dark);
+  add('text-link-light', textColors.link.light);
+  add('text-link-dark', textColors.link.dark);
+  for (const theme of ['light', 'dark']) for (const tone of ['neutral', 'active']) {
+    for (const [level, color] of Object.entries(textColors.muted[theme][tone])) add('text-muted-' + theme + '-' + tone + '-' + level, color);
+  }
+  for (const theme of ['light', 'dark']) {
+    add('button-' + theme + '-foreground', theme === 'light' ? '#000000' : '#ffffff');
+    for (const variant of ['neutral', 'primary', 'secondary']) {
+      const disabled = buttonColors[theme].disabled[variant];
+      const levels = variant === 'neutral' ? [0, 1, 2, 3, 4, 5] : [null];
+      for (const level of levels) {
+        const palette = variant === 'neutral' ? buttonColors[theme].neutralByLevel[level] : buttonColors[theme][variant];
+        const prefix = 'button-' + theme + '-' + variant + (level === null ? '' : '-level-' + level);
+        add(prefix + '-default-top', palette.gradientTop);
+        add(prefix + '-default-middle', palette.gradientMiddle);
+        add(prefix + '-default-bottom', palette.gradientBottom);
+        add(prefix + '-default-gradient', palette.backgroundGradient);
+        add(prefix + '-hover', palette.hover);
+        add(prefix + '-hover-gradient', palette.hoverGradient);
+        add(prefix + '-press', palette.press);
+        add(prefix + '-press-gradient', palette.pressGradient);
+        add(prefix + '-border', palette.border);
+        add(prefix + '-focus', palette.focus);
+      }
+      add('button-' + theme + '-' + variant + '-disabled-background', disabled.background);
+      add('button-' + theme + '-' + variant + '-disabled-foreground', disabled.foreground);
+      add('button-' + theme + '-' + variant + '-disabled-border', disabled.border);
+    }
+  }
+  return <pre className="colors-css"><code>{':root {\n' + variables.join('\n') + '\n}'}</code></pre>;
+})()}
+
+Source of truth: shared values and color-generation utilities in src/design/. The palette remains Draft for review; no screenshot baseline is approved.

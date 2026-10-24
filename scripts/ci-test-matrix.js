@@ -117,6 +117,8 @@ function selectSuites(paths) {
   onlySnapshotChanges = paths.every(file => file.startsWith('tests/ux/snapshots/') || file.startsWith('docs/') || file.startsWith('.agents/') || file.toLowerCase().endsWith('.md'));
 
   for (const file of paths) {
+    // Storybook has its own advisory selector. Story-only edits do not exercise app journeys.
+    if (file.endsWith('.stories.js') || file.startsWith('stories/') || file.startsWith('.storybook/') || file === 'vitest.config.js' || file === 'vitest.storybook.config.js' || file === 'playwright.storybook.config.js' || file.startsWith('scripts/storybook-') || file === 'scripts/serve-storybook.js' || file.startsWith('scripts/test-storybook-') || file.startsWith('tests/storybook/')) continue;
     let matched = false;
     if (file === 'package.json' || file === 'package-lock.json' || file.startsWith('playwright') || file === 'vite.config.js' || file === 'vite.ux.config.js' || file.startsWith('.github/workflows/') || file.startsWith('scripts/playwright-suites') || file.startsWith('scripts/test-suite') || file.startsWith('scripts/ci-test-matrix') || file.startsWith('scripts/merge-test-reports') || file === 'scripts/test-ux.js' || file === 'scripts/ux-reporter.js' || file === 'tests/ux/audit.js') {
       for (const id of allConsumers) selected.add(id);

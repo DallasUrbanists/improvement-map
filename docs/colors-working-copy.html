@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Colors — Working Copy</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #20252a;
+      background: #f4f6f8;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: clamp(20px, 5vw, 64px); }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; letter-spacing: -.04em; }
+    h2 { margin: 0 0 12px; font-size: 1.6rem; font-weight: 700; letter-spacing: -.025em; }
+    h3 { margin: 0 0 8px; font-size: 1rem; font-weight: 700; }
+    p { line-height: 1.6; }
+    .lede { max-width: 760px; color: #4b5560; margin: 12px 0 40px; }
+    .draft { display: inline-block; margin: 0 0 14px; padding: 5px 9px; border-radius: 999px; background: #fff1cf; color: #634300; font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    section { margin: 40px 0; }
+    .section-intro { color: #59636e; margin: 0 0 20px; max-width: 800px; }
+    .panel { border: 0; border-radius: 14px; padding: clamp(18px, 3vw, 28px); margin: 18px 0; box-shadow: none; }
+    .light { color: #15191d; background: #dddddd; }
+    .dark { color: #f4f6f8; background: #4e4e4e; border-color: #666; }
+    .dark .subtle { color: #c1c8ce; }
+    section[aria-labelledby="button-colors"] > .panel { padding: 0; border: 0; border-radius: 0; margin: 18px 0; box-shadow: none; background: transparent; }
+    section[aria-labelledby="button-colors"] > .panel.light { color: #15191d; }
+    section[aria-labelledby="button-colors"] > .panel.dark { color: #f4f6f8; }
+    section[aria-labelledby="button-colors"] > .panel.dark:nth-of-type(2) > h3,
+    section[aria-labelledby="button-colors"] > .panel.dark:nth-of-type(4) > h3 { color: #20252a; }
+    section[aria-labelledby="button-colors"] > .panel.light .state-card { background: #e2e2e2; }
+    section[aria-labelledby="button-colors"] > .panel.dark .state-card { background: #5b5b5b; border-color: #767676; }
+    .principal-grid, .palette-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+    .principal { position: relative; min-height: 112px; overflow: hidden; border: 1px solid #0002; border-radius: 10px; }
+    .principal-swatch { position: absolute; inset: 0; }
+    .principal-info { position: absolute; inset: 0; display: flex; width: 100%; height: 100%; min-height: 112px; flex-direction: column; justify-content: center; padding: 14px; color: #000; }
+    .principal-info strong, .principal-info code { display: block; }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .84rem; }
+    .palette-row { margin-top: 20px; }
+    .swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow: hidden; border-radius: 8px; border: 1px solid #0002; }
+    .swatch { position: relative; min-width: 0; }
+    .swatch-color { height: 92px; border-bottom: 1px solid #0002; }
+    .swatch-label { position: absolute; right: 2px; bottom: 7px; left: 2px; padding: 5px 2px; color: var(--ink, #000); text-align: center; font-size: .73rem; }
+    .swatch-label span, .swatch-label code { display: block; }
+    .swatch-label span { color: var(--ink, #66717c); margin-bottom: 3px; }
+    .dark .swatches { border-color: #ffffff30; }
+    .dark .swatch-color { border-bottom-color: #ffffff30; }
+    .dark code { color: inherit; }
+    .state-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .state-card { padding: 14px; border: 1px solid #0002; border-radius: 10px; }
+    .light .state-card { background: #e2e2e2; }
+    .dark .state-card { background: #5b5b5b; border-color: #767676; }
+    .state-line { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: .82rem; }
+    .state-dot { width: 112px; min-height: 58px; flex: 0 0 auto; display: grid; align-content: center; justify-items: center; gap: 2px; padding: 5px; border: 1px solid #0005; border-radius: 5px; text-align: center; font-size: .7rem; }
+    .state-dot code { font-size: .68rem; }
+    .button-demo { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #0002; }
+    .neutral-theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+    .neutral-theme-grid > .panel { margin: 0; }
+    .neutral-preview-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .neutral-preview { padding: 14px; border: 1px solid var(--ink); border-radius: 10px; color: var(--ink); background: var(--surface); }
+    .neutral-preview-title { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; font-size: .8rem; }
+    .neutral-preview-title code { font-size: .7rem; }
+    .neutral-context-button { display: block; width: 100%; margin-top: 10px; padding: 9px 10px; color: var(--button-ink); border: 1px solid var(--ink); border-radius: 6px; background: var(--gradient); font: inherit; font-size: .8rem; font-weight: 400; cursor: pointer; }
+    .neutral-context-button:hover { background: var(--hover-gradient); }
+    .neutral-context-button:active { background: var(--press-gradient); }
+    .neutral-context-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .demo-button { padding: 8px 11px; border: 1px solid; border-radius: 6px; font: inherit; font-size: .78rem; font-weight: 400; cursor: pointer; transition: background .12s ease, filter .12s ease; }
+    .demo-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .demo-button:disabled { border: none; opacity: 1; cursor: not-allowed; }
+    .light .demo-neutral { color: #000; border-color: #646464; --focus: #ffb92e; background: linear-gradient(to bottom, #e9e9e9 0% 10%, #e2e2e2 90%, #dcdcdc 100%); }
+    .light .demo-neutral:hover { background: linear-gradient(to bottom, #efefef 0% 10%, #e9e9e9 90%, #e2e2e2 100%); }
+    .light .demo-neutral:active { background: linear-gradient(to bottom, #d1d1d1 0% 10%, #d7d7d7 90%, #dddddd 100%); }
+    .light .demo-neutral:disabled { background: #e2e1df; }
+    .light .demo-primary { color: #000; border-color: #ffb92e; --focus: #000; background: linear-gradient(to bottom, #ffc44d 0% 10%, #ffb92e 90%, #ffac07 100%); }
+    .light .demo-primary:hover { background: linear-gradient(to bottom, #ffce6b 0% 10%, #ffc44d 90%, #ffb92e 100%); }
+    .light .demo-primary:active { background: linear-gradient(to bottom, #f6a400 0% 10%, #ffac07 90%, #ffb92e 100%); }
+    .light .demo-primary:disabled { background: #c7c6c2; }
+    .light .demo-secondary { color: #000; border-color: #a7c8ff; --focus: #000; background: linear-gradient(to bottom, #b4d0ff 0% 10%, #a7c8ff 90%, #9bc0ff 100%); }
+    .light .demo-secondary:hover { background: linear-gradient(to bottom, #bfd6ff 0% 10%, #b4d0ff 90%, #a7c8ff 100%); }
+    .light .demo-secondary:active { background: linear-gradient(to bottom, #8db7ff 0% 10%, #9bc0ff 90%, #a7c8ff 100%); }
+    .light .demo-secondary:disabled { background: #c4c6ca; }
+    .dark .demo-neutral { color: #fff; border-color: #d3d3d3; --focus: #b07500; background: linear-gradient(to bottom, #6d6d6d 0% 10%, #5b5b5b 90%, #424242 100%); }
+    .dark .demo-neutral:hover { background: linear-gradient(to bottom, #7c7c7c 0% 10%, #6d6d6d 90%, #5b5b5b 100%); }
+    .dark .demo-neutral:active { background: linear-gradient(to bottom, #3f3f3f 0% 10%, #565656 90%, #676767 100%); }
+    .dark .demo-neutral:disabled { color: #f2f2f2; background: #5d5b55; }
+    .dark .demo-primary { color: #fff; border-color: #b07500; --focus: #fff; background: linear-gradient(to bottom, #bc7d00 0% 10%, #b07500 90%, #a26c00 100%); }
+    .dark .demo-primary:hover { background: linear-gradient(to bottom, #c78500 0% 10%, #bc7d00 90%, #b07500 100%); }
+    .dark .demo-primary:active { background: linear-gradient(to bottom, #936200 0% 10%, #a26c00 90%, #b07500 100%); }
+    .dark .demo-primary:disabled { color: #f2f2f2; background: #8b8882; }
+    .dark .demo-secondary { color: #fff; border-color: #4b80e6; --focus: #fff; background: linear-gradient(to bottom, #6092e6 0% 10%, #4b80e6 90%, #3d7ae6 100%); }
+    .dark .demo-secondary:hover { background: linear-gradient(to bottom, #709ce6 0% 10%, #6092e6 90%, #4b80e6 100%); }
+    .dark .demo-secondary:active { background: linear-gradient(to bottom, #246be6 0% 10%, #3d7ae6 90%, #4b80e6 100%); }
+    .dark .demo-secondary:disabled { color: #f2f2f2; background: #85888e; }
+    .text-samples { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .text-sample { padding: 16px; border-radius: 10px; border: 1px solid #0002; }
+    .text-sample p { margin: 8px 0; }
+    .muted-list { display: grid; gap: 12px; }
+    .muted-row { display: grid; grid-template-columns: 190px repeat(6, minmax(70px, 1fr)); gap: 6px; align-items: stretch; }
+    .muted-title { align-self: center; font-size: .82rem; }
+    .muted-chip { padding: 9px 5px; border-radius: 6px; text-align: center; font-size: .72rem; }
+    .muted-chip span, .muted-chip code { display: block; }
+    .muted-chip span { opacity: .75; margin-bottom: 3px; }
+    .rules { padding-left: 1.2rem; line-height: 1.8; }
+    .token-block { overflow: auto; padding: 18px; border-radius: 10px; background: #20252a; color: #f4f6f8; font-size: .82rem; line-height: 1.5; white-space: pre; }
+    .token-block code { color: inherit; font-size: inherit; }
+    footer { margin-top: 52px; padding-top: 18px; border-top: 1px solid #d6dce2; color: #59636e; font-size: .85rem; }
+    @media (max-width: 600px) {
+      .swatch-color { height: 52px; }
+      .neutral-theme-grid { grid-template-columns: 1fr; }
+      .swatch-label { font-size: .65rem; padding-inline: 2px; }
+      .muted-row { grid-template-columns: 1fr 1fr 1fr; }
+      .muted-title { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="draft">Draft working copy</span>
+    <h1>Colors</h1>
+    <p class="lede">Shared color reference for the whole app. Principal hues anchor surfaces, buttons, and text. This standalone page is an editing workspace; it does not depend on Storybook.</p>
+  </header>
+
+  <section aria-labelledby="principal-colors">
+    <h2 id="principal-colors">1. Principal colors</h2>
+    <p class="section-intro">Primary keeps a 40° hue and Secondary a 218° hue. Principal colors use 100% saturation. Light theme targets 56.5% relative luminance. Dark Primary and Secondary have each been darkened by another 10%; their current relative luminance is 22.0% and 22.6%, respectively.</p>
+    <div class="principal-grid">
+      <div class="principal"><div class="principal-swatch" style="background:#ffb92e"></div><div class="principal-info"><strong>Light Primary · 40°</strong><code>#ffb92e · 56.2%</code></div></div>
+      <div class="principal"><div class="principal-swatch" style="background:#a7c8ff"></div><div class="principal-info"><strong>Light Secondary · 218°</strong><code>#a7c8ff · 56.7%</code></div></div>
+      <div class="principal"><div class="principal-swatch" style="background:#b07500"></div><div class="principal-info" style="color:#fff"><strong>Dark Primary · 40°</strong><code>#b07500 · 22.0%</code></div></div>
+      <div class="principal"><div class="principal-swatch" style="background:#4b80e6"></div><div class="principal-info" style="color:#fff"><strong>Dark Secondary · 218°</strong><code>#4b80e6 · 22.6%</code></div></div>
+    </div>
+    <p class="section-intro">Use principal colors as hue anchors. Adjust saturation and luminance for each role while retaining the Primary or Secondary hue.</p>
+  </section>
+
+  <section aria-labelledby="surface-colors">
+    <h2 id="surface-colors">2. Surface colors</h2>
+    <p class="section-intro">Surface colors are for non-button backgrounds, including text fields and text areas. Each theme has Neutral and Active sets with six levels. Level 0 is deepest; level 5 is lightest. Active levels use the Primary hue at 100% saturation and match the corresponding neutral level's luminance.</p>
+    <p class="section-intro">The light neutral set below reflects the requested recalibration: level 0 is <code>#d1d1d1</code>, with equal RGB increments through level 5 at <code>#eeeeee</code>.</p>
+
+    <div class="panel light">
+      <h3>Light theme surfaces</h3>
+      <div class="palette-row"><h3>Neutral · levels 0–5</h3><div class="swatches">
+        <div class="swatch" style="--ink:#5a5a5a"><div class="swatch-color" style="background:#d1d1d1"></div><div class="swatch-label"><span>level 0</span><code>#d1d1d1</code></div></div>
+        <div class="swatch" style="--ink:#5e5e5e"><div class="swatch-color" style="background:#d7d7d7"></div><div class="swatch-label"><span>level 1</span><code>#d7d7d7</code></div></div>
+        <div class="swatch" style="--ink:#616161"><div class="swatch-color" style="background:#dddddd"></div><div class="swatch-label"><span>level 2</span><code>#dddddd</code></div></div>
+        <div class="swatch" style="--ink:#646464"><div class="swatch-color" style="background:#e2e2e2"></div><div class="swatch-label"><span>level 3</span><code>#e2e2e2</code></div></div>
+        <div class="swatch" style="--ink:#686868"><div class="swatch-color" style="background:#e8e8e8"></div><div class="swatch-label"><span>level 4</span><code>#e8e8e8</code></div></div>
+        <div class="swatch" style="--ink:#6c6c6c"><div class="swatch-color" style="background:#eeeeee"></div><div class="swatch-label"><span>level 5</span><code>#eeeeee</code></div></div>
+      </div></div>
+      <div class="palette-row"><h3>Active · Primary hue matched to neutral luminance</h3><div class="swatches">
+        <div class="swatch" style="--ink:#595959"><div class="swatch-color" style="background:#ffc85b"></div><div class="swatch-label"><span>level 0</span><code>#ffc85b</code></div></div>
+        <div class="swatch" style="--ink:#5d5d5d"><div class="swatch-color" style="background:#ffd073"></div><div class="swatch-label"><span>level 1</span><code>#ffd073</code></div></div>
+        <div class="swatch" style="--ink:#626262"><div class="swatch-color" style="background:#ffd98c"></div><div class="swatch-label"><span>level 2</span><code>#ffd98c</code></div></div>
+        <div class="swatch" style="--ink:#656565"><div class="swatch-color" style="background:#ffdf9e"></div><div class="swatch-label"><span>level 3</span><code>#ffdf9e</code></div></div>
+        <div class="swatch" style="--ink:#686868"><div class="swatch-color" style="background:#ffe5b2"></div><div class="swatch-label"><span>level 4</span><code>#ffe5b2</code></div></div>
+        <div class="swatch" style="--ink:#6c6c6c"><div class="swatch-color" style="background:#ffedc8"></div><div class="swatch-label"><span>level 5</span><code>#ffedc8</code></div></div>
+      </div></div>
+    </div>
+
+    <div class="panel dark">
+      <h3>Dark theme surfaces</h3>
+      <div class="palette-row"><h3>Neutral · levels 0–5</h3><div class="swatches">
+        <div class="swatch" style="--ink:#9b9b9b"><div class="swatch-color" style="background:#333333"></div><div class="swatch-label"><span>level 0</span><code>#333333</code></div></div>
+        <div class="swatch" style="--ink:#ababab"><div class="swatch-color" style="background:#404040"></div><div class="swatch-label"><span>level 1</span><code>#404040</code></div></div>
+        <div class="swatch" style="--ink:#bfbfbf"><div class="swatch-color" style="background:#4e4e4e"></div><div class="swatch-label"><span>level 2</span><code>#4e4e4e</code></div></div>
+        <div class="swatch" style="--ink:#d3d3d3"><div class="swatch-color" style="background:#5b5b5b"></div><div class="swatch-label"><span>level 3</span><code>#5b5b5b</code></div></div>
+        <div class="swatch" style="--ink:#e9e9e9"><div class="swatch-color" style="background:#696969"></div><div class="swatch-label"><span>level 4</span><code>#696969</code></div></div>
+        <div class="swatch" style="--ink:#fefefe"><div class="swatch-color" style="background:#767676"></div><div class="swatch-label"><span>level 5</span><code>#767676</code></div></div>
+      </div></div>
+      <div class="palette-row"><h3>Active · Primary hue matched to neutral luminance</h3><div class="swatches">
+        <div class="swatch" style="--ink:#9b9b9b"><div class="swatch-color" style="background:#462f00"></div><div class="swatch-label"><span>level 0</span><code>#462f00</code></div></div>
+        <div class="swatch" style="--ink:#acacac"><div class="swatch-color" style="background:#583b00"></div><div class="swatch-label"><span>level 1</span><code>#583b00</code></div></div>
+        <div class="swatch" style="--ink:#bfbfbf"><div class="swatch-color" style="background:#6b4700"></div><div class="swatch-label"><span>level 2</span><code>#6b4700</code></div></div>
+        <div class="swatch" style="--ink:#d3d3d3"><div class="swatch-color" style="background:#7c5300"></div><div class="swatch-label"><span>level 3</span><code>#7c5300</code></div></div>
+        <div class="swatch" style="--ink:#e8e8e8"><div class="swatch-color" style="background:#8f5f00"></div><div class="swatch-label"><span>level 4</span><code>#8f5f00</code></div></div>
+        <div class="swatch" style="--ink:#fefefe"><div class="swatch-color" style="background:#a16b00"></div><div class="swatch-label"><span>level 5</span><code>#a16b00</code></div></div>
+      </div></div>
+    </div>
+    <ul class="rules">
+      <li>Page background: level 1.</li>
+      <li>A surface on a page: level 2. A surface within that container: level 3. Continue one level at a time through level 4. Cards that group swatch sets use level 2; variant cards nested inside them use level 3.</li>
+      <li>Sticky or fixed surfaces: level 5.</li>
+      <li>Choose Neutral for ordinary surfaces and Active where the same depth needs the Primary hue. Buttons have their own palette.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="button-colors">
+    <h2 id="button-colors">3. Button colors</h2>
+    <p class="section-intro">Primary and Secondary use their principal hue at 100% saturation. Neutral uses the surface color at the level it occupies, instead of always using level 1. Gradients go from +5% luminance at the top, through that surface color, to −5% at the bottom. The top stop spans 0–10%, the middle stop is at 90%, and the bottom stop is at 100%. Hover brightens by 5%; press darkens by 5% and reverses the gradient.</p>
+    <div class="panel light">
+      <h3>Light theme buttons</h3>
+      <div class="state-grid">
+        <div class="state-card"><strong>Neutral</strong><div class="state-line"><span class="state-dot" style="background:linear-gradient(to bottom, #e9e9e9 0% 10%, #e2e2e2 90%, #dcdcdc 100%);color:#000"><span>Default</span><code>#e2e2e2</code></span></div><div class="state-line"><span class="state-dot" style="background:#e9e9e9;color:#000"><span>Hover · +5%</span><code>#e9e9e9</code></span></div><div class="state-line"><span class="state-dot" style="background:linear-gradient(to bottom, #d1d1d1 0% 10%, #d7d7d7 90%, #dddddd 100%);color:#000"><span>Press · −5%</span><code>#d7d7d7</code></span></div><div class="state-line">Foreground: <code>#000000</code> · Border: <code>#646464</code></div><div class="button-demo"><button class="demo-button demo-neutral">Neutral sample</button><button class="demo-button demo-neutral" disabled>Disabled · #e2e1df</button></div></div>
+        <div class="state-card"><strong>Primary</strong><div class="state-line"><span class="state-dot" style="background:linear-gradient(to bottom, #ffc44d 0% 10%, #ffb92e 90%, #ffac07 100%);color:#000"><span>Default</span><code>#ffb92e</code></span></div><div class="state-line"><span class="state-dot" style="background:#ffc44d;color:#000"><span>Hover · +5%</span><code>#ffc44d</code></span></div><div class="state-line"><span class="state-dot" style="background:#ffac07;color:#000"><span>Press · −5%</span><code>#ffac07</code></span></div><div class="state-line">Foreground: <code>#000000</code></div><div class="button-demo"><button class="demo-button demo-primary">Primary sample</button><button class="demo-button demo-primary" disabled>Disabled · #c7c6c2</button></div></div>
+        <div class="state-card"><strong>Secondary</strong><div class="state-line"><span class="state-dot" style="background:linear-gradient(to bottom, #b4d0ff 0% 10%, #a7c8ff 90%, #9bc0ff 100%);color:#000"><span>Default</span><code>#a7c8ff</code></span></div><div class="state-line"><span class="state-dot" style="background:#b3cfff;color:#000"><span>Hover · +5%</span><code>#b3cfff</code></span></div><div class="state-line"><span class="state-dot" style="background:#9ac0ff;color:#000"><span>Press · −5%</span><code>#9ac0ff</code></span></div><div class="state-line">Foreground: <code>#000000</code></div><div class="button-demo"><button class="demo-button demo-secondary">Secondary sample</button><button class="demo-button demo-secondary" disabled>Disabled · #c4c6ca</button></div></div>
+      </div>
+    </div>
+    <div class="panel dark">
+      <h3>Dark theme buttons</h3>
+      <div class="state-grid">
+        <div class="state-card"><strong>Neutral</strong><div class="state-line"><span class="state-dot" style="background:linear-gradient(to bottom, #6d6d6d 0% 10%, #5b5b5b 90%, #424242 100%);color:#fff"><span>Default</span><code>#5b5b5b</code></span></div><div class="state-line"><span class="state-dot" style="background:#6d6d6d;color:#fff"><span>Hover · +5%</span><code>#6d6d6d</code></span></div><div class="state-line"><span class="state-dot" style="background:linear-gradient(to bottom, #3f3f3f 0% 10%, #565656 90%, #676767 100%);color:#fff"><span>Press · −5%</span><code>#565656</code></span></div><div class="state-line">Foreground: <code>#ffffff</code> · Border: <code>#d3d3d3</code></div><div class="button-demo"><button class="demo-button demo-neutral">Neutral sample</button><button class="demo-button demo-neutral" disabled>Disabled · #5d5b55</button></div></div>
+        <div class="state-card"><strong>Primary</strong><div class="state-line"><span class="state-dot" style="background:linear-gradient(to bottom, #bc7d00 0% 10%, #b07500 90%, #a26c00 100%);color:#fff"><span>Default</span><code>#b07500</code></span></div><div class="state-line"><span class="state-dot" style="background:#bc7d00;color:#fff"><span>Hover · +5%</span><code>#bc7d00</code></span></div><div class="state-line"><span class="state-dot" style="background:#a26c00;color:#fff"><span>Press · −5%</span><code>#a26c00</code></span></div><div class="state-line">Foreground: <code>#ffffff</code></div><div class="button-demo"><button class="demo-button demo-primary">Primary sample</button><button class="demo-button demo-primary" disabled>Disabled · #8b8882</button></div></div>
+        <div class="state-card"><strong>Secondary</strong><div class="state-line"><span class="state-dot" style="background:linear-gradient(to bottom, #6092e6 0% 10%, #4b80e6 90%, #3d7ae6 100%);color:#fff"><span>Default</span><code>#4b80e6</code></span></div><div class="state-line"><span class="state-dot" style="background:#5f91e6;color:#fff"><span>Hover · +5%</span><code>#5f91e6</code></span></div><div class="state-line"><span class="state-dot" style="background:#3c7ae6;color:#fff"><span>Press · −5%</span><code>#3c7ae6</code></span></div><div class="state-line">Foreground: <code>#ffffff</code></div><div class="button-demo"><button class="demo-button demo-secondary">Secondary sample</button><button class="demo-button demo-secondary" disabled>Disabled · #85888e</button></div></div>
+      </div>
+    </div>
+    <h3>Neutral buttons against every surface level</h3>
+    <p class="section-intro">Each preview uses the neutral surface as both the surrounding color and the button's middle gradient color. The outline uses that level's muted text color.</p>
+    <div class="neutral-theme-grid">
+    <div class="panel light">
+      <h3>Light theme</h3>
+      <div class="neutral-preview-grid">
+        <div class="neutral-preview" style="--surface:#d1d1d1;--ink:#5a5a5a;--button-ink:#000;--focus:#ffb92e;--gradient:linear-gradient(to bottom,#d9d9d9 0% 10%,#d1d1d1 90%,#cacaca 100%);--hover-gradient:linear-gradient(to bottom,#dfdfdf 0% 10%,#d9d9d9 90%,#d1d1d1 100%);--press-gradient:linear-gradient(to bottom,#c0c0c0 0% 10%,#c6c6c6 90%,#cecece 100%)"><div class="neutral-preview-title"><strong>Level 0</strong><code>Surface #d1d1d1</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#d7d7d7;--ink:#5e5e5e;--button-ink:#000;--focus:#ffb92e;--gradient:linear-gradient(to bottom,#dedede 0% 10%,#d7d7d7 90%,#d0d0d0 100%);--hover-gradient:linear-gradient(to bottom,#e5e5e5 0% 10%,#dedede 90%,#d7d7d7 100%);--press-gradient:linear-gradient(to bottom,#c6c6c6 0% 10%,#cccccc 90%,#d3d3d3 100%)"><div class="neutral-preview-title"><strong>Level 1</strong><code>Surface #d7d7d7</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#dddddd;--ink:#616161;--button-ink:#000;--focus:#ffb92e;--gradient:linear-gradient(to bottom,#e4e4e4 0% 10%,#dddddd 90%,#d7d7d7 100%);--hover-gradient:linear-gradient(to bottom,#ebebeb 0% 10%,#e4e4e4 90%,#dddddd 100%);--press-gradient:linear-gradient(to bottom,#cccccc 0% 10%,#d2d2d2 90%,#d9d9d9 100%)"><div class="neutral-preview-title"><strong>Level 2</strong><code>Surface #dddddd</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#e2e2e2;--ink:#646464;--button-ink:#000;--focus:#ffb92e;--gradient:linear-gradient(to bottom,#e9e9e9 0% 10%,#e2e2e2 90%,#dcdcdc 100%);--hover-gradient:linear-gradient(to bottom,#efefef 0% 10%,#e9e9e9 90%,#e2e2e2 100%);--press-gradient:linear-gradient(to bottom,#d1d1d1 0% 10%,#d7d7d7 90%,#dddddd 100%)"><div class="neutral-preview-title"><strong>Level 3</strong><code>Surface #e2e2e2</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#e8e8e8;--ink:#686868;--button-ink:#000;--focus:#ffb92e;--gradient:linear-gradient(to bottom,#efefef 0% 10%,#e8e8e8 90%,#e2e2e2 100%);--hover-gradient:linear-gradient(to bottom,#f5f5f5 0% 10%,#efefef 90%,#e8e8e8 100%);--press-gradient:linear-gradient(to bottom,#d7d7d7 0% 10%,#dddddd 90%,#e3e3e3 100%)"><div class="neutral-preview-title"><strong>Level 4</strong><code>Surface #e8e8e8</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#eeeeee;--ink:#6c6c6c;--button-ink:#000;--focus:#ffb92e;--gradient:linear-gradient(to bottom,#f5f5f5 0% 10%,#eeeeee 90%,#e8e8e8 100%);--hover-gradient:linear-gradient(to bottom,#fafafa 0% 10%,#f5f5f5 90%,#eeeeee 100%);--press-gradient:linear-gradient(to bottom,#dddddd 0% 10%,#e3e3e3 90%,#eaeaea 100%)"><div class="neutral-preview-title"><strong>Level 5</strong><code>Surface #eeeeee</code></div><button class="neutral-context-button">Neutral button</button></div>
+      </div>
+    </div>
+    <div class="panel dark">
+      <h3>Dark theme</h3>
+      <div class="neutral-preview-grid">
+        <div class="neutral-preview" style="--surface:#333333;--ink:#9b9b9b;--button-ink:#fff;--focus:#b07500;--gradient:linear-gradient(to bottom,#515151 0% 10%,#333333 90%,#000000 100%);--hover-gradient:linear-gradient(to bottom,#666666 0% 10%,#515151 90%,#333333 100%);--press-gradient:linear-gradient(to bottom,#000000 0% 10%,#303030 90%,#4d4d4d 100%)"><div class="neutral-preview-title"><strong>Level 0</strong><code>Surface #333333</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#404040;--ink:#ababab;--button-ink:#fff;--focus:#b07500;--gradient:linear-gradient(to bottom,#595959 0% 10%,#404040 90%,#040404 100%);--hover-gradient:linear-gradient(to bottom,#6c6c6c 0% 10%,#595959 90%,#404040 100%);--press-gradient:linear-gradient(to bottom,#040404 0% 10%,#3d3d3d 90%,#545454 100%)"><div class="neutral-preview-title"><strong>Level 1</strong><code>Surface #404040</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#4e4e4e;--ink:#bfbfbf;--button-ink:#fff;--focus:#b07500;--gradient:linear-gradient(to bottom,#636363 0% 10%,#4e4e4e 90%,#2c2c2c 100%);--hover-gradient:linear-gradient(to bottom,#747474 0% 10%,#636363 90%,#4e4e4e 100%);--press-gradient:linear-gradient(to bottom,#2a2a2a 0% 10%,#4a4a4a 90%,#5e5e5e 100%)"><div class="neutral-preview-title"><strong>Level 2</strong><code>Surface #4e4e4e</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#5b5b5b;--ink:#d3d3d3;--button-ink:#fff;--focus:#b07500;--gradient:linear-gradient(to bottom,#6d6d6d 0% 10%,#5b5b5b 90%,#424242 100%);--hover-gradient:linear-gradient(to bottom,#7c7c7c 0% 10%,#6d6d6d 90%,#5b5b5b 100%);--press-gradient:linear-gradient(to bottom,#3f3f3f 0% 10%,#565656 90%,#676767 100%)"><div class="neutral-preview-title"><strong>Level 3</strong><code>Surface #5b5b5b</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#696969;--ink:#e9e9e9;--button-ink:#fff;--focus:#b07500;--gradient:linear-gradient(to bottom,#797979 0% 10%,#696969 90%,#555555 100%);--hover-gradient:linear-gradient(to bottom,#878787 0% 10%,#797979 90%,#696969 100%);--press-gradient:linear-gradient(to bottom,#505050 0% 10%,#636363 90%,#737373 100%)"><div class="neutral-preview-title"><strong>Level 4</strong><code>Surface #696969</code></div><button class="neutral-context-button">Neutral button</button></div>
+        <div class="neutral-preview" style="--surface:#767676;--ink:#fefefe;--button-ink:#fff;--focus:#b07500;--gradient:linear-gradient(to bottom,#858585 0% 10%,#767676 90%,#656565 100%);--hover-gradient:linear-gradient(to bottom,#919191 0% 10%,#858585 90%,#767676 100%);--press-gradient:linear-gradient(to bottom,#5f5f5f 0% 10%,#707070 90%,#7e7e7e 100%)"><div class="neutral-preview-title"><strong>Level 5</strong><code>Surface #767676</code></div><button class="neutral-context-button">Neutral button</button></div>
+      </div>
+    </div>
+    </div>
+<p class="section-intro">Primary and Secondary borders match their principal colors. Neutral border uses the muted text color for its current surface level. Focus uses the foreground for Primary and Secondary, and Primary for Neutral. Disabled buttons use solid backgrounds at 5% saturation, have no border, and have no hover, press, or keyboard focus.</p>
+  </section>
+
+  <section aria-labelledby="text-colors">
+    <h2 id="text-colors">4. Text colors</h2>
+    <p class="section-intro">Default and Bold are distinct roles. To maintain the intended cross-theme contrast, light-theme headings use Dark Primary and inline links use Dark Secondary; dark-theme headings use Light Primary and inline links use Light Secondary. Muted text is selected per surface for at least 4.5:1 contrast with normal text.</p>
+    <div class="text-samples">
+      <div class="text-sample light"><strong>Light theme</strong><p>Default <code>#fefefe</code></p><p><b>Bold <code>#ffffff</code></b></p><p><strong style="color:#b07500">Heading · Dark Primary <code>#b07500</code></strong></p><p style="color:#4b80e6">Inline link · Dark Secondary <code>#4b80e6</code></p><p style="color:#555">Muted depends on surface</p></div>
+      <div class="text-sample dark"><strong>Dark theme</strong><p>Default <code>#010101</code></p><p><b>Bold <code>#000000</code></b></p><p><strong style="color:#ffb92e">Heading · Light Primary <code>#ffb92e</code></strong></p><p style="color:#a7c8ff">Inline link · Light Secondary <code>#a7c8ff</code></p><p style="color:#aaa">Muted depends on surface</p></div>
+    </div>
+    <h3 style="margin-top:28px">Muted text by surface · minimum contrast 4.5:1</h3>
+    <p class="section-intro">Light theme uses the lightest gray that meets the contrast target. Dark theme uses the darkest gray that meets the target while staying brighter than the muted text on the level below. Light values correspond to the recalibrated surfaces above.</p>
+    <div class="muted-list">
+      <div class="muted-row"><strong class="muted-title">Light · Neutral</strong>
+        <div class="muted-chip" style="background:#d1d1d1;color:#5a5a5a"><span>0</span><code>#5a5a5a</code></div><div class="muted-chip" style="background:#d7d7d7;color:#5e5e5e"><span>1</span><code>#5e5e5e</code></div><div class="muted-chip" style="background:#dddddd;color:#616161"><span>2</span><code>#616161</code></div><div class="muted-chip" style="background:#e2e2e2;color:#646464"><span>3</span><code>#646464</code></div><div class="muted-chip" style="background:#e8e8e8;color:#686868"><span>4</span><code>#686868</code></div><div class="muted-chip" style="background:#eeeeee;color:#6c6c6c"><span>5</span><code>#6c6c6c</code></div>
+      </div>
+      <div class="muted-row"><strong class="muted-title">Light · Active</strong>
+        <div class="muted-chip" style="background:#ffc85b;color:#595959"><span>0</span><code>#595959</code></div><div class="muted-chip" style="background:#ffd073;color:#5d5d5d"><span>1</span><code>#5d5d5d</code></div><div class="muted-chip" style="background:#ffd98c;color:#626262"><span>2</span><code>#626262</code></div><div class="muted-chip" style="background:#ffdf9e;color:#656565"><span>3</span><code>#656565</code></div><div class="muted-chip" style="background:#ffe5b2;color:#686868"><span>4</span><code>#686868</code></div><div class="muted-chip" style="background:#ffedc8;color:#6c6c6c"><span>5</span><code>#6c6c6c</code></div>
+      </div>
+      <div class="muted-row"><strong class="muted-title">Dark · Neutral</strong>
+        <div class="muted-chip" style="background:#333333;color:#9b9b9b"><span>0</span><code>#9b9b9b</code></div><div class="muted-chip" style="background:#404040;color:#ababab"><span>1</span><code>#ababab</code></div><div class="muted-chip" style="background:#4e4e4e;color:#bfbfbf"><span>2</span><code>#bfbfbf</code></div><div class="muted-chip" style="background:#5b5b5b;color:#d3d3d3"><span>3</span><code>#d3d3d3</code></div><div class="muted-chip" style="background:#696969;color:#e9e9e9"><span>4</span><code>#e9e9e9</code></div><div class="muted-chip" style="background:#767676;color:#fefefe"><span>5</span><code>#fefefe</code></div>
+      </div>
+      <div class="muted-row"><strong class="muted-title">Dark · Active</strong>
+        <div class="muted-chip" style="background:#462f00;color:#9b9b9b"><span>0</span><code>#9b9b9b</code></div><div class="muted-chip" style="background:#583b00;color:#acacac"><span>1</span><code>#acacac</code></div><div class="muted-chip" style="background:#6b4700;color:#bfbfbf"><span>2</span><code>#bfbfbf</code></div><div class="muted-chip" style="background:#7c5300;color:#d3d3d3"><span>3</span><code>#d3d3d3</code></div><div class="muted-chip" style="background:#8f5f00;color:#e8e8e8"><span>4</span><code>#e8e8e8</code></div><div class="muted-chip" style="background:#a16b00;color:#fefefe"><span>5</span><code>#fefefe</code></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="interaction-meanings">
+    <h2 id="interaction-meanings">Interaction color meanings</h2>
+    <ul class="rules">
+      <li><strong>Background:</strong> default fill for a surface or control.</li>
+      <li><strong>Foreground:</strong> text, icon, or other content on that surface.</li>
+      <li><strong>Border:</strong> boundary or outline around an element.</li>
+      <li><strong>Hover:</strong> pointer-over feedback.</li>
+      <li><strong>Press:</strong> active interaction feedback, where supported.</li>
+      <li><strong>Focus:</strong> visible keyboard-focus indicator; shape and placement belong to each component.</li>
+      <li><strong>Disabled:</strong> unavailable interaction; disabled buttons use a solid 5%-saturation fill with no border and do not respond to hover or press.</li>
+    </ul>
+    <p class="section-intro">Colors define shared visual meaning. Components define dimensions, spacing, shadows, and interaction behavior.</p>
+  </section>
+
+  <section aria-labelledby="css-variables">
+    <h2 id="css-variables">CSS color variables</h2>
+    <p class="section-intro">Reference tokens for the principal colors, surface levels, text colors, and button states shown above.</p>
+    <pre class="token-block"><code>:root {
+  /* Principal colors */
+  --color-primary-light: #ffb92e;
+  --color-secondary-light: #a7c8ff;
+  --color-primary-dark: #b07500;
+  --color-secondary-dark: #4b80e6;
+
+  /* Light neutral surfaces */
+  --surface-light-neutral-0: #d1d1d1;
+  --surface-light-neutral-1: #d7d7d7;
+  --surface-light-neutral-2: #dddddd;
+  --surface-light-neutral-3: #e2e2e2;
+  --surface-light-neutral-4: #e8e8e8;
+  --surface-light-neutral-5: #eeeeee;
+  /* Light active surfaces */
+  --surface-light-active-0: #ffc85b;
+  --surface-light-active-1: #ffd073;
+  --surface-light-active-2: #ffd98c;
+  --surface-light-active-3: #ffdf9e;
+  --surface-light-active-4: #ffe5b2;
+  --surface-light-active-5: #ffedc8;
+
+  /* Dark neutral surfaces */
+  --surface-dark-neutral-0: #333333;
+  --surface-dark-neutral-1: #404040;
+  --surface-dark-neutral-2: #4e4e4e;
+  --surface-dark-neutral-3: #5b5b5b;
+  --surface-dark-neutral-4: #696969;
+  --surface-dark-neutral-5: #767676;
+  /* Dark active surfaces */
+  --surface-dark-active-0: #462f00;
+  --surface-dark-active-1: #583b00;
+  --surface-dark-active-2: #6b4700;
+  --surface-dark-active-3: #7c5300;
+  --surface-dark-active-4: #8f5f00;
+  --surface-dark-active-5: #a16b00;
+
+  /* Muted text by surface */
+  --text-muted-light-neutral-0: #5a5a5a;
+  --text-muted-light-neutral-1: #5e5e5e;
+  --text-muted-light-neutral-2: #616161;
+  --text-muted-light-neutral-3: #646464;
+  --text-muted-light-neutral-4: #686868;
+  --text-muted-light-neutral-5: #6c6c6c;
+  --text-muted-light-active-0: #595959;
+  --text-muted-light-active-1: #5d5d5d;
+  --text-muted-light-active-2: #626262;
+  --text-muted-light-active-3: #656565;
+  --text-muted-light-active-4: #686868;
+  --text-muted-light-active-5: #6c6c6c;
+  --text-muted-dark-neutral-0: #9b9b9b;
+  --text-muted-dark-neutral-1: #ababab;
+  --text-muted-dark-neutral-2: #bfbfbf;
+  --text-muted-dark-neutral-3: #d3d3d3;
+  --text-muted-dark-neutral-4: #e9e9e9;
+  --text-muted-dark-neutral-5: #fefefe;
+  --text-muted-dark-active-0: #9b9b9b;
+  --text-muted-dark-active-1: #acacac;
+  --text-muted-dark-active-2: #bfbfbf;
+  --text-muted-dark-active-3: #d3d3d3;
+  --text-muted-dark-active-4: #e8e8e8;
+  --text-muted-dark-active-5: #fefefe;
+
+  /* Text roles */
+  --text-light-default: #fefefe;
+  --text-light-bold: #ffffff;
+  --text-light-heading: var(--color-primary-dark);
+  --text-light-link: var(--color-secondary-dark);
+  --text-dark-default: #010101;
+  --text-dark-bold: #000000;
+  --text-dark-heading: var(--color-primary-light);
+  --text-dark-link: var(--color-secondary-light);
+
+  /* Light button foreground and border */
+  --button-light-foreground: #000000;
+  --button-light-neutral-border-level-3: #646464;
+  --button-light-primary-border: var(--color-primary-light);
+  --button-light-secondary-border: var(--color-secondary-light);
+  --button-light-focus-neutral: var(--color-primary-light);
+  --button-light-focus-primary: #000000;
+  --button-light-focus-secondary: #000000;
+  --button-light-disabled-neutral: #e2e1df;
+  --button-light-disabled-primary: #c7c6c2;
+  --button-light-disabled-secondary: #c4c6ca;
+  /* Light neutral button, level 3 */
+  --button-light-neutral-default-top: #e9e9e9;
+  --button-light-neutral-default-middle: #e2e2e2;
+  --button-light-neutral-default-bottom: #dcdcdc;
+  --button-light-neutral-hover-top: #efefef;
+  --button-light-neutral-hover-middle: #e9e9e9;
+  --button-light-neutral-hover-bottom: #e2e2e2;
+  --button-light-neutral-press-top: #d1d1d1;
+  --button-light-neutral-press-middle: #d7d7d7;
+  --button-light-neutral-press-bottom: #dddddd;
+  /* Contextual neutral button palettes by surface level */
+  --button-light-neutral-level-0-default: linear-gradient(to bottom, #d9d9d9 0% 10%, #d1d1d1 90%, #cacaca 100%);
+  --button-light-neutral-level-0-hover: linear-gradient(to bottom, #dfdfdf 0% 10%, #d9d9d9 90%, #d1d1d1 100%);
+  --button-light-neutral-level-0-press: linear-gradient(to bottom, #c0c0c0 0% 10%, #c6c6c6 90%, #cecece 100%);
+  --button-light-neutral-level-1-default: linear-gradient(to bottom, #dedede 0% 10%, #d7d7d7 90%, #d0d0d0 100%);
+  --button-light-neutral-level-1-hover: linear-gradient(to bottom, #e5e5e5 0% 10%, #dedede 90%, #d7d7d7 100%);
+  --button-light-neutral-level-1-press: linear-gradient(to bottom, #c6c6c6 0% 10%, #cccccc 90%, #d3d3d3 100%);
+  --button-light-neutral-level-2-default: linear-gradient(to bottom, #e4e4e4 0% 10%, #dddddd 90%, #d7d7d7 100%);
+  --button-light-neutral-level-2-hover: linear-gradient(to bottom, #ebebeb 0% 10%, #e4e4e4 90%, #dddddd 100%);
+  --button-light-neutral-level-2-press: linear-gradient(to bottom, #cccccc 0% 10%, #d2d2d2 90%, #d9d9d9 100%);
+  --button-light-neutral-level-3-default: linear-gradient(to bottom, #e9e9e9 0% 10%, #e2e2e2 90%, #dcdcdc 100%);
+  --button-light-neutral-level-3-hover: linear-gradient(to bottom, #efefef 0% 10%, #e9e9e9 90%, #e2e2e2 100%);
+  --button-light-neutral-level-3-press: linear-gradient(to bottom, #d1d1d1 0% 10%, #d7d7d7 90%, #dddddd 100%);
+  --button-light-neutral-level-4-default: linear-gradient(to bottom, #efefef 0% 10%, #e8e8e8 90%, #e2e2e2 100%);
+  --button-light-neutral-level-4-hover: linear-gradient(to bottom, #f5f5f5 0% 10%, #efefef 90%, #e8e8e8 100%);
+  --button-light-neutral-level-4-press: linear-gradient(to bottom, #d7d7d7 0% 10%, #dddddd 90%, #e3e3e3 100%);
+  --button-light-neutral-level-5-default: linear-gradient(to bottom, #f5f5f5 0% 10%, #eeeeee 90%, #e8e8e8 100%);
+  --button-light-neutral-level-5-hover: linear-gradient(to bottom, #fafafa 0% 10%, #f5f5f5 90%, #eeeeee 100%);
+  --button-light-neutral-level-5-press: linear-gradient(to bottom, #dddddd 0% 10%, #e3e3e3 90%, #eaeaea 100%);
+  --button-dark-neutral-level-0-default: linear-gradient(to bottom, #515151 0% 10%, #333333 90%, #000000 100%);
+  --button-dark-neutral-level-0-hover: linear-gradient(to bottom, #666666 0% 10%, #515151 90%, #333333 100%);
+  --button-dark-neutral-level-0-press: linear-gradient(to bottom, #000000 0% 10%, #303030 90%, #4d4d4d 100%);
+  --button-dark-neutral-level-1-default: linear-gradient(to bottom, #595959 0% 10%, #404040 90%, #040404 100%);
+  --button-dark-neutral-level-1-hover: linear-gradient(to bottom, #6c6c6c 0% 10%, #595959 90%, #404040 100%);
+  --button-dark-neutral-level-1-press: linear-gradient(to bottom, #040404 0% 10%, #3d3d3d 90%, #545454 100%);
+  --button-dark-neutral-level-2-default: linear-gradient(to bottom, #636363 0% 10%, #4e4e4e 90%, #2c2c2c 100%);
+  --button-dark-neutral-level-2-hover: linear-gradient(to bottom, #747474 0% 10%, #636363 90%, #4e4e4e 100%);
+  --button-dark-neutral-level-2-press: linear-gradient(to bottom, #2a2a2a 0% 10%, #4a4a4a 90%, #5e5e5e 100%);
+  --button-dark-neutral-level-3-default: linear-gradient(to bottom, #6d6d6d 0% 10%, #5b5b5b 90%, #424242 100%);
+  --button-dark-neutral-level-3-hover: linear-gradient(to bottom, #7c7c7c 0% 10%, #6d6d6d 90%, #5b5b5b 100%);
+  --button-dark-neutral-level-3-press: linear-gradient(to bottom, #3f3f3f 0% 10%, #565656 90%, #676767 100%);
+  --button-dark-neutral-level-4-default: linear-gradient(to bottom, #797979 0% 10%, #696969 90%, #555555 100%);
+  --button-dark-neutral-level-4-hover: linear-gradient(to bottom, #878787 0% 10%, #797979 90%, #696969 100%);
+  --button-dark-neutral-level-4-press: linear-gradient(to bottom, #505050 0% 10%, #636363 90%, #737373 100%);
+  --button-dark-neutral-level-5-default: linear-gradient(to bottom, #858585 0% 10%, #767676 90%, #656565 100%);
+  --button-dark-neutral-level-5-hover: linear-gradient(to bottom, #919191 0% 10%, #858585 90%, #767676 100%);
+  --button-dark-neutral-level-5-press: linear-gradient(to bottom, #5f5f5f 0% 10%, #707070 90%, #7e7e7e 100%);
+  /* Light primary button */
+  --button-light-primary-default-top: #ffc44d;
+  --button-light-primary-default-middle: #ffb92e;
+  --button-light-primary-default-bottom: #ffac07;
+  --button-light-primary-hover-top: #ffce6b;
+  --button-light-primary-hover-middle: #ffc44d;
+  --button-light-primary-hover-bottom: #ffb92e;
+  --button-light-primary-press-top: #f6a400;
+  --button-light-primary-press-middle: #ffac07;
+  --button-light-primary-press-bottom: #ffb92e;
+  /* Light secondary button */
+  --button-light-secondary-default-top: #b4d0ff;
+  --button-light-secondary-default-middle: #a7c8ff;
+  --button-light-secondary-default-bottom: #9bc0ff;
+  --button-light-secondary-hover-top: #bfd6ff;
+  --button-light-secondary-hover-middle: #b4d0ff;
+  --button-light-secondary-hover-bottom: #a7c8ff;
+  --button-light-secondary-press-top: #8db7ff;
+  --button-light-secondary-press-middle: #9bc0ff;
+  --button-light-secondary-press-bottom: #a7c8ff;
+
+  /* Dark button foreground and border */
+  --button-dark-foreground: #ffffff;
+  --button-dark-neutral-border-level-3: #d3d3d3;
+  --button-dark-primary-border: var(--color-primary-dark);
+  --button-dark-secondary-border: var(--color-secondary-dark);
+  --button-dark-focus-neutral: var(--color-primary-dark);
+  --button-dark-focus-primary: #ffffff;
+  --button-dark-focus-secondary: #ffffff;
+  --button-dark-disabled-foreground: #f2f2f2;
+  --button-dark-disabled-neutral: #5d5b55;
+  --button-dark-disabled-primary: #8b8882;
+  --button-dark-disabled-secondary: #85888e;
+  /* Dark neutral button, level 3 */
+  --button-dark-neutral-default-top: #6d6d6d;
+  --button-dark-neutral-default-middle: #5b5b5b;
+  --button-dark-neutral-default-bottom: #424242;
+  --button-dark-neutral-hover-top: #7c7c7c;
+  --button-dark-neutral-hover-middle: #6d6d6d;
+  --button-dark-neutral-hover-bottom: #5b5b5b;
+  --button-dark-neutral-press-top: #3f3f3f;
+  --button-dark-neutral-press-middle: #565656;
+  --button-dark-neutral-press-bottom: #676767;
+  /* Dark primary button */
+  --button-dark-primary-default-top: #bc7d00;
+  --button-dark-primary-default-middle: #b07500;
+  --button-dark-primary-default-bottom: #a26c00;
+  --button-dark-primary-hover-top: #c78500;
+  --button-dark-primary-hover-middle: #bc7d00;
+  --button-dark-primary-hover-bottom: #b07500;
+  --button-dark-primary-press-top: #936200;
+  --button-dark-primary-press-middle: #a26c00;
+  --button-dark-primary-press-bottom: #b07500;
+  /* Dark secondary button */
+  --button-dark-secondary-default-top: #6092e6;
+  --button-dark-secondary-default-middle: #4b80e6;
+  --button-dark-secondary-default-bottom: #3d7ae6;
+  --button-dark-secondary-hover-top: #709ce6;
+  --button-dark-secondary-hover-middle: #6092e6;
+  --button-dark-secondary-hover-bottom: #4b80e6;
+  --button-dark-secondary-press-top: #246be6;
+  --button-dark-secondary-press-middle: #3d7ae6;
+  --button-dark-secondary-press-bottom: #4b80e6;
+}</code></pre>
+  </section>
+  <footer>Draft only. This working copy is separate from the Storybook Colors page and can be edited without running Storybook. The requested light-surface recalibration appears here as a design target; implementation remains unchanged.</footer>
+</main>
+</body>
+</html>

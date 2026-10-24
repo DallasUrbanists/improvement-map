@@ -15,7 +15,7 @@ if (process.env.PLAYWRIGHT_BLOB_DIR) reporter.push(['blob', { outputDir: process
 
 export default defineConfig({
   testDir: './tests',
-  testIgnore: ['**/ux/**', '**/presentationConnection.spec.js'],
+  testIgnore: ['**/ux/**', '**/storybook/**', '**/presentationConnection.spec.js'],
   fullyParallel: true,
   timeout: 45000,
   forbidOnly: !!process.env.CI,
