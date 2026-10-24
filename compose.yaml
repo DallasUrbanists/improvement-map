@@ -1,0 +1,104 @@
+name: improvement-map
+
+x-development: &development
+  image: improvement-map-development
+  init: true
+  working_dir: /workspace
+  env_file:
+    - path: .env.development.local
+      required: false
+  environment: &environment
+    PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+    STORYBOOK_DISABLE_TELEMETRY: "1"
+    DEV_MOCK_ORIGIN: http://mock:4010
+    DEV_STORYBOOK_PUBLIC_ORIGIN: http://localhost:${DEV_STORYBOOK_PORT:-6006}
+    CHOKIDAR_USEPOLLING: ${DEV_USE_POLLING:-true}
+    CHOKIDAR_INTERVAL: "500"
+  volumes:
+    - .:/workspace
+  shm_size: 1gb
+
+services:
+  web:
+    <<: *development
+    build:
+      context: .
+      target: development
+    command: [npm, run, 'dev:local', '--', --host, 0.0.0.0, --strictPort]
+    environment:
+      <<: *environment
+      DEV_VITE_CACHE: node_modules/.cache/web
+    volumes:
+      - .:/workspace
+      - web-dependencies:/workspace/node_modules
+    ports: ["127.0.0.1:${DEV_APP_PORT:-5173}:5173"]
+    depends_on:
+      mock:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5173/__dev').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+
+  storybook:
+    <<: *development
+    command: [npm, run, storybook, '--', --host, 0.0.0.0, --ci]
+    environment:
+      <<: *environment
+      DEV_VITE_CACHE: node_modules/.cache/storybook
+    volumes:
+      - .:/workspace
+      - storybook-dependencies:/workspace/node_modules
+    ports: ["127.0.0.1:${DEV_STORYBOOK_PORT:-6006}:6006"]
+    depends_on:
+      mock:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:6006/index.json').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 45s
+      retries: 12
+
+  mock:
+    <<: *development
+    command: [npm, run, 'mock:dev']
+    environment:
+      <<: *environment
+      MOCK_HOST: 0.0.0.0
+      MOCK_DATA_DIR: /mock-data
+    volumes:
+      - .:/workspace
+      - mock-dependencies:/workspace/node_modules
+      - mock-data:/mock-data
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4010/__mock/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 12
+
+  test:
+    <<: *development
+    profiles: [tools]
+    env_file: []
+    command: [npm, run, 'test:local']
+    network_mode: none
+    environment:
+      PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+      STORYBOOK_DISABLE_TELEMETRY: "1"
+      DEV_TEST_ISOLATED: "1"
+      DEV_FORCE_MOCKS: "1"
+    volumes:
+      - .:/workspace:ro
+      - test-dependencies:/workspace/node_modules
+      - ./test-results:/results
+
+volumes:
+  web-dependencies:
+  storybook-dependencies:
+  mock-dependencies:
+  test-dependencies:
+  mock-data:

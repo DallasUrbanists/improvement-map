@@ -1,0 +1,46 @@
+name: Offline development environment
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'compose.yaml'
+      - 'dev/**'
+      - 'scripts/local-development/**'
+      - 'scripts/playwright-task.js'
+      - 'package*.json'
+      - 'vite*.config.js'
+      - '.storybook/**'
+      - 'src/components/GoogleMap*'
+      - 'src/components/MapWorkspace.vue'
+      - 'src/services/api*'
+      - 'src/services/firebase.js'
+      - 'src/services/googleMaps.js'
+      - 'src/services/neighborhoodLabels.js'
+      - 'src/main.js'
+      - 'index.html'
+      - 'playwright.local.config.js'
+      - 'tests/local-development*'
+      - 'tests/local-development/**'
+      - '.github/workflows/local-development.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-smoke:
+    name: Offline environment checks (advisory)
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prepare dependencies and browsers once
+        run: docker compose --profile tools build
+      - name: Test with external networking disabled
+        run: docker compose run --rm --pull never test npm run test:local
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: local-development-evidence
+          path: test-results/local-development/
+          if-no-files-found: warn

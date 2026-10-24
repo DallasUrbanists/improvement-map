@@ -26,7 +26,7 @@ export default {
     layout: 'fullscreen',
     controls: { expanded: true },
     a11y: { test: 'error' },
-    options: { storySort: { order: ['Colors', 'BUTTONS', 'BARS', 'CONTAINERS', 'FORM', 'EMBEDDABLES'] } },
+    options: { storySort: { order: ['Colors', 'MENUS', 'BUTTONS', 'BARS', 'CONTAINERS', 'FORM', 'EMBEDDABLES'] } },
     docs: { codePanel: true, container: DocsThemeContainer },
   },
   beforeEach() { resetBookmarks(); resetStorage(); document.documentElement.removeAttribute('data-storybook-ready'); },

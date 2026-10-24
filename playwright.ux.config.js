@@ -35,7 +35,7 @@ export default defineConfig({
     reducedMotion: 'reduce', locale: 'en-US', timezoneId: 'America/Chicago',
   },
   webServer: {
-    command: 'npm run dev -- --config vite.ux.config.js --host 127.0.0.1 --port 5174 --strictPort',
+    command: 'npm run dev:provider -- --config vite.ux.config.js --host 127.0.0.1 --port 5174 --strictPort',
     url: 'http://127.0.0.1:5174', reuseExistingServer: false,
     timeout: 120000,
     env: {

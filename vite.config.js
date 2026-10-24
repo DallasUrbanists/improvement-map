@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { validateManifest } from './src/services/releaseVersions.js';
 import { stagingBuildPlugin } from './scripts/staging-build.js';
+import { localDevelopmentPlugin } from './scripts/local-development/vite-plugin.js';
 
 function releaseManifestPlugin() {
   return {
@@ -47,7 +48,7 @@ const getBasePath = (env) => {
 };
 
 export default defineConfig(({ mode }) => ({
-  base: getBasePath({ ...loadEnv(mode, process.cwd(), ''), ...process.env }),
+  base: mode === 'sandbox' ? '/' : getBasePath({ ...loadEnv(mode, process.cwd(), ''), ...process.env }),
   build: {
     rollupOptions: {
       output: {
@@ -59,6 +60,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [
+    ...(mode === 'sandbox' ? [localDevelopmentPlugin()] : []),
     releaseManifestPlugin(),
     vue(),
     tailwindcss(),

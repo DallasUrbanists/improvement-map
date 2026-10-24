@@ -15,7 +15,7 @@ if (process.env.PLAYWRIGHT_BLOB_DIR) reporter.push(['blob', { outputDir: process
 
 export default defineConfig({
   testDir: './tests',
-  testIgnore: ['**/ux/**', '**/storybook/**', '**/presentationConnection.spec.js'],
+  testIgnore: ['**/ux/**', '**/storybook/**', '**/local-development/**', '**/presentationConnection.spec.js'],
   fullyParallel: true,
   timeout: 45000,
   forbidOnly: !!process.env.CI,
@@ -33,7 +33,7 @@ export default defineConfig({
   },
   webServer: unitOnly && !process.argv.some(arg => arg.startsWith('--project=') && arg !== '--project=unit') ? undefined : {
     // Disable HMR so test artifacts and concurrent edits cannot reload a journey.
-    command: `npm run dev -- --config vite.ux.config.js --host ${appUrl.hostname} --port ${appUrl.port || '5173'}${useFreshServer ? ' --strictPort' : ''}`,
+    command: `npm run dev:provider -- --config vite.ux.config.js --host ${appUrl.hostname} --port ${appUrl.port || '5173'}${useFreshServer ? ' --strictPort' : ''}`,
     url: appBaseURL,
     reuseExistingServer: useFreshServer ? false : !process.env.CI,
     timeout: 120000,

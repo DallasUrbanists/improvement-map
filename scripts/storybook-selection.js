@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { comparisonBase, gitRefExists } from './branch-policy.js';
 
 const normalize = value => value.replaceAll('\\', '/').replace(/^\.\//, '');
 export function discoverStories(root = process.cwd()) {
@@ -18,7 +19,7 @@ export function selectStories(changedPaths, root = process.cwd()) {
   const all = reason => ({ files: stories, all: true, reasons: [reason] });
   if (changedPaths === null) return all('Full, scheduled, release, or unavailable diff');
   const changed = changedPaths.map(normalize);
-  if (changed.some(file => /^(?:\.storybook\/|public\/|package(?:-lock)?\.json$|vite.*config\.js$|vitest.*config\.js$|playwright\.storybook|scripts\/(?:storybook|serve-storybook|build-pages)|tests\/storybook\/|\.github\/workflows\/)/.test(file) || file === 'src/style.css' || file === 'src/presentation.css' || file === 'index.html')) return all('Shared styles, assets, dependencies, or tooling changed');
+  if (changed.some(file => /^(?:\.storybook\/|dev\/|public\/|package(?:-lock)?\.json$|vite.*config\.js$|vitest.*config\.js$|playwright\.storybook|scripts\/(?:local-development\/|playwright-task\.js$|storybook|serve-storybook|build-pages)|tests\/storybook\/|\.github\/workflows\/|Dockerfile$|compose\.yaml$|\.dockerignore$)/.test(file) || file === 'src/style.css' || file === 'src/presentation.css' || file === 'index.html')) return all('Shared styles, assets, dependencies, or tooling changed');
   const selected = new Set();
   let uncertain = false;
   for (const story of stories) {
@@ -63,7 +64,7 @@ function changedForEvent() {
   const name = process.env.GITHUB_EVENT_NAME;
   if (['workflow_dispatch', 'schedule', 'release'].includes(name)) return null;
   if (!name) {
-    const base = process.argv[2] || 'origin/main';
+    const base = comparisonBase({ explicit: process.argv[2], branch: git(['branch', '--show-current']), exists: gitRefExists });
     return [...parseDiffPaths(git(['diff', '--name-status', '--find-renames', '-z', git(['merge-base', base, 'HEAD'])])),
       ...git(['ls-files', '--others', '--exclude-standard', '-z']).split('\0').filter(Boolean)];
   }

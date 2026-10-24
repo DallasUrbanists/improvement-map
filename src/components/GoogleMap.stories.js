@@ -1,4 +1,4 @@
-import { expect, within } from 'storybook/test';
+import { expect, within, waitFor } from 'storybook/test';
 import GoogleMap from './GoogleMap.vue';
 
 export default {
@@ -41,6 +41,10 @@ export default {
     await expect(map).toHaveAttribute('data-rails-thickness', String(args.railsThickness));
     await expect(map).toHaveAttribute('data-cover-viewport', String(args.coverViewport));
     await expect(map.querySelector('.google-map__canvas')).not.toBeNull();
+    if (__LOCAL_DEPENDENCY_MODES__.maps === 'mock') {
+      await waitFor(() => expect(map.querySelector('[data-local-map="ready"]')).not.toBeNull());
+      await waitFor(() => expect(map.querySelectorAll('.gm-style > svg polyline').length).toBeGreaterThan(0));
+    }
     const style = window.getComputedStyle(map);
     if (args.coverViewport) {
       await expect(style.position).toBe('fixed');

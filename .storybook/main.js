@@ -13,7 +13,7 @@ export default {
     { from: '../public/images', to: '/images' },
     { from: fileURLToPath(new URL('../stories/assets', import.meta.url)), to: '/fixtures' },
   ],
-  core: { disableTelemetry: true },
+  core: { disableTelemetry: true, disableWhatsNewNotifications: true },
   async viteFinal(config) {
     const { mergeConfig } = await import('vite');
     // Storybook replaces server options from vite.config.js. Apply the watcher
