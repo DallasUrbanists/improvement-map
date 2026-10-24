@@ -624,6 +624,7 @@ import PhotoSlider from '../components/PhotoSlider.vue';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
 import { reverseGeocodeWithGoogle } from '../services/googleMaps';
 import { createOptionalLocationThumbnail } from '../services/submissionThumbnail.js';
+import { restoreSubmissionPhotoBlob } from '../services/submissionPhoto.js';
 
 const router = useRouter();
 const workspace = inject(mapWorkspaceKey);
@@ -1387,25 +1388,14 @@ async function submitFinalSuggestion() {
         submissionProgress.value = Math.round(15 + i * stepPercent);
         dynamicProgressMessage.value = `Uploading photo ${i + 1} of ${photosToUpload.length}...`;
 
-        // If blob is missing (e.g. restored from localStorage draft), reconstitute from dataUrl
-        let photoBlob = p.blob;
-        if (!photoBlob && p.dataUrl && p.dataUrl.startsWith('data:')) {
-          try {
-            const res = await fetch(p.dataUrl);
-            photoBlob = await res.blob();
-          } catch (e) {
-            console.warn('Failed to convert dataUrl to blob:', e);
-          }
-        }
+        const photoBlob = await restoreSubmissionPhotoBlob(p);
 
         const { uploadUrl, publicUrl } = await requestPhotoUploadUrl({
           contentType: 'image/webp',
           filename: p.name || `photo-${i + 1}.webp`,
         });
 
-        if (photoBlob) {
-          await uploadPhotoBinary(uploadUrl, photoBlob, 'image/webp');
-        }
+        await uploadPhotoBinary(uploadUrl, photoBlob, 'image/webp');
 
         uploadedPhotos.push({
           url: publicUrl,

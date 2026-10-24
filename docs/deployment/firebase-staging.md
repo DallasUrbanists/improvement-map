@@ -152,12 +152,16 @@ timeout skips only the optional location diagram. The success view reports that
 the preview is unavailable; location, entered description and user photos remain
 in the submission. Rendering, App Check, signed uploads and save failures still
 reject normally. User cancellation is never treated as an OSM outage.
+Refreshed drafts recover processed WebP bytes from their saved data URL; a
+serialized Blob object is never uploaded. An unrecoverable image rejects before
+requesting a signed URL and asks the user to remove and re-add that photo.
 
 ```sh
 npm ci
 node --test tests/staging.node.mjs tests/releases.node.mjs
 node --test tests/ci-suites.node.mjs
 npm run test:critical
+npm run test:unit -- tests/submissionThumbnail.spec.js tests/submissionPhoto.spec.js tests/liveLocationData.spec.js
 npm run build
 ```
 
@@ -173,7 +177,7 @@ After an authorized real rollout, record a dated acceptance receipt with:
 - Canonical URL, tested frontend SHA, backend SHA/revision, previous Hosting
   release and compatible backend rollback revision.
 - Direct navigation/refresh on `/`, `/submit`, and a seeded suggestion.
-- Maps/search, existing-account sign-in, real App Check, suggestions/images, and
+- Maps/search, real App Check, suggestions/images, and
   browser API requests to the approved staging origin.
 - Explicitly authorized synthetic submission/upload with backend-operator
   confirmation of staging-only persistence; preserve shared Auth users/claims.
