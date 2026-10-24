@@ -145,6 +145,14 @@ are main-only (`preversion` enforces the branch).
 
 ## Validation and live acceptance
 
+The frontend currently has no sign-in UI; existing-account sign-in is not an
+acceptance requirement for this app. Its public flow still uses production-mode
+App Check. As explicitly approved on 2026-10-23, an OSM acquisition failure or
+timeout skips only the optional location diagram. The success view reports that
+the preview is unavailable; location, entered description and user photos remain
+in the submission. Rendering, App Check, signed uploads and save failures still
+reject normally. User cancellation is never treated as an OSM outage.
+
 ```sh
 npm ci
 node --test tests/staging.node.mjs tests/releases.node.mjs

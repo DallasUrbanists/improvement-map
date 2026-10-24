@@ -162,6 +162,7 @@ test('frontend verification accepts bundled registration and checks generated wo
   const names = ['index.html', 'sw.js', 'manifest.webmanifest', 'robots.txt', 'workbox-12345678.js', 'assets'];
   assert.deepEqual(frontendTextAssets(names), names.slice(0, -1));
   assert.ok(frontendTextAssets([...names, 'registerSW.js']).includes('registerSW.js'));
+  assert.ok(!frontendTextAssets(names.filter(name => name !== 'robots.txt')).includes('robots.txt'));
   assert.throws(() => frontendTextAssets(names.filter(name => name !== 'sw.js')), /sw.js/);
 });
 

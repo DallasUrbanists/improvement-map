@@ -36,6 +36,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:critical
+      - run: npm run test:unit -- tests/submissionThumbnail.spec.js tests/liveLocationData.spec.js
       - run: node --test tests/releases.node.mjs tests/staging.node.mjs tests/ci-suites.node.mjs
       - name: Audit dependencies
         shell: bash

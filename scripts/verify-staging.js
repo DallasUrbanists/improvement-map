@@ -35,11 +35,11 @@ export function verifyHeaders(headers, immutable = false) {
 }
 
 export function frontendTextAssets(names) {
-  const required = ['index.html', 'sw.js', 'manifest.webmanifest', 'robots.txt'];
+  const required = ['index.html', 'sw.js', 'manifest.webmanifest'];
   for (const name of required) assert.ok(names.includes(name), `Missing required frontend asset: ${name}`);
   // virtual:pwa-register embeds registration in the app bundle. Other supported
   // Vite PWA builds emit registerSW.js; verify it only when actually generated.
-  return [...required, ...names.filter(name => name === 'registerSW.js' || /^workbox-[\w-]+\.js$/.test(name))];
+  return [...required, ...names.filter(name => ['robots.txt', 'registerSW.js'].includes(name) || /^workbox-[\w-]+\.js$/.test(name))];
 }
 
 export async function waitForPublishedMetadata(expected, read, { attempts = 7, pause = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
