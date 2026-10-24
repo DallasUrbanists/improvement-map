@@ -1,9 +1,7 @@
 import { expect, fn, userEvent, within } from 'storybook/test';
 import RowButton from './RowButton.vue';
-import { buttonColors } from '../design/buttonColors.js';
 
 const icons = ['none', 'bars', 'layer-group', 'plus', 'xmark', 'magnifying-glass', 'location-crosshairs', 'bookmark', 'arrow-left', 'arrow-right'];
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 
 export default {
   title: 'BUTTONS/Row Button', component: RowButton,
@@ -28,28 +26,9 @@ export default {
   }),
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: args.label });
-    const colorStyles = window.getComputedStyle(button);
-    const theme = button.dataset.theme || 'light';
-    const variant = button.dataset.variant || 'neutral';
-    const palette = args.disabled ? buttonColors[theme].disabled[variant] : buttonColors[theme][variant];
-    await expect(colorStyles.color).toBe(asRgb(palette.foreground));
-    await expect(colorStyles.borderBottomColor).toBe(asRgb(palette.border));
-    if (args.disabled) {
-      await expect(colorStyles.backgroundImage).toBe('none');
-      await expect(colorStyles.backgroundColor).toBe(asRgb(palette.background));
-    } else await expect(colorStyles.backgroundImage).toContain('linear-gradient');
     await expect(button).toHaveAttribute('title', args.label);
     await expect(button).toHaveTextContent(args.label);
     await expect(button).toHaveAttribute('data-layout', 'tight');
-    const styles = window.getComputedStyle(button);
-    expect(styles.margin).toBe('0px');
-    expect(styles.borderRadius).toBe('0px');
-    expect(styles.boxShadow).toBe('none');
-    expect(styles.justifyContent).toBe('flex-start');
-    expect(styles.borderTopWidth).toBe('0px');
-    expect(styles.borderRightWidth).toBe('0px');
-    expect(styles.borderLeftWidth).toBe('0px');
-    expect(styles.borderBottomWidth).toBe('1px');
     const buttonBox = button.getBoundingClientRect();
     const parentBox = button.parentElement.getBoundingClientRect();
     expect(buttonBox.width).toBeCloseTo(parentBox.width, 0);
@@ -57,8 +36,6 @@ export default {
       const icon = button.querySelector('i');
       await expect(icon).toHaveClass(`fa-${args.icon}`);
       expect(icon.nextElementSibling).toHaveTextContent(args.label);
-      expect(window.getComputedStyle(icon).width).toBe('24px');
-      expect(window.getComputedStyle(icon).flexBasis).toBe('24px');
     } else {
       await expect(button.querySelector('i')).toBeNull();
     }

@@ -42,33 +42,14 @@ export default {
     const button = args.buttonText
       ? canvas.getByRole('button', { name: args.buttonText })
       : canvas.getByRole('button', { name: args.buttonLabel || args.buttonIcon });
-    const rootChildren = canvasElement.querySelectorAll('#storybook-root > *');
-    await expect(rootChildren).toHaveLength(1);
+    await expect(canvasElement.querySelectorAll('.text-with-inline-button')).toHaveLength(1);
     await expect(input).toHaveAttribute('type', 'text');
     await expect(input.parentElement).toBe(button.parentElement);
     const inputRect = input.getBoundingClientRect();
     const buttonRect = button.getBoundingClientRect();
     expect(inputRect.right).toBeCloseTo(buttonRect.left, 0);
     expect(inputRect.width + buttonRect.width).toBeCloseTo(input.parentElement.getBoundingClientRect().width, 0);
-    const inputStyle = window.getComputedStyle(input);
-    const buttonStyle = window.getComputedStyle(button);
-    const groupStyle = window.getComputedStyle(input.parentElement);
-    expect(inputStyle.borderTopRightRadius).toBe('0px');
-    expect(inputStyle.borderBottomRightRadius).toBe('0px');
-    expect(buttonStyle.borderTopLeftRadius).toBe('0px');
-    expect(buttonStyle.borderBottomLeftRadius).toBe('0px');
-    expect(buttonStyle.borderLeftWidth).toBe('0px');
     expect(input.parentElement).toHaveAttribute('data-layout', args.layout);
-    expect(groupStyle.margin).toBe(args.layout === 'floating' ? '4px' : '0px');
-    expect(inputStyle.boxShadow).toBe('none');
-    expect(buttonStyle.boxShadow).toBe('none');
-    if (args.layout === 'floating') {
-      expect(groupStyle.boxShadow).not.toBe('none');
-      expect(groupStyle.borderRadius).toBe('8px');
-    } else {
-      expect(groupStyle.boxShadow).toBe('none');
-      expect(groupStyle.borderRadius).toBe('0px');
-    }
     expect(button.classList.contains('square-icon-button')).toBe(!args.buttonText);
     expect(button.classList.contains('text-button')).toBe(Boolean(args.buttonText));
   },

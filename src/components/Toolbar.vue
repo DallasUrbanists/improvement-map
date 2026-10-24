@@ -56,7 +56,7 @@ defineEmits(['button-click']);
   min-height: 49px;
   display: flex;
   align-items: center;
-  background-color: var(--toolbar-border);
+  background-color: var(--toolbar-background);
   border-bottom: 1px solid var(--toolbar-border);
 }
 .toolbar :deep(.map-ui-button) {

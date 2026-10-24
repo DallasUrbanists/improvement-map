@@ -57,7 +57,7 @@ export default {
     const bar = canvasElement.querySelector('.address-bar');
     const input = canvas.getByRole('textbox');
     const menuButton = canvas.getByRole('button', { name: 'Menu' });
-    await expect(canvasElement.querySelectorAll('#storybook-root > *')).toHaveLength(1);
+    await expect(canvasElement.querySelectorAll('.address-bar')).toHaveLength(1);
     await expect(bar).toHaveAttribute('data-mode', args.mode);
     await expect(input).toHaveValue(args.modelValue);
     await userEvent.click(menuButton);

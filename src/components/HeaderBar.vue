@@ -1,5 +1,5 @@
 <template>
-  <header class="header-bar" :data-theme="theme" :style="colors">
+  <header class="header-bar" :data-theme="theme" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :style="colors">
     <div class="header-bar__text">
       <span class="header-bar__label">{{ label }}</span>
       <span v-if="subtitle" class="header-bar__subtitle">{{ subtitle }}</span>
@@ -32,11 +32,16 @@ const props = defineProps({
   subtitle: { type: String, default: '' },
   /** Square Icon Button props; each inherits the bar variant unless it sets its own. */
   buttons: { type: Array, default: () => [] },
+  /** Neutral surface level used when variant is neutral. */
+  surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
 });
 const colors = computed(() => {
-  const palette = buttonColors[props.theme]?.[props.variant] || buttonColors.light.neutral;
+  const theme = buttonColors[props.theme] || buttonColors.light;
+  const palette = props.variant === 'neutral'
+    ? theme.neutralByLevel[props.surfaceLevel ?? 1]
+    : theme[props.variant];
   return {
-    '--header-bar-background': palette.background,
+    '--header-bar-background': props.surfaceLevel === null && props.variant === 'neutral' ? 'transparent' : palette.background,
     '--header-bar-foreground': palette.foreground,
     '--header-bar-border': palette.border,
   };

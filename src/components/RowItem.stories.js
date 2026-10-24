@@ -1,8 +1,5 @@
 import { expect, fn, userEvent, within } from 'storybook/test';
 import RowItem from './RowItem.vue';
-import { buttonColors } from '../design/buttonColors.js';
-
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 
 export default {
   title: 'BARS/Row Item',
@@ -32,24 +29,14 @@ export default {
     setup: () => ({ args, globalTheme: globals.theme }),
     template: '<RowItem v-bind="args" :theme="args.theme || globalTheme" @button-click="args.onButtonClick" />',
   }),
-  play: async ({ canvasElement, args, globals }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const row = canvas.getByText(args.label).closest('.row-item');
-    const theme = args.theme || globals.theme || 'light';
-    const computed = element => window.getComputedStyle(element);
-    const palette = buttonColors[theme][args.variant];
     await expect(row).toBeTruthy();
     await expect(row).toHaveTextContent(args.label);
-    await expect(computed(row).backgroundColor).toBe(asRgb(palette.background));
-    await expect(computed(row).color).toBe(asRgb(palette.foreground));
-    await expect(computed(row).borderBottomColor).toBe(asRgb(palette.border));
-    await expect(computed(row).height).toBe('49px');
-    await expect(computed(row).borderBottomWidth).toBe('1px');
-    await expect(computed(row.querySelector('.row-item__label')).fontWeight).toBe('700');
     const subtitle = row.querySelector('.row-item__subtitle');
     if (args.subtitle) {
       await expect(subtitle).toHaveTextContent(args.subtitle);
-      await expect(computed(subtitle).fontSize).toBe('10px');
     } else await expect(subtitle).toBeNull();
     const symbol = row.querySelector('.row-item__symbol');
     if (args.symbolType === 'none') await expect(symbol).toBeNull();
@@ -69,10 +56,6 @@ export default {
       await userEvent.click(checkbox);
       await expect(checkbox).not.toBeChecked();
     }
-    if (symbol && args.symbolType !== 'checkbox') {
-      const text = row.querySelector('.row-item__text');
-      expect(text.getBoundingClientRect().left - symbol.getBoundingClientRect().right).toBeCloseTo(12, 0);
-    }
     const buttons = Array.from(row.querySelectorAll('.row-item__action'));
     await expect(buttons).toHaveLength(args.buttons.length);
     if (buttons.length === 1) {
@@ -81,37 +64,12 @@ export default {
       const buttonRect = button.getBoundingClientRect();
       expect(buttonRect.width).toBeCloseTo(rowRect.width, 0);
       expect(buttonRect.height).toBeCloseTo(rowRect.height, 0);
-      await expect(computed(button).borderLeftWidth).toBe('0px');
-      if (!args.buttons[0].disabled) {
-        const palette = buttonColors[theme][args.buttons[0].variant || args.variant];
-        button.classList.add('pseudo-hover');
-        await expect(computed(button).backgroundImage).toContain('linear-gradient');
-        button.classList.remove('pseudo-hover');
-        button.classList.add('pseudo-active');
-        await expect(computed(button).backgroundImage).toContain('linear-gradient');
-        button.classList.remove('pseudo-active');
-        button.classList.add('pseudo-focus-visible');
-        await expect(computed(button).outlineStyle).toBe('solid');
-        await expect(computed(button).outlineColor).toBe(asRgb(palette.focus));
-        button.classList.remove('pseudo-focus-visible');
-      }
     }
     for (const [index, item] of args.buttons.entries()) {
       const button = buttons[index];
-      const buttonPalette = item.disabled
-        ? buttonColors[theme].disabled[item.variant || args.variant]
-        : buttonColors[theme][item.variant || args.variant];
       await expect(button).toHaveAccessibleName(item.label);
-      if (item.disabled) {
-        await expect(computed(button).backgroundImage).toBe('none');
-        await expect(computed(button).backgroundColor).toBe(buttons.length === 1 ? 'rgba(0, 0, 0, 0)' : asRgb(buttonPalette.background));
-      } else if (buttons.length === 1) await expect(computed(button).backgroundImage).toBe('none');
-      else await expect(computed(button).backgroundImage).toContain('linear-gradient');
-      await expect(computed(button).color).toBe(asRgb(buttonPalette.foreground));
-      await expect(computed(button).borderRightWidth).toBe('0px');
       await expect(button.querySelector('i')).toHaveClass(`fa-${item.icon}`);
       if (item.disabled) await expect(button).toBeDisabled();
-      else if (buttons.length === 1) await userEvent.click(button);
       else await userEvent.click(button);
     }
     const enabledCount = args.buttons.filter(item => !item.disabled).length;

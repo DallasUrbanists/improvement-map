@@ -1,5 +1,6 @@
 <template>
-  <div class="contained-section" :class="{ 'contained-section--padded': padded }" :data-theme="theme" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :style="sectionStyle" v-html="content"></div>
+  <div v-if="$slots.default" class="contained-section" :class="{ 'contained-section--padded': padded }" :data-theme="theme" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :style="sectionStyle"><slot /></div>
+  <div v-else class="contained-section" :class="{ 'contained-section--padded': padded }" :data-theme="theme" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :style="sectionStyle" v-html="content"></div>
 </template>
 
 <script setup>
@@ -21,6 +22,7 @@ const sectionStyle = computed(() => {
   const surface = buttonColors[props.theme]?.neutralByLevel[props.surfaceLevel ?? 1] || buttonColors.light.neutralByLevel[1];
   return {
     '--contained-section-background': props.surfaceLevel === null ? 'transparent' : surface.background,
+    '--contained-section-foreground': surface.foreground,
     '--contained-section-border': surface.border,
   };
 });
@@ -31,7 +33,7 @@ const sectionStyle = computed(() => {
   box-sizing: border-box;
   width: 100%;
   background: var(--contained-section-background);
-  color: inherit;
+  color: var(--contained-section-foreground);
 }
 .contained-section--padded { padding: 12px; }
 .contained-section:not(:last-child) { border-bottom: 1px solid var(--contained-section-border); }

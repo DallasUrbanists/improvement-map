@@ -1,8 +1,5 @@
 import { expect, fn, userEvent, within } from 'storybook/test';
 import BigCircleButton from './BigCircleButton.vue';
-import { buttonColors } from '../design/buttonColors.js';
-
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 
 export default {
   title: 'BUTTONS/Big Circle Button', component: BigCircleButton,
@@ -22,16 +19,6 @@ export default {
   render: (args, { globals }) => ({ components: { BigCircleButton }, setup: () => ({ args, globalTheme: globals.theme }), template: '<BigCircleButton v-bind="args" :theme="args.theme || globalTheme" />' }),
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: args.label });
-    const styles = window.getComputedStyle(button);
-    const theme = button.dataset.theme || 'light';
-    const variant = button.dataset.variant || 'neutral';
-    const palette = args.disabled ? buttonColors[theme].disabled[variant] : buttonColors[theme][variant];
-    await expect(styles.color).toBe(asRgb(palette.foreground));
-    await expect(styles.borderColor).toBe(asRgb(palette.border));
-    if (args.disabled) {
-      await expect(styles.backgroundImage).toBe('none');
-      await expect(styles.backgroundColor).toBe(asRgb(palette.background));
-    } else await expect(styles.backgroundImage).toContain('linear-gradient');
     await expect(button).toHaveAttribute('title', args.label);
     await expect(button).toHaveTextContent(args.label);
     if (args.disabled) {

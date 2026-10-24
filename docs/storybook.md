@@ -4,13 +4,13 @@ The public catalog publishes alongside the app at **https://map.dallasurbanists.
 
 See [pilot validation and known existing test failures](storybook-validation.md) for the initial evidence.
 
-The catalog contains shared bars, buttons, containers, forms and embeddable elements under **BARS**, **BUTTONS**, **CONTAINERS**, **FORM** and **EMBEDDABLES**. **Colors** is a standalone top-level page defining principal hues, surface levels, button gradients and text roles. Its light/dark documentation sections use matching surfaces; raw component previews retain their existing presentation. Docs and stories remain with their parent component.
+The catalog contains shared menus, bars, buttons, containers, forms and embeddable elements under **MENUS**, **BARS**, **BUTTONS**, **CONTAINERS**, **FORM** and **EMBEDDABLES**. **Colors** is a standalone top-level page defining principal hues, surface levels, button gradients and text roles. Its light/dark documentation sections use matching surfaces; raw component previews retain their existing presentation. Docs and stories remain with their parent component.
 
 ## Local workflow
 
 ```powershell
 npm ci
-npx playwright install chromium webkit
+npm run playwright:install -- chromium webkit
 npm run storybook
 npm run test:storybook
 npm run build-storybook
@@ -22,6 +22,14 @@ npm run test:storybook:pages
 Storybook runs on port 6006. `npm run storybook:serve` serves the static build at `http://127.0.0.1:6007/storybook/`, exercising nested asset URLs. `npm run build:pages` builds the app, builds Storybook separately, then copies the catalog into the single Pages artifact. The existing deployment gate remains; the advisory workflow is independent.
 
 The local **Component tests** widget discovers `vitest.config.js`, which supplies one browser project and uses the selected Storybook globals. Expand the widget to enable **Accessibility** alongside interactions, then choose **Run tests**. The command-line/CI scripts explicitly use `vitest.storybook.config.js` to check both light and dark projects. Those separate configurations avoid duplicate project names in the UI runner. Coverage instrumentation is optional and is not installed in this pilot; leave Coverage unchecked.
+
+## What the tests protect
+
+Story play functions own component behavior: accessible names, keyboard operation, disabled actions, selection, emitted payloads and content. Keep layout checks when they protect use, such as a row-wide hit target, joined input/action geometry or a panel staying within the viewport. Accessibility checks remain enabled.
+
+Do not add exact colors, radii, shadows, fonts, gradient strings or pseudo-element dimensions merely to describe the current implementation. A CSS assertion needs a documented requirement or a known defect it prevents. Keep representative token-mapping checks in Text Button and Contained Section, rather than repeating the palette in every consumer. The Colors documentation test checks its generated reference against current tokens and retains contrast requirements.
+
+Use catalog screenshots and focused state captures to review appearance. Intentional design changes should be reviewed visually. Screenshots without approved baselines are marked `visual-review-pending`; capturing a candidate does not establish visual regression coverage. Do not replace removed style assertions with automatically approved snapshots. See the [coverage ownership ledger](test-maintenance.md#storybook-coverage-ownership) before duplicating checks across stories and browser specs.
 
 ## Find a reusable solution
 
@@ -37,10 +45,12 @@ All catalog entries are **Draft**, pending explicit maintainer review. The sourc
 | Raw full-width text input with optional placeholder and icon | `src/components/TextInput.vue` | FORM/Text Input | Draft |
 | Full-width text input joined to an icon or text action | `src/components/TextWithInlineButton.vue` | FORM/Text With Inline Button | Draft |
 | Address, search and location bar composed from existing controls and result rows | `src/components/AddressBar.vue` | FORM/Address Bar | Draft |
+| Modal browse list with Tab Navigation, shared surface level and bookmark actions | `src/components/BrowseList.vue` | MENUS/Browse List | Draft |
 | Interactive Google Map with theme, map style and rail overlay controls | `src/components/GoogleMap.vue` | EMBEDDABLES/Google Map | Draft |
 | Full-width header with optional subtitle and icon actions | `src/components/HeaderBar.vue` | BARS/Header Bar | Draft |
 | Full-width header-style row with optional leading symbol and icon actions | `src/components/RowItem.vue` | BARS/Row Item | Draft |
 | Full-width, palette-themed row of shared icon or text actions | `src/components/Toolbar.vue` | BARS/Toolbar | Draft |
+| Full-width, palette-themed tab bar composed from shared icon or text buttons | `src/components/Tabbar.vue` | BARS/Tabbar | Draft |
 | Full-width idea summary row with thumbnail, navigation and bookmark action | `src/components/IdeaRowContent.vue` | BARS/Idea row | Draft |
 | Full-height panel entering from either viewport edge | `src/components/Drawer.vue` | CONTAINERS/Drawer | Draft |
 | Full-width panel entering vertically from below | `src/components/Tray.vue` | CONTAINERS/Tray | Draft |
@@ -77,7 +87,9 @@ Idea row is the BARS presentation of an idea list item. It inherits the Header B
 
 Toolbar is a full-width, palette-themed bar with a 1px bottom border, matching Header Bar. It composes the shared Square Icon Button or Text Button components, always using their Tight treatment with zero margin, corner radius and shadow. All Icon Buttons and All Text Buttons select the composition; the Buttons control edits the list of icon, label and disabled values. Theme and variant style the bar and pass through to each button, and activations emit `button-click` with the selected button and its index.
 
-All **CONTAINERS** components expose `surfaceLevel`, an integer from 0 (deepest) through 5 (closest to the viewer), to choose their theme's surface color. Setting it to `null` makes the surface transparent. Drawer and Tray use it for their panel backgrounds; Contained Section uses it for its background and separator; Accordion uses it for its open background and border colors; Floating Modal uses it for the modal surface and nested sections. Tab Navigation keeps its root transparent and applies the active surface at that level to its selected tab and section.
+Tabbar starts as a clone of Toolbar under **BARS/Tabbar**, with the same theme, variant, button list, icon/text composition, Tight treatment, and `button-click` event. Its `surfaceLevel` control selects the regular neutral button and bar colors. Clicking a button selects it and emits `button-click` with the button and its index; `selectedIndex` can be controlled by a parent. Selected buttons retain their normal neutral appearance without an active surface fill; non-selected buttons use the bar background at half brightness and white text/icons. The bar background is also displayed at half brightness.
+
+All **CONTAINERS** components expose `surfaceLevel`, an integer from 0 (deepest) through 5 (closest to the viewer), to choose their theme's surface color. Setting it to `null` makes the surface transparent. Drawer and Tray use it for their panel backgrounds; Contained Section uses it for its background and separator; Accordion uses it for its open background and border colors; Floating Modal uses it for the modal surface and nested sections. Tab Navigation uses the neutral surface at that level for its root background and selected section; the root background is displayed at half brightness. Tab buttons retain Text Button's shared colors, with active surface fill disabled.
 
 Drawer is a full-height, up-to-320px panel with stories anchored to the left or right edge. Its stories compose the existing Header Bar With Buttons at the top, with one `xmark` action that closes the drawer, then accept application content through the default slot. **Menu drawer** shows the left-side menu composition, using any number of Row Buttons with icon, label, disabled and optional variant values; edit the list in its `menuItems` control. `open` controls its position. `canDragClose` and `canDragOpen` independently enable the handle for closing and opening; dragging snaps to the nearer endpoint, while a quick flick chooses by direction. The 12px-wide handle sits just beyond the bordered edge; its 6px grip spans half the drawer height and fades from 50% opacity to 80% on hover and 100% while dragging. The grip is white except in the light-theme, closed, openable state, where it is black for contrast. A closed drawer moves fully off-screen; its handle remains visible only when `canDragOpen` is enabled. When open, a 36% black scrim with 4px backdrop blur covers underlying content, with the drawer and handle layered above it. Closed content is inert, and reduced-motion preferences disable transitions.
 
@@ -89,7 +101,7 @@ Accordion composes a tight Square Icon Button caret, a Header Bar without its bo
 
 Floating Modal is a full-height, 4px-inset panel with an 8px radius, shadow, and a fixed Header Bar containing a close action. Its `surfaceLevel` selects the modal surface. Its column content region grows to fill the remaining height and scrolls independently. Any number of padded Contained Sections can be provided through the default slot. The component defaults closed; stories open it and demonstrate centered, left, and right positioning. Its controls are `surfaceLevel`, `open` and `position`.
 
-Tab Navigation is a transparent full-width column containing a borderless Toolbar and a selected Contained Section. The Toolbar uses Tight neutral Text Buttons; their `isActive` state and the selected section share the active surface color at the inherited `surfaceLevel`. Its `tabs` entries provide an id, label, HTML content and optional padding. The `selectedIndex` model lets the parent control selection, and `tab-change` reports the selected tab and index. Left/Right Arrow and Home/End provide keyboard tab navigation. Stories demonstrate surface levels 1, 2 and 3.
+Tab Navigation is a full-width column containing a Tabbar and a selected Contained Section. The root background and section use the neutral surface at the inherited `surfaceLevel`; the root background is displayed at half brightness. Tabbar controls selection, with non-selected buttons using its half-brightness bar fill and white foreground. A bottom rule spans the Tabbar; the selected button's bottom border matches the section surface to visually connect them. Setting the level to `null` keeps the component backgrounds transparent. Its `tabs` entries provide an id, label and HTML content. The `padded` control sets spacing on the selected Contained Section. The `selectedIndex` model lets the parent control selection, and `tab-change` reports the selected tab and index. Left/Right Arrow and Home/End provide keyboard tab navigation. Stories demonstrate surface levels 1, 2 and 3.
 
 `BookmarkButton` and `IdeaRow` retain their app contracts, including bookmark event arguments and workspace formatters. Storybook-only aliases replace bookmark and scroll-storage services with resettable memory implementations; the app builder never loads those aliases.
 

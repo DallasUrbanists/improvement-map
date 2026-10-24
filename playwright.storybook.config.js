@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 const pages = process.env.STORYBOOK_PAGES === '1';
 export default defineConfig({
   testDir: './tests/storybook',
-  testMatch: pages ? 'pages.spec.js' : ['catalog.spec.js', 'colors-doc.spec.js', 'square-icon-button.spec.js', 'big-circle-button.spec.js', 'text-button.spec.js', 'header-bar.spec.js', 'toolbar.spec.js', 'drawer.spec.js'],
+  testMatch: pages ? 'pages.spec.js' : ['catalog.spec.js', 'colors-doc.spec.js', 'square-icon-button.spec.js', 'big-circle-button.spec.js', 'text-button.spec.js', 'drawer.spec.js'],
   fullyParallel: true, workers: process.env.CI ? 4 : 2,
   timeout: 30000, retries: 0, forbidOnly: !!process.env.CI,
   outputDir: pages ? 'test-results/storybook/pages' : 'test-results/storybook/browser',

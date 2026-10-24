@@ -1,5 +1,5 @@
 <template>
-  <li class="idea-row" :data-theme="theme" :data-variant="variant" :style="colors">
+  <li class="idea-row" :data-theme="theme" :data-variant="variant" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :style="colors">
     <router-link :to="'/suggestion/' + encodeURIComponent(id)" class="idea-row-link" :data-suggestion-id="id" @click="$event.currentTarget.focus({ preventScroll: true })">
       <span class="idea-thumbnail">
         <img v-if="photo && !failed" :src="photo" alt="" loading="lazy" @error="failed = true" />
@@ -31,6 +31,7 @@ const props = defineProps({
   distanceText: { type: String, default: '' },
   theme: { type: String, default: undefined, validator: value => value === undefined || ['light', 'dark'].includes(value) },
   variant: { type: String, default: 'neutral', validator: value => ['neutral', 'primary', 'secondary'].includes(value) },
+  surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
 });
 const hasEmoji = computed(() => props.emoji.trim().length > 0);
 const documentTheme = ref(typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light');
@@ -45,9 +46,12 @@ onMounted(() => {
 onBeforeUnmount(() => themeObserver?.disconnect());
 const activeTheme = computed(() => props.theme || documentTheme.value);
 const colors = computed(() => {
-  const palette = buttonColors[activeTheme.value]?.[props.variant] || buttonColors.light.neutral;
+  const theme = buttonColors[activeTheme.value] || buttonColors.light;
+  const palette = props.variant === 'neutral'
+    ? theme.neutralByLevel[props.surfaceLevel ?? 1]
+    : theme[props.variant];
   return {
-    '--idea-row-background': palette.background,
+    '--idea-row-background': props.surfaceLevel === null && props.variant === 'neutral' ? 'transparent' : palette.background,
     '--idea-row-foreground': palette.foreground,
     '--idea-row-border': palette.border,
     '--idea-row-hover': palette.hover,

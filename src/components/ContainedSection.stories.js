@@ -34,6 +34,7 @@ export default {
     const theme = args.theme || globals.theme || 'light';
     await expect(section).toHaveClass('contained-section');
     await expect(section).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
+    // Representative contract for theme/surfaceLevel token mapping, shared by composed sections.
     await expect(window.getComputedStyle(section).backgroundColor).toBe(expectedSurface(theme, args.surfaceLevel));
     await expect(section.classList.contains('contained-section--padded')).toBe(args.padded);
     await expect(section.querySelectorAll('p')).toHaveLength(2);

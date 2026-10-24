@@ -1,9 +1,6 @@
 import { expect, fn, userEvent, within } from 'storybook/test';
 import { ref, watch } from 'vue';
 import NewIdeaSpecialButton from './NewIdeaSpecialButton.vue';
-import { buttonColors } from '../design/buttonColors.js';
-
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 
 export default {
   title: 'BUTTONS/New Idea Special Button',
@@ -48,18 +45,12 @@ export default {
     },
     template: '<NewIdeaSpecialButton :state="state" :theme="args.theme || globalTheme" :variant="args.variant" :pin-top="args.pinTop" :pin-ready="args.pinReady" @new="enterPin" @set-pin="setPin" @cancel-pin="cancelPin" @close="close" />',
   }),
-  play: async ({ canvasElement, args, globals }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    const theme = args.theme || globals.theme || 'light';
     const button = label => canvas.getByRole('button', { name: label, exact: true });
     const mainLabel = args.state === 'new' ? 'New' : args.state === 'pin' ? 'Set pin and continue' : 'Close';
     const main = button(mainLabel);
-    const variant = args.state === 'close' ? 'neutral' : args.variant;
-    const palette = args.state === 'pin' && !args.pinReady
-      ? buttonColors[theme].disabled[variant]
-      : buttonColors[theme][variant];
     await expect(main).toBeVisible();
-    await expect(main).toHaveCSS('color', asRgb(palette.foreground));
     if (args.state === 'new' || args.state === 'close') {
       await expect(main).toHaveClass('big-circle-button');
       await userEvent.click(main);

@@ -14,6 +14,7 @@
       class="floating-modal__header"
       :theme="theme"
       variant="neutral"
+      :surface-level="surfaceLevel"
       :label="label"
       :subtitle="subtitle"
       :buttons="[{ icon: 'xmark', label: 'Close' }]"
@@ -42,9 +43,13 @@ const props = defineProps({
 const open = defineModel('open', { type: Boolean, default: false });
 const emit = defineEmits(['close']);
 
-const modalStyle = computed(() => ({
-  '--floating-modal-surface': props.surfaceLevel === null ? 'transparent' : buttonColors[props.theme]?.neutralByLevel[props.surfaceLevel].background || buttonColors.light.neutralByLevel[5].background,
-}));
+const modalStyle = computed(() => {
+  const palette = buttonColors[props.theme]?.neutralByLevel[props.surfaceLevel ?? 5] || buttonColors.light.neutralByLevel[5];
+  return {
+    '--floating-modal-surface': props.surfaceLevel === null ? 'transparent' : palette.background,
+    '--floating-modal-border': palette.border,
+  };
+});
 
 function close() {
   open.value = false;
@@ -65,6 +70,7 @@ function close() {
   height: calc(100% - 8px);
   overflow: hidden;
   border-radius: 8px;
+  border: 1px solid var(--floating-modal-border);
   background: var(--floating-modal-surface);
   box-shadow: 0 3px 12px #00000040;
 }

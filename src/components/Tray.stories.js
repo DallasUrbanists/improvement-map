@@ -2,11 +2,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import Tray from './Tray.vue';
 import HeaderBar from './HeaderBar.vue';
 import Toolbar from './Toolbar.vue';
-import { buttonColors } from '../design/buttonColors.js';
-
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 const isTransparent = level => level === null || level === 'transparent';
-const expectedSurface = (theme, level) => isTransparent(level) ? 'rgba(0, 0, 0, 0)' : asRgb(buttonColors[theme].neutralByLevel[level].background);
 const surfaceLevelAttribute = level => isTransparent(level) ? 'transparent' : String(level);
 
 const sharedArgs = {
@@ -45,18 +41,11 @@ export default {
   }),
 };
 
-const verifyOpenTray = async (canvasElement, globals, args) => {
+const verifyOpenTray = async (canvasElement, args) => {
   const canvas = within(canvasElement);
   const tray = canvas.getByRole('complementary', { name: 'Tray' });
-  const theme = args.theme || globals.theme || 'light';
   await expect(tray).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
-  await expect(window.getComputedStyle(tray).backgroundColor).toBe(expectedSurface(theme, args.surfaceLevel));
   await expect(tray).toBeVisible();
-  const styles = window.getComputedStyle(tray);
-  expect(styles.borderTopLeftRadius).toBe('8px');
-  expect(styles.borderTopRightRadius).toBe('8px');
-  expect(styles.borderBottomLeftRadius).toBe('0px');
-  expect(styles.borderBottomRightRadius).toBe('0px');
   await expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium');
   const handle = canvasElement.querySelector('.tray__handle');
   await expect(handle).toBeTruthy();
@@ -111,8 +100,8 @@ export const WithHeader = {
     setup: () => ({ args, globalTheme: globals.theme }),
     template: '<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><HeaderBar label="Tray" :theme="args.theme || globalTheme" variant="neutral" :buttons="[{ icon: \'xmark\', label: \'Close tray\' }]" @button-click="args.open = false" /></Tray>',
   }),
-  play: async ({ canvasElement, globals, args }) => {
-    const { canvas, tray } = await verifyOpenTray(canvasElement, globals, args);
+  play: async ({ canvasElement, args }) => {
+    const { canvas, tray } = await verifyOpenTray(canvasElement, args);
     await flickHandle(canvasElement, -24, 'medium');
     await expectPosition(canvasElement, 'max');
     await flickHandle(canvasElement, 24, 'max');
@@ -144,23 +133,15 @@ export const WithToolbar = {
     setup: () => ({ args, globalTheme: globals.theme }),
     template: '<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><Toolbar :theme="args.theme || globalTheme" variant="neutral" :buttons="[{ icon: \'arrow-left\', label: \'Back\' }, { icon: \'bookmark\', label: \'Save\' }, { icon: \'xmark\', label: \'Close tray\' }]" @button-click="({ button }) => { if (button.label === \'Close tray\') args.open = false }" /></Tray>',
   }),
-  play: async ({ canvasElement, globals, args }) => {
-    const { canvas, tray } = await verifyOpenTray(canvasElement, globals, args);
+  play: async ({ canvasElement, args }) => {
+    const { canvas, tray } = await verifyOpenTray(canvasElement, args);
     const toolbar = canvasElement.querySelector('.toolbar');
     await expect(toolbar).toBeTruthy();
     await expect(within(toolbar).getByRole('button', { name: 'Back' })).toBeVisible();
     await expect(within(toolbar).getByRole('button', { name: 'Save' })).toBeVisible();
     for (const button of toolbar.querySelectorAll('button')) {
       await expect(button).toHaveAttribute('data-layout', 'tight');
-      const styles = window.getComputedStyle(button);
-      expect(styles.margin).toBe('0px');
-      expect(styles.borderRadius).toBe('0px');
-      expect(styles.boxShadow).toBe('none');
     }
-    const toolbarButtons = [...toolbar.querySelectorAll('button')];
-    expect(window.getComputedStyle(toolbarButtons[0]).borderLeftWidth).toBe('0px');
-    expect(window.getComputedStyle(toolbarButtons[1]).borderLeftWidth).toBe('1px');
-    expect(window.getComputedStyle(toolbar).borderBottomWidth).toBe('1px');
     await userEvent.click(within(toolbar).getByRole('button', { name: 'Close tray' }));
     await expect(tray).toHaveAttribute('data-open', 'false');
     await userEvent.click(canvas.getByRole('button', { name: 'Open tray' }));

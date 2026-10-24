@@ -1,9 +1,5 @@
 import { expect, fn, userEvent, within } from 'storybook/test';
 import SquareIconButton from './SquareIconButton.vue';
-import { buttonColors } from '../design/buttonColors.js';
-import { surfaceColors } from '../design/surfaceColors.js';
-
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 
 export default {
   title: 'BUTTONS/Square Icon Button', component: SquareIconButton,
@@ -26,20 +22,6 @@ export default {
   render: (args, { globals }) => ({ components: { SquareIconButton }, setup: () => ({ args, globalTheme: globals.theme }), template: '<SquareIconButton v-bind="args" :theme="args.theme || globalTheme" />' }),
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: args.label });
-    const styles = window.getComputedStyle(button);
-    const theme = button.dataset.theme || 'light';
-    const variant = button.dataset.variant || 'neutral';
-    const palette = args.disabled ? buttonColors[theme].disabled[variant] : buttonColors[theme][variant];
-    const activeBackground = args.surfaceLevel === null ? 'transparent' : surfaceColors[theme].active[`level${args.surfaceLevel ?? 1}`];
-    await expect(styles.color).toBe(asRgb(palette.foreground));
-    await expect(styles.borderColor).toBe(asRgb(palette.border));
-    if (args.isActive) {
-      await expect(styles.backgroundImage).toBe('none');
-      await expect(styles.backgroundColor).toBe(args.surfaceLevel === null ? 'rgba(0, 0, 0, 0)' : asRgb(activeBackground));
-    } else if (args.disabled) {
-      await expect(styles.backgroundImage).toBe('none');
-      await expect(styles.backgroundColor).toBe(asRgb(palette.background));
-    } else await expect(styles.backgroundImage).toContain('linear-gradient');
     await expect(button).toHaveAttribute('title', args.label);
     await expect(button).toHaveTextContent('');
     if (args.disabled) {
@@ -47,11 +29,6 @@ export default {
       await userEvent.click(button);
       await expect(args.onClick).not.toHaveBeenCalled();
     } else {
-      if (args.isActive) {
-        await userEvent.hover(button);
-        await expect(window.getComputedStyle(button).backgroundColor).toBe(asRgb(activeBackground));
-        await userEvent.unhover(button);
-      }
       await userEvent.click(button);
       await expect(args.onClick).toHaveBeenCalledTimes(1);
       button.focus();

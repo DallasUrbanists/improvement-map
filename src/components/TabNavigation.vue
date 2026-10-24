@@ -4,10 +4,14 @@
     class="tab-navigation"
     :data-theme="theme"
     :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel"
-    :style="{ '--tab-navigation-active-surface': activeSurface }"
+    :style="{
+      '--tab-navigation-active-surface': activeSurface,
+      '--tab-navigation-background': activeSurface,
+      '--tab-navigation-foreground': theme === 'light' ? '#000000' : '#ffffff',
+    }"
     @keydown="onKeydown"
   >
-    <Toolbar
+    <Tabbar
       class="tab-navigation__toolbar"
       role="tablist"
       aria-label="Sections"
@@ -16,6 +20,7 @@
       button-type="text"
       :surface-level="surfaceLevel"
       :buttons="toolbarButtons"
+      :selected-index="selectedIndex"
       @button-click="selectTab($event.index)"
     />
     <ContainedSection
@@ -25,28 +30,33 @@
       class="tab-navigation__section tab-navigation__section--active"
       :theme="theme"
       :surface-level="surfaceLevel"
-      :padded="tabs[selectedIndex].padded !== false"
-      :content="tabs[selectedIndex].content || ''"
+      :padded="padded"
       role="tabpanel"
       tabindex="0"
       :aria-labelledby="tabId(selectedIndex)"
-    />
+    >
+      <slot name="section" :tab="tabs[selectedIndex]" :selected-index="selectedIndex">
+        <div v-html="tabs[selectedIndex].content || ''"></div>
+      </slot>
+    </ContainedSection>
   </div>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
 import ContainedSection from './ContainedSection.vue';
-import Toolbar from './Toolbar.vue';
+import Tabbar from './Tabbar.vue';
 import { surfaceColors } from '../design/surfaceColors.js';
 
-/** Surface-aware tab strip and its selected content section. */
+/** Surface-aware tab strip and selected content section; a section slot can render interactive content. */
 const props = defineProps({
   theme: { type: String, default: 'light', validator: value => ['light', 'dark'].includes(value) },
-  /** Surface depth for the active tab and selected section; null makes them transparent. */
+  /** Neutral surface depth for the selected tab, section and root background. Null makes the surfaces transparent. */
   surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
-  /** Tabs accept id, label, HTML content and optional padded. */
+  /** Tabs accept id, label and HTML content. */
   tabs: { type: Array, default: () => [] },
+  /** Whether the selected Contained Section adds interior padding. */
+  padded: { type: Boolean, default: true },
 });
 const selectedIndex = defineModel('selectedIndex', { type: Number, default: 0 });
 const emit = defineEmits(['tab-change']);
@@ -54,8 +64,7 @@ const root = ref(null);
 
 const activeSurface = computed(() => props.surfaceLevel === null
   ? 'transparent'
-  : surfaceColors[props.theme]?.active[`level${props.surfaceLevel}`] || surfaceColors.light.active.level1);
-
+  : surfaceColors[props.theme]?.neutral[`level${props.surfaceLevel}`] || surfaceColors.light.neutral.level1);
 const toolbarButtons = computed(() => props.tabs.map((tab, index) => ({
   ...tab,
   icon: '',
@@ -93,21 +102,35 @@ function onKeydown(event) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: transparent;
+  position: relative;
+  isolation: isolate;
+  background: var(--tab-navigation-background);
+  color: var(--tab-navigation-foreground);
 }
-.tab-navigation :deep(.toolbar.tab-navigation__toolbar) {
-  min-height: 48px;
-  background-color: transparent;
+.tab-navigation::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: var(--tab-navigation-background);
+  content: '';
+  filter: brightness(0.5);
+}
+.tab-navigation :deep(.tabbar.tab-navigation__toolbar) {
+  border-bottom: 1px solid var(--tabbar-border);
+}
+.tab-navigation :deep(.tabbar.tab-navigation__toolbar .map-ui-button[data-tabbar-selected="true"]) {
+  position: relative;
+  z-index: 2;
   border-bottom: 0;
 }
-.tab-navigation :deep(.map-ui-button[role="tab"][aria-selected="true"]) {
-  background: var(--tab-navigation-active-surface);
-}
-.tab-navigation :deep(.map-ui-button[role="tab"][aria-selected="true"]:hover:not(:disabled)),
-.tab-navigation :deep(.map-ui-button[role="tab"][aria-selected="true"]:active:not(:disabled)) {
-  background: var(--tab-navigation-active-surface);
-}
-.tab-navigation :deep(.tab-navigation__section--active) {
-  background: var(--tab-navigation-active-surface);
+.tab-navigation :deep(.tabbar.tab-navigation__toolbar .map-ui-button[data-tabbar-selected="true"]::after) {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--tabbar-background);
+  content: '';
 }
 </style>

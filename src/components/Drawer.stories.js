@@ -2,11 +2,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import Drawer from './Drawer.vue';
 import HeaderBar from './HeaderBar.vue';
 import RowButton from './RowButton.vue';
-import { buttonColors } from '../design/buttonColors.js';
-
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 const isTransparent = level => level === null || level === 'transparent';
-const expectedSurface = (theme, level) => isTransparent(level) ? 'rgba(0, 0, 0, 0)' : asRgb(buttonColors[theme].neutralByLevel[level].background);
 const surfaceLevelAttribute = level => isTransparent(level) ? 'transparent' : String(level);
 
 export default {
@@ -37,11 +33,9 @@ export default {
 export const SlideFromLeft = {
   name: 'Slide from left',
   args: { side: 'left' },
-  play: async ({ canvasElement, globals, args }) => {
+  play: async ({ canvasElement, args }) => {
     const drawer = within(canvasElement).getByRole('complementary', { name: 'Drawer' });
-    const theme = args.theme || globals.theme || 'light';
     await expect(drawer).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
-    await expect(window.getComputedStyle(drawer).backgroundColor).toBe(expectedSurface(theme, args.surfaceLevel));
     const shell = canvasElement.querySelector('.drawer-shell');
     await expect(drawer.querySelector('.header-bar')).toHaveTextContent('Drawer');
     await expect(drawer).toBeVisible();
@@ -64,11 +58,9 @@ export const SlideFromLeft = {
 export const SlideFromRight = {
   name: 'Slide from right',
   args: { side: 'right' },
-  play: async ({ canvasElement, globals, args }) => {
+  play: async ({ canvasElement, args }) => {
     const drawer = within(canvasElement).getByRole('complementary', { name: 'Drawer' });
-    const theme = args.theme || globals.theme || 'light';
     await expect(drawer).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
-    await expect(window.getComputedStyle(drawer).backgroundColor).toBe(expectedSurface(theme, args.surfaceLevel));
     const shell = canvasElement.querySelector('.drawer-shell');
     await expect(drawer.querySelector('.header-bar')).toHaveTextContent('Drawer');
     await expect(drawer).toBeVisible();

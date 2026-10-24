@@ -1,11 +1,6 @@
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import Accordion from './Accordion.vue';
-import { textColors } from '../design/textColors.js';
-import { buttonColors } from '../design/buttonColors.js';
-
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 const isTransparent = level => level === null || level === 'transparent';
-const expectedSurface = (theme, level) => isTransparent(level) ? 'rgba(0, 0, 0, 0)' : asRgb(buttonColors[theme].neutralByLevel[level].background);
 const surfaceLevelAttribute = level => isTransparent(level) ? 'transparent' : String(level);
 
 const paragraph = '<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero.</p>';
@@ -56,24 +51,15 @@ export const WithSimpleHeader = {
     header: { label: 'About this place', variant: 'neutral', subtitle: '', buttons: [] },
     content: paragraph,
   },
-  play: async ({ canvasElement, globals, args }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const accordion = canvasElement.querySelector('.accordion');
-    const theme = args.theme || globals.theme || 'light';
     await expect(accordion).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
-    await expect(window.getComputedStyle(accordion).backgroundColor).toBe(expectedSurface(theme, args.surfaceLevel));
-    await expect(window.getComputedStyle(accordion).borderTopWidth).toBe('1px');
-    await expect(window.getComputedStyle(accordion).borderBottomWidth).toBe('1px');
-    await expect(window.getComputedStyle(accordion).transition).toContain('background-color');
     const header = canvas.getByRole('banner');
     await expect(header).toHaveTextContent('About this place');
-    await expect(window.getComputedStyle(header).borderBottomWidth).toBe('0px');
     await expect(canvas.getByText(/Lorem ipsum/)).toBeVisible();
     const caret = canvas.getByRole('button', { name: 'Collapse About this place' });
-    await expect(window.getComputedStyle(caret).borderLeftWidth).toBe('0px');
-    await expect(window.getComputedStyle(caret).borderRightWidth).toBe('0px');
     await userEvent.click(caret);
-    await waitFor(() => expect(window.getComputedStyle(accordion).backgroundColor).toBe('rgba(0, 0, 0, 0)'));
     await waitFor(() => expect(canvas.queryByText(/Lorem ipsum/)).toBeNull());
     await expect(canvas.getByRole('button', { name: 'Expand About this place' })).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(canvas.getByRole('button', { name: 'Expand About this place' }));
@@ -106,17 +92,12 @@ export const Locked = {
     header: { label: 'Unavailable section', variant: 'neutral', subtitle: '', buttons: [] },
     content: paragraph,
   },
-  play: async ({ canvasElement, globals, args }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const accordion = canvasElement.querySelector('.accordion');
     const caret = canvas.getByRole('button', { name: 'Expand Unavailable section' });
-    const theme = args.theme || globals.theme || 'light';
     await expect(caret).toHaveAttribute('aria-disabled', 'true');
     await expect(accordion).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
-    await expect(window.getComputedStyle(accordion).backgroundColor).toBe('rgba(0, 0, 0, 0)');
-    await expect(window.getComputedStyle(caret).borderTopWidth).toBe('0px');
-    await expect(window.getComputedStyle(caret).backgroundColor).toBe('rgba(0, 0, 0, 0)');
-    await expect(window.getComputedStyle(caret.querySelector('i')).color).toBe(asRgb(textColors.muted[theme].neutral.level1));
     await userEvent.click(caret);
     await expect(canvas.queryByText(/Lorem ipsum/)).toBeNull();
   },

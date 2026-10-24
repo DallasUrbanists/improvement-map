@@ -41,12 +41,13 @@ export default {
     await expect(map).toHaveAttribute('data-rails-thickness', String(args.railsThickness));
     await expect(map).toHaveAttribute('data-cover-viewport', String(args.coverViewport));
     await expect(map.querySelector('.google-map__canvas')).not.toBeNull();
+    const style = window.getComputedStyle(map);
     if (args.coverViewport) {
-      await expect(map).toHaveCSS('position', 'fixed');
-      await expect(map).toHaveCSS('z-index', '0');
+      await expect(style.position).toBe('fixed');
+      await expect(style.zIndex).toBe('0');
     } else {
-      await expect(map).toHaveCSS('width', args.width === '100%' ? `${canvasElement.clientWidth}px` : args.width);
-      await expect(map).toHaveCSS('height', args.height);
+      await expect(style.width).toBe(args.width === '100%' ? `${canvasElement.clientWidth}px` : args.width);
+      await expect(map.style.height).toBe(args.height);
     }
   },
 };

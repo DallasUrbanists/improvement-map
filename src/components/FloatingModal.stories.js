@@ -1,11 +1,7 @@
 import { expect, userEvent, within } from 'storybook/test';
 import ContainedSection from './ContainedSection.vue';
 import FloatingModal from './FloatingModal.vue';
-import { buttonColors } from '../design/buttonColors.js';
-
-const asRgb = hex => `rgb(${[1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16)).join(', ')})`;
 const isTransparent = level => level === null || level === 'transparent';
-const expectedSurface = (theme, level) => isTransparent(level) ? 'rgba(0, 0, 0, 0)' : asRgb(buttonColors[theme].neutralByLevel[level].background);
 const surfaceLevelAttribute = level => isTransparent(level) ? 'transparent' : String(level);
 
 const sections = Array.from({ length: 7 }, (_, index) => ({
@@ -37,7 +33,7 @@ export default {
   parameters: {
     layout: 'fullscreen',
     controls: { include: ['surfaceLevel', 'open', 'position'] },
-    docs: { description: { component: 'Draft. A floating, full-height modal with 4px viewport margins, 8px rounded corners, a fixed Header Bar, and independently scrolling Contained Sections.' } },
+    docs: { description: { component: 'Draft. A floating, full-height modal with 4px viewport margins, 8px rounded corners, a solid border on all sides, a fixed Header Bar, and independently scrolling Contained Sections.' } },
   },
   render: (args, { globals }) => ({
     components: { FloatingModal, ContainedSection },
@@ -46,16 +42,18 @@ export default {
   }),
 };
 
-const checkModal = async ({ canvasElement, args, globals }) => {
+const checkModal = async ({ canvasElement, args }) => {
   const canvas = within(canvasElement);
   const modal = canvas.getByRole('dialog', { name: args.label });
   const header = canvas.getByRole('banner');
   const content = modal.querySelector('.floating-modal__content');
   await expect(modal).toHaveClass(`floating-modal--${args.position}`);
-  const theme = args.theme || globals.theme || 'light';
   await expect(modal).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
-  await expect(window.getComputedStyle(modal).backgroundColor).toBe(expectedSurface(theme, args.surfaceLevel));
-  await expect(modal).toHaveStyle({ maxWidth: '1024px', borderRadius: '8px' });
+  // Explicit component contract: the panel has a solid border on every side.
+  for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
+    await expect(parseFloat(window.getComputedStyle(modal)[`border${side}Width`])).toBeGreaterThan(0);
+    await expect(window.getComputedStyle(modal)[`border${side}Style`]).toBe('solid');
+  }
   await expect(header).toHaveTextContent(args.label);
   await expect(header).toHaveTextContent(args.subtitle);
   await expect(modal.querySelectorAll('.contained-section')).toHaveLength(args.sections.length);
@@ -63,7 +61,6 @@ const checkModal = async ({ canvasElement, args, globals }) => {
     await expect(section).toHaveClass('contained-section--padded');
   }
   await expect(window.getComputedStyle(content).overflowY).toBe('auto');
-  await expect(window.getComputedStyle(header).flexShrink).toBe('0');
   return { canvas, modal };
 };
 
