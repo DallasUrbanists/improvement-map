@@ -42,6 +42,20 @@ export function frontendTextAssets(names) {
   return [...required, ...names.filter(name => name === 'registerSW.js' || /^workbox-[\w-]+\.js$/.test(name))];
 }
 
+export async function waitForPublishedMetadata(expected, read, { attempts = 7, pause = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      assert.deepEqual(await read(), expected);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts) await pause(5000);
+    }
+  }
+  throw lastError;
+}
+
 async function get(url) {
   const response = await fetch(url, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20000) });
   assert.equal(response.status, 200, `Unexpected response for ${new URL(url).pathname}`);
@@ -65,9 +79,13 @@ async function main() {
   const expected = JSON.parse(readFileSync('dist/build-info.json', 'utf8'));
   verifyArtifactInfo(expected, process.env.BUILD_COMMIT, origin);
   const nonce = `?verify=${expected.buildCommit}-${Date.now()}`;
-  const metadata = await get(`${stagingSite}/build-info.json${nonce}`);
-  verifyHeaders(metadata.headers);
-  assert.deepEqual(await metadata.json(), expected);
+  // Hosting publication can briefly return the previous release at an edge.
+  // Retry only within a bounded window; the exact metadata contract still applies.
+  await waitForPublishedMetadata(expected, async () => {
+    const metadata = await get(`${stagingSite}/build-info.json${nonce}&attempt=${Date.now()}`);
+    verifyHeaders(metadata.headers);
+    return metadata.json();
+  });
   const index = readFileSync('dist/index.html', 'utf8');
   for (const route of ['/', '/submit', '/suggestion/staging-route-probe']) {
     const response = await get(`${stagingSite}${route}${nonce}`);

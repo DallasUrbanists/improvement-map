@@ -11,7 +11,7 @@ import { buildInfo, validateStagingBuild } from '../scripts/staging-build.js';
 import { branchBase, comparisonBase, draftPrArgs } from '../scripts/branch-policy.js';
 import { resolveApiBaseUrl, stagingOrigin } from '../src/services/stagingOrigin.js';
 import { validateCloudInputs } from '../scripts/staging-cloud-inputs.js';
-import { frontendTextAssets, verifyArtifactInfo, verifyBackendIdentity, verifyHeaders } from '../scripts/verify-staging.js';
+import { frontendTextAssets, verifyArtifactInfo, verifyBackendIdentity, verifyHeaders, waitForPublishedMetadata } from '../scripts/verify-staging.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = file => readFileSync(path.join(root, file), 'utf8');
@@ -163,6 +163,17 @@ test('frontend verification accepts bundled registration and checks generated wo
   assert.deepEqual(frontendTextAssets(names), names.slice(0, -1));
   assert.ok(frontendTextAssets([...names, 'registerSW.js']).includes('registerSW.js'));
   assert.throws(() => frontendTextAssets(names.filter(name => name !== 'sw.js')), /sw.js/);
+});
+
+test('metadata verification tolerates propagation but still rejects an old or wrong release', async () => {
+  const expected = buildInfo(env);
+  let reads = 0; let pauses = 0;
+  await waitForPublishedMetadata(expected, async () => ++reads === 1 ? { ...expected, buildCommit: 'b'.repeat(40) } : expected, { pause: async () => { pauses++; } });
+  assert.equal(reads, 2);
+  assert.equal(pauses, 1);
+  reads = 0;
+  await assert.rejects(waitForPublishedMetadata(expected, async () => { reads++; return { ...expected, apiBaseUrl: 'https://wrong.example.invalid' }; }, { attempts: 3, pause: async () => {} }));
+  assert.equal(reads, 3, 'A stale/wrong release must fail after the bounded retry');
 });
 
 test('cloud inputs and backend identity fail closed without a receipt', () => {
