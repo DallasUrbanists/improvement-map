@@ -34,6 +34,14 @@ export function verifyHeaders(headers, immutable = false) {
   }
 }
 
+export function frontendTextAssets(names) {
+  const required = ['index.html', 'sw.js', 'manifest.webmanifest', 'robots.txt'];
+  for (const name of required) assert.ok(names.includes(name), `Missing required frontend asset: ${name}`);
+  // virtual:pwa-register embeds registration in the app bundle. Other supported
+  // Vite PWA builds emit registerSW.js; verify it only when actually generated.
+  return [...required, ...names.filter(name => name === 'registerSW.js' || /^workbox-[\w-]+\.js$/.test(name))];
+}
+
 async function get(url) {
   const response = await fetch(url, { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(20000) });
   assert.equal(response.status, 200, `Unexpected response for ${new URL(url).pathname}`);
@@ -67,7 +75,7 @@ async function main() {
     assert.match(response.headers.get('content-type') || '', /text\/html/);
     assert.equal(await response.text(), index, `Direct route ${route} must serve this build's index`);
   }
-  for (const file of ['index.html', 'sw.js', 'registerSW.js', 'manifest.webmanifest', 'robots.txt']) {
+  for (const file of frontendTextAssets(readdirSync('dist'))) {
     const response = await get(`${stagingSite}/${file}${nonce}`);
     verifyHeaders(response.headers);
     assert.equal(await response.text(), readFileSync(`dist/${file}`, 'utf8'), `Unexpected asset: ${file}`);

@@ -11,7 +11,7 @@ import { buildInfo, validateStagingBuild } from '../scripts/staging-build.js';
 import { branchBase, comparisonBase, draftPrArgs } from '../scripts/branch-policy.js';
 import { resolveApiBaseUrl, stagingOrigin } from '../src/services/stagingOrigin.js';
 import { validateCloudInputs } from '../scripts/staging-cloud-inputs.js';
-import { verifyArtifactInfo, verifyBackendIdentity, verifyHeaders } from '../scripts/verify-staging.js';
+import { frontendTextAssets, verifyArtifactInfo, verifyBackendIdentity, verifyHeaders } from '../scripts/verify-staging.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = file => readFileSync(path.join(root, file), 'utf8');
@@ -156,6 +156,13 @@ test('local selector uses Git fixture branches and fails without staging or deta
   assert.equal(guard.status, 1);
   git(cwd, 'checkout', '-q', 'main');
   assert.equal(spawnSync(process.execPath, [path.join(root, 'scripts/assert-main.js')], { cwd }).status, 0);
+});
+
+test('frontend verification accepts bundled registration and checks generated worker files', () => {
+  const names = ['index.html', 'sw.js', 'manifest.webmanifest', 'robots.txt', 'workbox-12345678.js', 'assets'];
+  assert.deepEqual(frontendTextAssets(names), names.slice(0, -1));
+  assert.ok(frontendTextAssets([...names, 'registerSW.js']).includes('registerSW.js'));
+  assert.throws(() => frontendTextAssets(names.filter(name => name !== 'sw.js')), /sw.js/);
 });
 
 test('cloud inputs and backend identity fail closed without a receipt', () => {
