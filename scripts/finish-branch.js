@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { draftPrArgs } from './branch-policy.js';
 
 const [branchType] = process.argv.slice(2);
 const allowedBranchTypes = new Set(['feature', 'refactor']);
@@ -95,7 +96,7 @@ if (workingTree.stdout.trim()) {
 }
 
 console.log('\nCreating a draft pull request...');
-const pullRequest = run('gh', ['pr', 'create', '--draft', '--fill']);
+const pullRequest = run('gh', draftPrArgs);
 if (pullRequest.error?.code === 'ENOENT') {
   console.error(`GitHub CLI (gh) is not installed or is not on PATH. Install it, authenticate, then rerun \`${command}\`.`);
   process.exit(1);

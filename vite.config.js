@@ -1,10 +1,11 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import fs from 'fs';
 import { validateManifest } from './src/services/releaseVersions.js';
+import { stagingBuildPlugin } from './scripts/staging-build.js';
 
 function releaseManifestPlugin() {
   return {
@@ -37,16 +38,16 @@ function spa404Plugin() {
   };
 }
 
-const getBasePath = () => {
-  if (process.env.BASE_PATH !== undefined) {
-    if (process.env.BASE_PATH === '' || process.env.BASE_PATH === '/') return '/';
-    return process.env.BASE_PATH.endsWith('/') ? process.env.BASE_PATH : `${process.env.BASE_PATH}/`;
+const getBasePath = (env) => {
+  if (env.BASE_PATH !== undefined) {
+    if (env.BASE_PATH === '' || env.BASE_PATH === '/') return '/';
+    return env.BASE_PATH.endsWith('/') ? env.BASE_PATH : `${env.BASE_PATH}/`;
   }
   return '/';
 };
 
-export default defineConfig({
-  base: getBasePath(),
+export default defineConfig(({ mode }) => ({
+  base: getBasePath({ ...loadEnv(mode, process.cwd(), ''), ...process.env }),
   build: {
     rollupOptions: {
       output: {
@@ -94,7 +95,13 @@ export default defineConfig({
         ]
       },
       workbox: {
+        globIgnores: ['**/build-info.json'],
+        navigateFallbackDenylist: [/\/build-info\.json$/],
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname === '/build-info.json',
+            handler: 'NetworkOnly',
+          },
           {
             urlPattern: /^https?:\/\/[^/]+\/api\/public-improvements\/presentation(?:\/|$)/i,
             handler: 'NetworkOnly',
@@ -150,7 +157,8 @@ export default defineConfig({
           }
         ]
       }
-    })
+    }),
+    stagingBuildPlugin(),
   ],
   resolve: {
     alias: {
@@ -196,4 +204,4 @@ export default defineConfig({
       },
     },
   }
-});
+}));

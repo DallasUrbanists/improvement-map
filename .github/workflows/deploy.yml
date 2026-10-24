@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   critical-tests:
+    if: github.event_name == 'release' || (github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch'))
     runs-on: ubuntu-latest
     outputs:
       commit: ${{ steps.source.outputs.commit }}
@@ -52,6 +53,7 @@ jobs:
         run: npm run test:critical
 
   build-and-deploy:
+    if: github.event_name == 'release' || (github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch'))
     needs: critical-tests
     environment:
       name: github-pages

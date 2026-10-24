@@ -7,7 +7,14 @@ later releases are acknowledged only on dismissal. Storage is browser-local.
 
 ## Publishing
 
-1. Use the existing `npm run patch`, `minor`, or `major` version command. Stable
+Ordinary PRs target staging. Promote the tested batch with a regular merge PR
+from staging to main; merge main hotfixes back into staging. See
+[staging operations](deployment/firebase-staging.md) for configuration, acceptance
+and rollback. Staging never creates releases. Manual production dispatch requires
+main; release events retain their existing main-source behavior.
+
+1. On main, use `npm run patch`, `minor`, or `major`. The `preversion` guard
+   rejects other branches. Stable
    `vMAJOR.MINOR.PATCH` tags trigger **Prepare release draft**.
 2. Review the draft in GitHub Releases. Describe user-visible changes in plain
    language; add any direct commits missing from PR-generated notes. PR labels

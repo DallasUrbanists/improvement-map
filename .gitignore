@@ -18,6 +18,8 @@ dist-ssr/
 .env.*
 !.env.example
 gcp-key.json
+gha-creds-*.json
+.firebase/
 *.pem
 
 # Editor / IDE

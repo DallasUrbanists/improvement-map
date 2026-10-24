@@ -6,6 +6,11 @@ async function open(page) {
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
   await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
 }
+
+test('311 search uses the configured API origin without navigating', async ({ page }) => {
+  await open(page);
+  await expect(page.getByRole('link', { name: 'Go to 311 search' })).toHaveAttribute('href', 'https://api.presentation.test/playground/recommendables?idea=1');
+});
 test('save and hide independently, reload, review and remove from My actions', async ({ page }) => {
   await page.addInitScript(a => { window.__ux.actions = [a]; }, action);
   await open(page);

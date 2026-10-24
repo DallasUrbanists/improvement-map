@@ -74,7 +74,8 @@ test('routine UX suite selectors partition the existing device/theme matrix exac
   const before = list(['--config=playwright.ux.config.js']);
   const after = ['ux-browse', 'ux-submit', 'ux-saved', 'ux-navigation', 'ux-motion', 'ux-content', 'ux-actions', 'ux-streetmix', 'ux-presentation'].flatMap(id => cases(suiteList(id)));
   assert.deepEqual(after.sort(), cases(before));
-  assert.equal(after.length, 324);
+  // The staging-origin link assertion adds one case on each routine profile.
+  assert.equal(after.length, 328);
 });
 
 test('expanded UX selectors retain every expanded device/theme case exactly once', () => {

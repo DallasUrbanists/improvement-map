@@ -1,0 +1,21 @@
+{
+  "hosting": {
+    "target": "staging",
+    "public": "dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/gha-creds-*.json", "**/*.pem"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+          { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/assets/**/*-????????.@(js|css|woff|woff2|ttf|svg|png|jpg|webp)",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      }
+    ]
+  }
+}
