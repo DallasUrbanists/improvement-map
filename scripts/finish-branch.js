@@ -1,14 +1,14 @@
 import { spawnSync } from 'node:child_process';
 import { draftPrArgs } from './branch-policy.js';
 
-const [branchType] = process.argv.slice(2);
+const [branchType, ...extraArgs] = process.argv.slice(2);
 const allowedBranchTypes = new Set(['feature', 'refactor']);
-if (!allowedBranchTypes.has(branchType)) {
-  console.error('Usage: node scripts/finish-branch.js <feature|refactor>');
+if (!allowedBranchTypes.has(branchType) || extraArgs.length) {
+  console.error('Usage: npm run branch:finish -- <feature|refactor>');
   process.exit(2);
 }
 
-const command = `npm run finish:${branchType}`;
+const command = `npm run branch:finish -- ${branchType}`;
 
 function run(commandName, args, options = {}) {
   return spawnSync(commandName, args, { stdio: 'inherit', ...options });

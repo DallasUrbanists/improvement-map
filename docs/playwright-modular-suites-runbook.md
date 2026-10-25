@@ -13,7 +13,7 @@ Read `.agents/instructions.md`, then this document. Inspect `git status --short`
 ## Acceptance criteria
 
 - Eight UX suites each have Android and iPhone jobs, each retaining both themes: 16 routine UX jobs. Two browser regression jobs and one browserless unit job bring advisory execution to 19 jobs. The deployment critical check remains separate.
-- Every test/project combination currently executed by `test:critical`, `test:extended`, and `test:ux` remains covered exactly once across their replacements. Do not accidentally add desktop critical tests to advisory execution or remove mobile coverage.
+- Every test/project combination currently executed by `test:critical`, `npm test -- --grep-invert @critical`, and `test:ux` remains covered exactly once across their replacements. Do not accidentally add desktop critical tests to advisory execution or remove mobile coverage.
 - Each feature has its own filename gate and named result. Shared changes select affected consumers; unknown source/test files or unavailable diff information select conservatively. Documentation-only changes skip the test matrix.
 - All current assertions, audit scans, screenshots, retries, device emulation, and enforcement policies survive. Existing local development commands remain available.
 - Pages deployment depends on the critical check, not advisory checks. Advisory runs no longer occupy the Pages workflow concurrency lock.
@@ -22,7 +22,7 @@ Read `.agents/instructions.md`, then this document. Inspect `git status --short`
 
 ## Confirmed evidence and relevant code
 
-- `playwright.config.js` discovers 305 regression instances: 209 `unit`, 48 desktop Chromium, and 48 Mobile Chrome. The browser projects exclude `@unit`; `test:extended` excludes `@critical` across all projects, while `test:critical` selects desktop Chromium only. Preserve this actual selection, rather than assuming all 305 instances currently run in CI.
+- `playwright.config.js` discovers 305 regression instances: 209 `unit`, 48 desktop Chromium, and 48 Mobile Chrome. The browser projects exclude `@unit`; `npm test -- --grep-invert @critical` excludes `@critical` across all projects, while `test:critical` selects desktop Chromium only. Preserve this actual selection, rather than assuming all 305 instances currently run in CI.
 - `playwright.ux.config.js` discovers 316 routine UX instances. An older saved run had 320 instances and 1,897 worker-seconds over 16.1 minutes; WebKit accounted for about two-thirds of that work. Historical logs are sizing evidence, not a current passing baseline.
 - Regression CI currently uses one worker; UX uses two. Both configurations already enable `fullyParallel`. UX has one retry in CI; regression has two.
 - The locked and locally installed Playwright version at planning time is `1.63.0`. `package.json` requires Node `>=24.12.0`.

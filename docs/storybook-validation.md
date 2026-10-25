@@ -4,7 +4,7 @@ Validated against working changes based on `1c573de`. All catalog entries remain
 
 | Check | Result |
 | --- | --- |
-| `npm run build-storybook` | Passed; static catalog and Vue component/docs manifests generated |
+| `npm run build:storybook` | Passed; static catalog and Vue component/docs manifests generated |
 | `npm run build:pages` | Passed; app and catalog packaged together, app CNAME preserved |
 | `npm run test:storybook` | 56 passed: 28 stories in light and dark, including interaction and automated accessibility checks |
 | `npm run test:storybook:visual` | 121 passed: four width/theme profiles plus targeted WebKit dialog behavior and public-subpath checks |
