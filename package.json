@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "docker compose up --no-build --pull never",
+    "status": "node scripts/dev-status.js",
     "dev:provider": "vite",
     "preview": "vite preview",
     "branch:start": "node scripts/create-branch.js",
