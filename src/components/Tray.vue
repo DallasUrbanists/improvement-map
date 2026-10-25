@@ -18,7 +18,7 @@
         @pointerup="endDrag"
         @pointercancel="endDrag"
         @click="toggleFromClick"
-      ><span class="tray__grip" :class="{ 'tray__grip--dark': theme === 'light' && !open && canDragOpen }" aria-hidden="true"></span></button>
+      ><span class="tray__grip" :class="{ 'tray__grip--dark': theme === 'dark' }" aria-hidden="true"></span></button>
     </div>
   </div>
 </template>
@@ -92,7 +92,8 @@ function updateContentMetrics() {
   if (!head || !body) return;
   const headHeight = head.offsetHeight;
   const bodyHeight = body.scrollHeight;
-  naturalHeight.value = headHeight + bodyHeight;
+  const topBorder = Number.parseFloat(getComputedStyle(trayElement.value).borderTopWidth) || 0;
+  naturalHeight.value = headHeight + bodyHeight + topBorder;
   const mediumHeight = Math.min(props.mediumHeight, effectiveMaxHeight.value);
   scrollable.value = naturalHeight.value > mediumHeight + 1;
   if (!scrollable.value && maximize.value) maximize.value = false;
@@ -271,7 +272,7 @@ defineExpose({ element: trayElement, content: contentElement, contentElement, he
   box-shadow: 0 -3px 16px #00000040;
 }
 .tray__head { position: sticky; top: 0; z-index: 1; flex: 0 0 auto; }
-.tray__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.tray__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: v-bind('surface.foreground') transparent; scrollbar-width: thin; }
 .tray__handle {
   position: absolute;
   z-index: 2;
@@ -294,10 +295,14 @@ defineExpose({ element: trayElement, content: contentElement, contentElement, he
   height: 6px;
   border-radius: 999px;
   background: #fff;
+  filter: invert(1);
+  mix-blend-mode: difference;
   opacity: .5;
   transition: opacity 140ms ease-out;
 }
-.tray__grip--dark { background: #000; }
+.tray__grip--dark {
+  filter: invert(0);
+}
 .tray__handle:hover .tray__grip { opacity: .8; }
 .tray-shell--dragging .tray__handle .tray__grip { opacity: 1; }
 .tray-shell--closed .tray__handle { pointer-events: auto; }
