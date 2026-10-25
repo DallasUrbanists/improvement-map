@@ -25,7 +25,7 @@
         @update:model-value="updateAddress"
       />
     </div>
-    <div v-if="activeMode === 'searching' && addressValue.trim()" class="address-bar__results" role="list" aria-label="Address search results">
+    <div v-if="activeMode === 'searching' && addressValue.trim() && results.length > 0" class="address-bar__results" role="list" aria-label="Address search results">
       <RowItem
         v-for="(result, index) in results"
         :key="result.id || `${result.label}-${index}`"
@@ -101,6 +101,7 @@ function updateAddress(value) {
   width: 100%;
   min-width: 0;
   color: inherit;
+  padding: 4px;
 }
 .address-bar__controls {
   box-sizing: border-box;

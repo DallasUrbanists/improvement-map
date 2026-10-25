@@ -1,7 +1,8 @@
 <template>
   <MapControlButton class="square-icon-button" :style="colors" :data-theme="theme" :data-variant="variant" :data-layout="layout" :data-active="isActive"
     :disabled="disabled" :aria-label="label" :title="label">
-    <i class="fa-solid" :class="`fa-${icon}`" aria-hidden="true"></i>
+    <span v-if="icon === 'arrow-left-edge'" class="square-icon-button__custom-icon" aria-hidden="true"></span>
+    <i v-else class="fa-solid" :class="`fa-${icon}`" aria-hidden="true"></i>
   </MapControlButton>
 </template>
 <script setup>
@@ -40,7 +41,8 @@ const colors = computed(() => {
   box-shadow: 0 3px 12px #00000040; font-size: 20px; line-height: 1;
   touch-action: manipulation;
 }
-.square-icon-button:hover:not(:disabled) { background: var(--square-hover); color: var(--square-foreground); }
+.square-icon-button__custom-icon { width: 1em; height: 1em; background: currentColor; mask: url('/icons/arrow-left-edge.svg') center / contain no-repeat; -webkit-mask: url('/icons/arrow-left-edge.svg') center / contain no-repeat; }
+.square-icon-button.map-ui-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--square-hover); color: var(--square-foreground); }
 .square-icon-button:active:not(:disabled) { background: var(--square-press); color: var(--square-foreground); box-shadow: inset 0 2px 4px #00000030; }
 .square-icon-button:focus-visible { outline: 2px solid var(--square-focus); outline-offset: -4px; }
 .square-icon-button[data-active="true"], .square-icon-button[data-active="true"]:hover:not(:disabled), .square-icon-button[data-active="true"]:active:not(:disabled) { background: var(--square-activeBackground); }

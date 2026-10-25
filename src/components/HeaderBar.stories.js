@@ -3,7 +3,7 @@ import HeaderBar from './HeaderBar.vue';
 
 export default {
   title: 'BARS/Header Bar', component: HeaderBar,
-  args: { label: 'Header', subtitle: '', theme: undefined, variant: 'neutral', surfaceLevel: 1, buttons: [], onButtonClick: fn() },
+  args: { label: 'Header', subtitle: '', theme: undefined, variant: 'neutral', surfaceLevel: 1, buttons: [], seamlessButtonEdge: false, onButtonClick: fn() },
   argTypes: {
     theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Sets the bar background from the shared app palette.' },
@@ -11,12 +11,13 @@ export default {
     label: { control: 'text', description: 'Always-visible, left-aligned bold header text.' },
     subtitle: { control: 'text', description: 'Optional secondary line below the header label.' },
     buttons: { control: 'object', description: 'Square Icon Buttons to render at the right. Each item accepts icon, label, optional variant and disabled.' },
+    seamlessButtonEdge: { control: 'boolean', description: 'Removes the left border from the left-most button.' },
     onButtonClick: { table: { disable: true } },
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'surfaceLevel', 'label', 'subtitle', 'buttons'] },
-    docs: { description: { component: 'Draft. Full-width header bar with bold, left-aligned label, optional subtitle and a solid 1px bottom border. The variant control selects the shared palette background (Neutral, Primary or Secondary). With Buttons composes any number of existing Square Icon Buttons in Tight layout; each button inherits the bar variant unless it defines one.' } },
+    controls: { include: ['theme', 'variant', 'surfaceLevel', 'label', 'subtitle', 'buttons', 'seamlessButtonEdge'] },
+    docs: { description: { component: 'Draft. Full-width header bar with bold, left-aligned label, optional subtitle and a solid 1px bottom border. The variant control selects the shared palette background (Neutral, Primary or Secondary). With Buttons composes any number of existing Square Icon Buttons in Tight layout; each button inherits the bar variant unless it defines one. seamlessButtonEdge removes the left border from the first button.' } },
   },
   render: (args, { globals }) => ({
     components: { HeaderBar },
@@ -62,3 +63,4 @@ export const WithButtonsAndSubtitle = { name: 'With Buttons & Subtitle', args: {
 }, {
   icon: 'bars', label: 'Menu',
 }], variant: 'neutral' } };
+export const SeamlessButton = { name: 'Seamless button', args: { label: 'Header', buttons: [{ icon: 'arrow-left', label: 'Close menu' }], seamlessButtonEdge: true, variant: 'neutral' } };

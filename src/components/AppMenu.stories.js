@@ -1,4 +1,4 @@
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, within } from 'storybook/test';
 import AppMenu from './AppMenu.vue';
 
 export default {
@@ -24,7 +24,10 @@ export default {
     const canvas = within(canvasElement);
     const drawer = canvas.getByRole('complementary', { name: 'Drawer' });
     await expect(canvasElement.querySelector('.drawer-shell--from-left')).toBeTruthy();
+    await expect(drawer).toHaveAttribute('data-open', 'true');
     await expect(drawer.querySelector('.header-bar')).toHaveTextContent('Idea Map');
+    await expect(drawer.querySelector('.header-bar__close')).toHaveClass('header-bar__close--seamless-edge');
+    await expect(drawer.querySelector('.header-bar__close .square-icon-button__custom-icon')).toBeTruthy();
     const labels = ['Saved ideas', 'Saved actions', 'Welcome guide', "What's new", 'Map settings'];
     const links = Array.from(drawer.querySelectorAll('.menu-item__link'));
     await expect(links).toHaveLength(labels.length);
@@ -32,8 +35,6 @@ export default {
       await expect(links[index]).toHaveAccessibleName(label);
       await expect(links[index].closest('.menu-item')).toHaveTextContent(label);
     }
-    await userEvent.click(canvas.getByRole('button', { name: 'Close menu' }));
-    await expect(drawer).toHaveAttribute('data-open', 'false');
   },
 };
 

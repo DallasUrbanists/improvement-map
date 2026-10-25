@@ -5,11 +5,12 @@
       variant="neutral"
       :theme="theme"
       :surface-level="surfaceLevel"
-      :buttons="[{ icon: 'xmark', label: 'Close menu' }]"
+      :buttons="[{ icon: 'arrow-left-edge', label: 'Close menu' }]"
+      :seamless-button-edge="true"
       @button-click="open = false"
     />
     <div class="app-menu__items">
-      <MenuItem v-for="item in items" :key="item.label" :theme="theme" :label="item.label" :href="item.href" @click.prevent="$emit('item-click', item)" />
+      <MenuItem v-for="item in items" :key="item.label" :theme="theme" :label="item.label" :href="item.href" symbol-type="icon" :icon="item.icon" @click.prevent="$emit('item-click', item)" />
     </div>
   </Drawer>
 </template>
@@ -26,11 +27,11 @@ defineProps({
 const open = defineModel('open', { type: Boolean, default: true });
 defineEmits(['item-click']);
 const items = [
-  { label: 'Saved ideas', href: '/bookmarks' },
-  { label: 'Saved actions', href: '/my-actions' },
-  { label: 'Welcome guide', href: '/welcome' },
-  { label: "What's new", href: '/whats-new' },
-  { label: 'Map settings', href: '/map-settings' },
+  { label: 'Saved ideas', href: '/bookmarks', icon: 'lightbulb' },
+  { label: 'Saved actions', href: '/my-actions', icon: 'square-check' },
+  { label: 'Welcome guide', href: '/welcome', icon: 'hand' },
+  { label: "What's new", href: '/whats-new', icon: 'burst' },
+  { label: 'Map settings', href: '/map-settings', icon: 'gear' },
 ];
 </script>
 

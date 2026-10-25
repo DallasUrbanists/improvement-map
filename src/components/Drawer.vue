@@ -187,7 +187,6 @@ function toggleFromClick() {
 .drawer-shell--dragging .drawer__handle .drawer__grip { opacity: 1; }
 .drawer-shell--from-left { left: 0; }
 .drawer-shell--from-right { right: 0; }
-.drawer-shell--from-left .drawer { border-inline-end: 1px solid v-bind('surface.border'); }
 .drawer-shell--from-right .drawer { border-inline-start: 1px solid v-bind('surface.border'); }
 .drawer-shell--from-left .drawer__handle { left: 100%; }
 .drawer-shell--from-right .drawer__handle { right: 100%; }

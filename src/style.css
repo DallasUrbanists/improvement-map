@@ -242,7 +242,7 @@ body {
 }
 
 .map-search-overlay { width: calc(100% - 24px); max-width: 960px; left: auto; right: 12px; margin-inline: 0; }
-.map-workspace .map-search-overlay { left: 12px; right: 12px; width: auto; max-width: none; }
+.map-workspace .map-search-overlay { left: 0; right: 0; width: auto; max-width: none; }
 .map-search-panel { min-height: 48px; overflow: hidden; }
 .map-search-panel input { padding-right: 56px; }
 .map-search-panel:has(.map-search-clear) input { padding-right: 100px; }
