@@ -14,7 +14,7 @@ test('map settings preserve the idea tray and theme is one reversible control', 
   await theme.click();
   await expect(theme).toHaveAttribute('aria-checked', initial === 'true' ? 'false' : 'true');
   await theme.click();
-  await page.getByRole('menuitem', { name: 'Map settings' }).click();
+  await page.getByRole('link', { name: 'Map settings' }).click();
   const settings = page.getByRole('dialog', { name: 'Map settings' });
   await expect(settings).toBeVisible();
   await expect(page.locator('.submission-detail-tray')).toBeVisible();
@@ -23,8 +23,8 @@ test('map settings preserve the idea tray and theme is one reversible control', 
   await expect(settings.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
   await settings.getByRole('button', { name: 'Rail', exact: true }).click();
   await expect(settings.getByLabel('Line width')).toBeVisible();
-  await expect(page.locator('dialog[open]')).toHaveCount(1);
-  await settings.getByRole('button', { name: 'Close Map settings' }).click();
+  await expect(page.locator('.floating-modal[aria-modal="true"]')).toHaveCount(1);
+  await settings.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page).toHaveURL(/suggestion\/1$/);
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeFocused();
 });
@@ -34,7 +34,7 @@ test('saved idea removal can be undone without changing saved order', async ({ p
   await page.locator('.idea-row').nth(0).getByRole('button').click();
   await page.locator('.idea-row').nth(1).getByRole('button').click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Saved ideas' }).click();
+  await page.getByRole('link', { name: 'Saved ideas' }).click();
   await expect(page.locator('.idea-row')).toHaveCount(2);
   const before = await page.locator('[data-suggestion-id]').evaluateAll(els => els.map(el => el.dataset.suggestionId));
   await page.locator('.idea-row').first().getByRole('button').click();
@@ -90,7 +90,7 @@ test('saved list restores reading position and searches a larger collection', as
     const { saveBookmark } = await import('/src/services/bookmarks.js');
     for (let i = 1; i <= 15; i++) saveBookmark({ id: String(i), content: { summary: `Suggestion ${i}` }, location: { address: 'Elm Street, Dallas, TX' } });
   });
-  const saved = page.getByRole('region', { name: 'Saved ideas', exact: true });
+  const saved = page.getByRole('dialog', { name: 'Saved ideas', exact: true });
   await expect(saved.locator('.idea-row')).toHaveCount(15);
   const item = saved.locator('[data-suggestion-id="3"]');
   await item.scrollIntoViewIfNeeded();

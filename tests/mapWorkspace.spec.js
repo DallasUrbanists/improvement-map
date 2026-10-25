@@ -143,7 +143,7 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
   await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByTestId('pin-and-continue').click();
-  await expect(page.getByRole('region', { name: 'Attach photos', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Attach photos', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toHaveAttribute('readonly', '');
   await expect(page.locator('.map-search-icon .fa-location-dot')).toBeVisible();
   await page.getByRole('button', { name: 'Skip photos', exact: true }).click();
@@ -171,7 +171,7 @@ test('direct Locate initializes on map readiness and later steps lock the draft 
   });
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_wizard_draft_v1')).location.latitude)).toBe(32.82);
   await page.getByTestId('pin-and-continue').click();
-  await expect(page.getByRole('region', { name: 'Attach photos', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Attach photos', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Center on my location' })).toBeDisabled();
   const location = await page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_wizard_draft_v1')).location);
   await page.evaluate(async () => {
@@ -180,12 +180,11 @@ test('direct Locate initializes on map readiness and later steps lock the draft 
   });
   await page.waitForTimeout(50);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_wizard_draft_v1')).location)).toEqual(location);
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Menu', exact: true })).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByRole('region', { name: 'Attach photos', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Menu', exact: true }).evaluate(element => element.focus());
+  await expect(page.getByRole('dialog', { name: 'Attach photos', exact: true }).getByRole('button', { name: 'Close', exact: true })).toBeFocused();
+  await expect(page.getByRole('dialog', { name: 'Attach photos', exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('region', { name: 'Attach photos', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Attach photos', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toHaveValue(location.address);
   expect((await mapState(page)).count).toBe(1);
 });

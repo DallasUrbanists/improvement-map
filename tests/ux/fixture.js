@@ -14,7 +14,9 @@ export const test = base.extend({
   page: async ({ page, context, baseURL }, use) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.clock.setFixedTime(new Date('2026-10-19T12:00:00Z'));
+    // Let time advance from a deterministic date: Vue uses event timestamps
+    // to distinguish existing click handlers from handlers attached mid-event.
+    await page.clock.setSystemTime(new Date('2026-10-19T12:00:00Z'));
     // Context-level deny-by-default firewall also covers popups. Service workers
     // are disabled in the config so they cannot bypass request interception.
     await context.route('**/*', route => {

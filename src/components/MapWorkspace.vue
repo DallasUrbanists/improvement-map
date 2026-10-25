@@ -5,7 +5,7 @@
       <p>{{ mapError || googleMapsAuthError || 'Google Maps is unavailable. You can still browse ideas.' }}</p>
     </div>
     <div v-else-if="!isMapReady" class="workspace-map-status" role="status">Loading Map…</div>
-    <Transition name="workspace-backdrop"><div v-if="trayOpen && !desktopSideTray" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--spotlight-opacity': detailMapOpacity, '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top, '--spotlight-radius': `${markerSpotlightSize / 2}px`, '--spotlight-feather': `${markerSpotlightFeather}px` } : undefined" aria-hidden="true"></div></Transition>
+    <Transition name="workspace-backdrop"><div v-if="showWorkspaceBackdrop" class="workspace-backdrop" :class="{ 'workspace-backdrop-sharp': isDetail || (isSubmit && (draft.step === 3 || draft.step === 4)), 'workspace-backdrop-detail': isDetail }" :style="isDetail ? { '--spotlight-opacity': detailMapOpacity, '--target-x': detailTargetPosition.left, '--target-y': detailTargetPosition.top, '--spotlight-radius': `${markerSpotlightSize / 2}px`, '--spotlight-feather': `${markerSpotlightFeather}px` } : undefined" aria-hidden="true"></div></Transition>
     <Teleport :to="draftCrosshairPane || 'body'" :disabled="isSubmit || !draftCrosshairPane">
     <div v-if="isSubmit" ref="submissionCrosshairElement" class="submission-crosshair" :class="{ 'is-locating': isSubmitLocate, 'is-animating-pin': isSubmitLocate && crosshairEntranceReady }" :style="isSubmitLocate ? { left: '50%', top: '50%' } : pendingCrosshairStart?.style || submissionCrosshairPosition">
       <svg :key="isSubmitLocate ? 'locating' : 'locked'" data-testid="suggestion-location-crosshair" viewBox="0 0 50 50" aria-hidden="true" @animationend="onCrosshairAnimationEnd">
@@ -1309,7 +1309,9 @@ const isWideScreen = ref(wideScreen.matches);
 const updateWideScreen = event => { isWideScreen.value = event.matches; };
 wideScreen.addEventListener('change', updateWideScreen);
 const desktopSideTray = computed(() => isWideScreen.value && (isList.value || route.name === 'Bookmarks'));
-const blocksMap = computed(() => trayOpen.value && !desktopSideTray.value);
+const nonBlockingPanel = computed(() => desktopSideTray.value || ['Bookmarks', 'MyActions'].includes(route.name));
+const blocksMap = computed(() => trayOpen.value && !nonBlockingPanel.value);
+const showWorkspaceBackdrop = computed(() => blocksMap.value && !(isSubmit.value && draft.value.step === 2));
 const isSubmitting = inject('isSubmitting', ref(false));
 let browseOrigin = null;
 let pendingLocation = null;
@@ -1331,7 +1333,8 @@ const viewEntries = new Map([[viewPosition, viewState]]);
 function currentTray() {
   if (route.name === 'Browse' && !isList.value) return null;
   const selectors = { Browse: '.idea-list-tray[aria-label="Browse ideas"]', Bookmarks: '.idea-list-tray[aria-label="Saved ideas"]',
-    MyActions: '.map-tray[aria-label="My actions"]', SubmissionDetail: '.submission-detail-tray' };
+    MyActions: '.saved-actions-modal[aria-label="Saved actions"]', SubmissionDetail: '.submission-detail-tray',
+    Submit: '.submission-stage.floating-modal, .submission-stage.map-tray:not(.map-tray-leave-active)' };
   return document.querySelector(selectors[route.name] || '.map-tray:not(.map-tray-leave-active)');
 }
 function persistViewState() {
@@ -1340,7 +1343,7 @@ function persistViewState() {
 }
 function getViewState() { return viewState; }
 function captureView() {
-  const content = currentTray()?.querySelector('.map-tray-content');
+  const content = currentTray()?.querySelector('.map-tray-content, .floating-modal__content');
   const focused = document.activeElement;
   const row = focused?.closest('[data-suggestion-id], .idea-row')?.querySelector?.('[data-suggestion-id]') || focused?.closest('[data-suggestion-id]');
   const firstVisible = content && [...content.querySelectorAll('[data-suggestion-id]')].find(el => el.getBoundingClientRect().bottom > content.getBoundingClientRect().top);
@@ -1372,7 +1375,7 @@ async function restoreView(detailReturnViewport, preserveCamera = false) {
   if (state !== viewState) { restoringView = false; return; }
   const viewport = state.viewport || detailReturnViewport;
   if (!preserveCamera && viewport && !isDetail.value && !isSubmit.value) restoreSnapshot(viewport, !!detailReturnViewport);
-  const content = currentTray()?.querySelector('.map-tray-content');
+  const content = currentTray()?.querySelector('.map-tray-content, .floating-modal__content');
   if (content && state.scroll != null) {
     content.scrollTop = state.scroll;
     const anchor = state.anchor && content.querySelector('[data-suggestion-id="' + CSS.escape(state.anchor) + '"]');
@@ -1384,7 +1387,7 @@ async function restoreView(detailReturnViewport, preserveCamera = false) {
     : state.focusHref && content?.querySelector('a[href="' + CSS.escape(state.focusHref) + '"]');
   if (!target && state.focusId && content) {
     target = [...content.querySelectorAll('[data-suggestion-id]')].find(el => el.getBoundingClientRect().bottom > content.getBoundingClientRect().top)
-      || content.querySelector('a') || currentTray()?.querySelector('.map-tray-close');
+      || content.querySelector('a') || currentTray()?.querySelector('.map-tray-close, .floating-modal__header button');
   }
   target?.focus({ preventScroll: true });
   restoringView = false;

@@ -5,19 +5,9 @@
     <AppMenu v-model:open="menuOpen" :theme="isDark ? 'dark' : 'light'" @item-click="handleAppMenuItemClick" />
   </Teleport>
   <Teleport to="body">
-    <dialog ref="markerSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-settings-title`"
-      @keydown.esc.stop.prevent="closeMarkerSettings" @click.self="closeMarkerSettings" @close="restoreMarkerSettingsFocus">
-      <header class="map-tray-header marker-settings-header">
-        <div class="map-tray-heading">
-          <h2 :id="`${menuId}-settings-title`">Map settings</h2>
-        </div>
-        <button type="button" class="map-ui-button map-tray-header-action" :aria-label="`Reset ${settingsTab} settings`" @click="settingsTab === 'markers' ? resetMarkerSettings() : setRailThickness(DEFAULT_RAIL_THICKNESS)">
-          Reset
-        </button>
-        <button type="button" class="map-ui-button map-tray-close" aria-label="Close Map settings" @click="closeMarkerSettings">
-          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-        </button>
-      </header>
+    <FloatingModal :surface-level="2" v-model:open="markerSettingsOpen" class="map-settings-modal" label="Map settings" form-factor="tall" position="center" blocking
+      :theme="isDark ? 'dark' : 'light'" :header-buttons="[{ type: 'text', label: 'Reset to default', 'aria-label': `Reset ${settingsTab} settings` }]"
+      @header-button-click="settingsTab === 'markers' ? resetMarkerSettings() : setRailThickness(DEFAULT_RAIL_THICKNESS)" @backdrop-click="closeMarkerSettings">
       <div class="settings-tabs" role="group" aria-label="Settings category"><button class="action-button" :aria-pressed="settingsTab === 'markers'" @click="settingsTab = 'markers'">Markers</button><button class="action-button" :aria-pressed="settingsTab === 'rail'" @click="settingsTab = 'rail'">Rail</button></div>
       <div v-show="settingsTab === 'markers'" class="marker-settings-panel">
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker visibility threshold">
@@ -133,7 +123,7 @@
           <svg class="rail-preview" viewBox="0 0 240 40" role="img" aria-label="Rail line preview"><path d="M10 20 H230" stroke="currentColor" :stroke-width="railThickness + 2" /><path d="M10 20 H230" stroke="#eab308" :stroke-width="railThickness" /></svg>
         </div>
       </div>
-    </dialog>
+    </FloatingModal>
 
   </Teleport>
 </template>
@@ -143,6 +133,7 @@ import { computed, ref, useId, watch, onDeactivated, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppMenu from './AppMenu.vue';
 import BigCircleButton from './BigCircleButton.vue';
+import FloatingModal from './FloatingModal.vue';
 import { railThickness, setRailThickness, DEFAULT_RAIL_THICKNESS } from '../services/railSettings.js';
 import { DEFAULT_MARKER_SETTINGS } from '../services/storage.js';
 import { isDark } from '../services/theme';
@@ -176,8 +167,7 @@ const router = useRouter();
 const isBrowse = computed(() => route.path === '/' || route.path === '/browse');
 const menuId = `map-menu-${useId()}`;
 const menuOpen = ref(false);
-const markerSettingsDialog = ref(null);
-const markerSettingsReturnFocus = ref(null);
+const markerSettingsOpen = ref(false);
 const settingsTab = ref('markers');
 const animationEnabled = computed(() => props.markerPulseScale > 1 || props.markerBobAngle > 0);
 let previousAnimation;
@@ -205,15 +195,11 @@ function resetMarkerSettings() {
 }
 async function openMarkerSettings(returnFocus = null) {
   menuOpen.value = false;
-  markerSettingsReturnFocus.value = returnFocus;
   await nextTick();
-  markerSettingsDialog.value?.show();
+  (returnFocus || document.querySelector('.address-bar__menu'))?.focus({ preventScroll: true });
+  markerSettingsOpen.value = true;
 }
-function closeMarkerSettings() { markerSettingsDialog.value?.close(); }
-function restoreMarkerSettingsFocus() {
-  (markerSettingsReturnFocus.value || document.querySelector('.address-bar__menu'))?.focus({ preventScroll: true });
-  markerSettingsReturnFocus.value = null;
-}
+function closeMarkerSettings() { markerSettingsOpen.value = false; }
 function openTray(path) {
   menuOpen.value = false;
   document.querySelector('.address-bar__menu')?.focus({ preventScroll: true });

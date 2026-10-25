@@ -1,9 +1,10 @@
 <template>
   <div class="submission-view">
+    <Teleport to="body" :disabled="draft.step !== 2">
     <Transition :name="stepTransition" appear @before-leave="freezeLeavingStep">
-    <component ref="submissionStage" :is="draft.step === 1 ? 'div' : MapTray" :key="draft.step" class="submission-stage"
-      :class="{ 'submission-content-tray': draft.step === 3 || draft.step === 4 }"
-      v-bind="draft.step > 1 ? { title: currentStepTitle, scrollable: false, animate: false } : {}" @close="workspace.closeTray">
+    <component ref="submissionStage" :surface-level="2" :is="draft.step === 1 ? 'div' : draft.step === 2 ? FloatingModal : MapTray" :key="draft.step" class="submission-stage"
+      :class="{ 'submission-content-tray': draft.step === 3 || draft.step === 4, 'submission-photo-modal': draft.step === 2 }"
+      v-bind="draft.step === 2 ? { open: photoModalOpen, label: currentStepTitle, formFactor: 'tall', position: 'center', blocking: true, theme: isDark ? 'dark' : 'light', footerButtons: photoFooterButtons } : draft.step > 1 ? { title: currentStepTitle, scrollable: false, animate: false } : {}" @close="workspace.closeTray">
     <template v-if="draft.step === 3" #header>
       <h1>{{ currentStepTitle }}</h1>
       <div class="description-feedback" aria-live="polite">
@@ -278,18 +279,6 @@
 
       </div>
 
-      <div data-testid="photo-step-controls" class="submission-navigation">
-        <div data-testid="photo-navigation-segment" class="submission-button-row" role="group" aria-label="Photo step navigation">
-                  <button type="button" class="map-ui-button" @click="prevStep">
-            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-            Back
-          </button>
-          <button type="button" class="map-ui-button is-primary" @click="nextStep">
-            {{ draft.photos?.length ? 'Next' : 'Skip photos' }}
-            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-          </button>
-        </div>
-      </div>
     </div>
 
     <Teleport to="body"><k-toast
@@ -578,6 +567,7 @@
     </div></Teleport>
     </component>
     </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -619,6 +609,7 @@ import { resizeImage } from '../services/image';
 import { createSpeechRecorder } from '../services/speechRecognition';
 import { isDark } from '../services/theme';
 import MapTray from '../components/MapTray.vue';
+import FloatingModal from '../components/FloatingModal.vue';
 import { mapWorkspaceKey } from '../services/mapWorkspace';
 import PhotoSlider from '../components/PhotoSlider.vue';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
@@ -634,6 +625,11 @@ const setSubmitting = inject('setSubmitting', () => {});
 const draft = reactive(loadWizardDraft());
 const detailsInput = ref(null);
 const submissionStage = ref(null);
+const photoModalOpen = ref(true);
+const photoFooterButtons = computed(() => [
+  { label: 'Back', icon: 'arrow-left', onClick: prevStep },
+  { label: draft.photos?.length ? 'Next' : 'Skip photos', icon: 'arrow-right', onClick: nextStep },
+]);
 const stepTransition = ref('map-tray');
 let trayHeightAnimation = null;
 function freezeLeavingStep(element) {
@@ -985,6 +981,7 @@ watch(() => draft.step, (step, previousStep) => {
 
 onActivated(() => {
   isSubmitViewActive = true;
+  photoModalOpen.value = true;
   nextTick(resizeDetailsInput);
   window.addEventListener('resize', resizeDetailsInput);
   focusDescriptionInput();
@@ -1006,6 +1003,7 @@ function deactivateSpeechRecorder() {
   closeSubmissionPreview();
   window.removeEventListener('keydown', handleSubmissionPreviewShortcut);
   isSubmitViewActive = false;
+  photoModalOpen.value = false;
   trayHeightAnimation?.cancel();
   trayHeightAnimation = null;
   window.removeEventListener('resize', resizeDetailsInput);

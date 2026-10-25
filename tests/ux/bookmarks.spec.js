@@ -7,8 +7,8 @@ const details = page => page.getByRole('region', { name: 'Idea details', exact: 
 async function ready(page) { await expect(details(page)).toHaveAttribute('aria-busy', 'false'); }
 async function openBookmarks(page) {
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Saved ideas', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Saved ideas', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Saved ideas', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Saved ideas', exact: true })).toBeVisible();
 }
 async function closeDetails(page) { await page.getByRole('button', { name: 'Close Idea details', exact: true }).click(); }
 
@@ -67,7 +67,7 @@ test('source list order, scroll, focus, refresh, and nested bookmark returns', a
   await closeDetails(page);
   await expect(page).toHaveURL('/bookmarks');
   await expect(page.locator('.idea-row')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Saved ideas', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page).toHaveURL('/suggestion/8');
   await ready(page);
   await closeDetails(page);

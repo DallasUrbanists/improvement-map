@@ -4,6 +4,7 @@
       <span class="header-bar__label">{{ label }}</span>
       <span v-if="subtitle" class="header-bar__subtitle">{{ subtitle }}</span>
     </div>
+    <slot name="actions" />
     <SquareIconButton
       v-for="(button, index) in buttons"
       :key="`${button.label}-${index}`"

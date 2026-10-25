@@ -31,7 +31,7 @@ test('hiding clears saved status, hidden rows can be reviewed, and actions can b
   await expect(page.getByRole('heading', { name: action.summary })).toBeVisible();
   await page.getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(page.getByText('No saved actions yet.', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Close My actions', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Saved actions', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page).toHaveURL(/suggestion\/1$/);
 });
 test('generation is explicit, cached, and identity survives attached results', async ({ page }) => {

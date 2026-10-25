@@ -116,9 +116,9 @@ test('details and My actions have no new accessibility violations', async ({ pag
 });
 test('menu opens My actions and direct-entry close returns to Browse', async ({ page }) => {
   await page.goto('/my-actions');
-  await page.getByRole('button', { name: 'Close My actions', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Saved actions', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page).toHaveURL(/\/browse$/);
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'My actions', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'My actions', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Saved actions', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Saved actions', exact: true })).toBeVisible();
 });
