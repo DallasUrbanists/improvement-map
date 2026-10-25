@@ -1,5 +1,7 @@
 // OSM place labels supplement Google's basemap at close zoom levels.
-const ENDPOINTS = import.meta.env?.DEV
+const ENDPOINTS = import.meta.env?.VITE_LOCAL_DEVELOPMENT === true
+  ? ['/__overpass']
+  : import.meta.env?.DEV
   ? ['https://overpass-api.de/api/interpreter', '/__overpass-kumi']
   : ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 const cache = new Map();

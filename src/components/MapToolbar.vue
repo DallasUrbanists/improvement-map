@@ -163,7 +163,7 @@
 </template>
 
 <script setup>
-const catalogUrl = import.meta.env.DEV ? 'http://localhost:6006/' : `${import.meta.env.BASE_URL}storybook/`;
+const catalogUrl = import.meta.env.VITE_LOCAL_STORYBOOK_URL || (import.meta.env.DEV ? 'http://localhost:6006/' : `${import.meta.env.BASE_URL}storybook/`);
 import { computed, ref, useId, watch, onDeactivated, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { kPopover } from 'konsta/vue';

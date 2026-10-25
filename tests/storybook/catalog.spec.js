@@ -66,7 +66,7 @@ for (const story of stories) {
 }
 
 test('catalog documents and manifests load under the public subpath', async ({ page, request }) => {
-  expect(Object.values(index.entries).every(entry => entry.title.startsWith('BUTTONS/') || entry.title.startsWith('BARS/') || entry.title.startsWith('CONTAINERS/') || entry.title.startsWith('FORM/') || entry.title.startsWith('EMBEDDABLES/') || entry.title === 'Colors'), 'Catalog entries belong to the supported component groups or Colors').toBe(true);
+  expect(Object.values(index.entries).every(entry => entry.title.startsWith('MENUS/') || entry.title.startsWith('BUTTONS/') || entry.title.startsWith('BARS/') || entry.title.startsWith('CONTAINERS/') || entry.title.startsWith('FORM/') || entry.title.startsWith('EMBEDDABLES/') || entry.title === 'Colors'), 'Catalog entries belong to the supported component groups or Colors').toBe(true);
   await page.goto('?path=/docs/buttons-square-icon-button--docs');
   const menu = page.getByRole('button', { name: 'Open navigation menu' });
   if (await menu.isVisible()) await menu.click();

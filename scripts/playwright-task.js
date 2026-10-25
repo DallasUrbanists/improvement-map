@@ -7,7 +7,7 @@ const [task, ...forwardedArgs] = process.argv.slice(2);
 const env = {
   ...process.env,
   // Keep browser downloads with this checkout instead of a sandbox-specific user cache.
-  PLAYWRIGHT_BROWSERS_PATH: '0',
+  PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH || '0',
 };
 
 let executable;

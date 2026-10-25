@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -182,4 +183,40 @@ test('report merger distinguishes complete, missing, and empty planned reports',
   const empty = merge({ rows: [], runUnit: false });
   assert.equal(empty.status, 0, empty.stderr);
   assert.equal(JSON.parse(await readFile(path.join(reportRoot, 'combined-ux-summary.json'), 'utf8')).status, 'no-tests-selected');
+});
+
+test('report merger relocates container and host blobs without losing UX source paths', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'mixed-checkout-blobs-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const downloaded = path.join(directory, 'downloaded');
+  const sourcePaths = ['announcements.spec.js', 'ux/browse-journey.spec.js'];
+  const testImport = path.join(root, 'node_modules/@playwright/test');
+  for (const [index, file] of sourcePaths.entries()) {
+    const checkout = path.join(directory, index ? 'host-checkout' : 'container-checkout');
+    const spec = path.join(checkout, 'tests', file);
+    await mkdir(path.dirname(spec), { recursive: true });
+    await writeFile(spec, `const { test } = require(${JSON.stringify(testImport)});\ntest('report fixture ${index}', () => {});\n`);
+    const config = path.join(checkout, 'playwright.config.mjs');
+    const blob = path.join(downloaded, `advisory-fixture-${index}`, 'blob-report', 'report.zip');
+    await writeFile(config, `export default ${JSON.stringify({ testDir: './tests', outputDir: path.join(checkout, 'test-output'), workers: 1, reporter: [['blob', { outputDir: path.dirname(blob) }]] })};\n`);
+    const run = spawnSync(process.execPath, [cli, 'test', '--config', config, '--reporter=blob'], {
+      cwd: checkout, encoding: 'utf8', env: { ...process.env, PLAYWRIGHT_BLOB_OUTPUT_DIR: path.dirname(blob), PLAYWRIGHT_BLOB_OUTPUT_FILE: blob },
+    });
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+  }
+  const output = path.join(directory, 'html');
+  const reportRoot = path.join(directory, 'combined');
+  const merge = spawnSync(process.execPath, [mergerScript, downloaded, output, reportRoot], {
+    cwd: root, encoding: 'utf8', env: { ...process.env, PLANNED_MATRIX: JSON.stringify({ rows: [], runUnit: false }) },
+  });
+  assert.equal(merge.status, 0, merge.stderr || merge.stdout);
+  assert.ok((await readFile(path.join(output, 'index.html'), 'utf8')).length > 0);
+  const json = spawnSync(process.execPath, [cli, 'merge-reports', '--config', path.join(root, 'playwright.merge.config.js'), '--reporter=json', path.join(reportRoot, 'blobs')], {
+    cwd: root, encoding: 'utf8', env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: '' },
+  });
+  assert.equal(json.status, 0, json.stderr || json.stdout);
+  const report = JSON.parse(json.stdout);
+  assert.equal(report.stats.expected, 2);
+  assert.equal(report.stats.unexpected, 0);
+  assert.deepEqual(report.suites.map(suite => suite.file.replaceAll('\\', '/')).sort(), sourcePaths);
 });

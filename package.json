@@ -7,7 +7,12 @@
     "node": ">=24.12.0"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "docker compose up --no-build --pull never",
+    "dev:provider": "vite",
+    "dev:local": "vite --mode sandbox",
+    "mock:dev": "node scripts/local-development/mock-server.js",
+    "mock:reset": "node scripts/local-development/reset.js",
+    "test:local": "node --test tests/local-development.node.mjs && playwright test --config playwright.local.config.js",
     "build": "vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",

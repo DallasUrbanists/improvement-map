@@ -28,7 +28,10 @@ test('story-only and documentation-only changes avoid unrelated tests', async t 
 });
 test('styles, fonts, lockfile and configuration invalidate every story', async t => {
   const root = await fixture(t);
-  for (const file of ['src/style.css', 'public/fonts/roboto.woff2', 'package-lock.json', '.storybook/preview.js']) assert.equal(selectStories([file], root).files.length, 3, file);
+  for (const file of ['src/style.css', 'public/fonts/roboto.woff2', 'package-lock.json', '.storybook/preview.js', 'dev/browser/mapsLoader.js', 'scripts/local-development/vite-plugin.js', 'Dockerfile', 'compose.yaml', '.dockerignore']) {
+    // A shared adapter plus a component edit must still select the entire catalog.
+    assert.equal(selectStories([file, 'src/components/Other.stories.js'], root).files.length, 3, file);
+  }
 });
 test('unknown source, deleted stories, unresolved imports and dynamic imports fall back safely', async t => {
   const root = await fixture(t);

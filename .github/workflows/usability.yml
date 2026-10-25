@@ -75,6 +75,7 @@ jobs:
         run: npm ci
       - name: Run selected suite
         id: test
+        shell: bash
         continue-on-error: ${{ matrix.kind == 'ux' && vars.UX_ENFORCE != 'true' || matrix.kind == 'regression' }}
         env:
           UX_STRICT: ${{ vars.UX_ENFORCE == 'true' && '1' || '0' }}

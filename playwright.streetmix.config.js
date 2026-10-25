@@ -9,7 +9,7 @@ export default {
   use: { ...config.use, baseURL: 'http://127.0.0.1:5175' },
   webServer: {
     ...config.webServer,
-    command: 'npm run dev -- --config vite.ux.config.js --host 127.0.0.1 --port 5175 --strictPort',
+    command: 'npm run dev:provider -- --config vite.ux.config.js --host 127.0.0.1 --port 5175 --strictPort',
     url: 'http://127.0.0.1:5175',
   },
 };

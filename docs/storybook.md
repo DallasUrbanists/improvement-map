@@ -8,6 +8,13 @@ The catalog contains shared menus, bars, buttons, containers, forms and embeddab
 
 ## Local workflow
 
+The recommended [container workflow](../CONTRIBUTING.md) starts Storybook alongside
+the app with every service mocked, including the embeddable map. Its browser tests
+run inside the shared development image. Local servers can opt individual providers
+into live mode; static catalog builds always force mocks and omit credentials.
+See [container validation and the test-widget limitation](local-development-validation.md)
+for the verified commands and current limits.
+
 ```powershell
 npm ci
 npm run playwright:install -- chromium webkit
@@ -137,7 +144,7 @@ No app assertions are removed in this rollout. Before removing one, document its
 | --- | --- | --- |
 | None migrated yet | Pilot only | Existing app coverage retained |
 
-`npm run storybook:select` selects affected story files against the merge base with `origin/main`; pass a different base as an argument if needed. `node scripts/test-storybook-selected.js` runs that selection. Static browser tests honor it with `STORYBOOK_SELECTED=1`. Transitive imports select consumer stories; shared CSS/assets/config/dependencies invalidate all. Unknown, deleted or dynamic dependencies fall back to all. The app selector independently selects consumer journeys and excludes story-only paths. Weekly/manual Storybook runs select everything.
+`npm run storybook:select` selects affected story files using the project branch comparison policy; pass an explicit base as an argument if needed. `node scripts/test-storybook-selected.js` runs that selection. Static browser tests honor it with `STORYBOOK_SELECTED=1`. Transitive imports select consumer stories; shared CSS/assets/config/dependencies invalidate all. Unknown, deleted or dynamic dependencies fall back to all. The app selector independently selects consumer journeys and excludes story-only paths. Weekly/manual Storybook runs select everything.
 
 Reviewed baselines belong in `tests/storybook/snapshots/<platform>/<project>/`. Missing baselines produce attached candidates and `visual-review-pending`; a successful render is not a completed visual comparison. CI uses Linux and lockfile-pinned Playwright. Review candidates, record the decision, then commit chosen Linux baselines. Windows candidates are separate. Baseline updates are never automatic.
 
