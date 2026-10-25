@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { buttonColors } from '../design/buttonColors.js';
 
 /** Full-width panel that slides up from the bottom edge. */
@@ -89,6 +89,20 @@ function setPosition(rank) {
   open.value = rank > 0;
   maximize.value = rank === 2;
 }
+
+function handleWheel(event) {
+  if (!open.value || props.busy || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+  if (!maximize.value && props.canDragOpen && event.deltaY > 0) {
+    event.preventDefault();
+    setPosition(2);
+  } else if (maximize.value && props.canDragClose && event.deltaY < 0 && (trayElement.value?.scrollTop ?? 0) <= 0) {
+    event.preventDefault();
+    setPosition(1);
+  }
+}
+
+onMounted(() => trayElement.value?.addEventListener('wheel', handleWheel, { capture: true, passive: false }));
+onBeforeUnmount(() => trayElement.value?.removeEventListener('wheel', handleWheel, true));
 
 function startDrag(event) {
   const startRank = stateRank();
@@ -169,6 +183,7 @@ defineExpose({ element: trayElement, content: trayElement, contentElement });
   z-index: 2;
   inset-inline: 0;
   bottom: 0;
+  height: var(--tray-max-height);
   max-height: var(--tray-max-height);
   transition: transform 220ms ease-out;
   max-width: 1024px;

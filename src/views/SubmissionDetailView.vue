@@ -1,5 +1,5 @@
 <template>
-  <Tray ref="detailTray" v-model:open="trayOpen" v-model:maximize="readingExpanded" :theme="isDark ? 'dark' : 'light'" :surface-level="2" panel-class="submission-detail-tray" :handle-label="readingExpanded ? 'Show map' : 'Expand details'" :busy="isLoading" :can-drag-close="true" :can-drag-open="true" :toggle-maximize-on-click="true" :medium-height="detailTrayMediumHeight" :max-height="detailTrayMaxHeight" label="Idea details" @scroll="workspace.saveViewState" @click="captureAccordionPosition" @wheel.passive="releaseAccordionPosition" @pointerdown="releaseAccordionPosition" @keydown.capture="releaseAccordionPosition" @wheel="wheelTray">
+  <Tray ref="detailTray" v-model:open="trayOpen" v-model:maximize="readingExpanded" :theme="isDark ? 'dark' : 'light'" :surface-level="2" panel-class="submission-detail-tray" :handle-label="readingExpanded ? 'Show map' : 'Expand details'" :busy="isLoading" :can-drag-close="true" :can-drag-open="true" :toggle-maximize-on-click="true" :medium-height="detailTrayMediumHeight" :max-height="detailTrayMaxHeight" label="Idea details" @scroll="workspace.saveViewState">
     <Toolbar class="detail-toolbar" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :leftButtons="detailToolbarLeftButtons" :rightButtons="detailToolbarRightButtons" @button-click="handleToolbarAction" />
     <div v-if="isLoading" class="detail-loading-message" role="status" aria-live="polite">{{ isRefreshing ? 'Refreshing idea, please wait...' : 'Loading next idea, please wait...' }}</div>
     <ContainedSection v-if="readingExpanded && suggestion" class="detail-reading-heading" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true">
@@ -44,8 +44,7 @@
         class="detail-body-sections"
       >
 
-        <!-- Title and Subtitle -->
-    <ContainedSection class="detail-description text-sm whitespace-pre-wrap break-words" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true" :class="{ 'detail-description-revealing': isRevealingDetails }">
+      <ContainedSection class="detail-description text-sm whitespace-pre-wrap break-words" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true" :class="{ 'detail-description-revealing': isRevealingDetails }">
           <div class="detail-description-inner">
           <!-- Description Details -->
           <p>
@@ -55,51 +54,7 @@
           </div>
         </ContainedSection>
 
-        <Accordion v-if="photosList.length" v-model:open="photosOpen" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :header="{ label: `Photos (${photosList.length})` }">
-          <div class="detail-photo-content">
-            <div class="detail-photo-row">
-              <button v-for="(photo, index) in photosList" :key="photo.id || index" type="button" class="detail-photo-thumbnail" :aria-label="`Open photo ${index + 1}${photo.caption ? ': ' + photo.caption : ''}`" @click="previewPhoto(index, $event.currentTarget)">
-                <img :src="photo.dataUrl || photo.url" alt="" />
-                <span v-if="photo.caption" class="detail-photo-caption">{{ photo.caption }}</span>
-              </button>
-            </div>
-          </div>
-        </Accordion>
-
         <StreetmixPanel v-if="String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" />
-
-        <Accordion v-model:open="areasOpen" class="areas-section" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :key="`areas-${suggestion.id}`" :header="{ label: 'Neighborhoods & districts' }" @update:open="value => value && loadBoundaries()">
-          <p v-if="boundariesLoading" role="status">Loading areas…</p>
-          <div v-else-if="boundariesError" role="alert"><p>{{ boundariesError }}</p><button class="action-button" @click="loadBoundaries">Retry</button></div>
-          <p v-else-if="boundariesLoaded && !boundaries.length">No areas found.</p>
-          <article v-for="boundary in prioritizedBoundaries" :key="boundary.id" class="context-card">
-            <h3>{{ [boundary.bodyName, boundary.districtName].filter(Boolean).join(' · ') || boundary.entityName || 'Area' }}</h3>
-            <p class="secondary-copy">{{ boundary.entityName && boundary.entityName !== boundary.districtName ? boundary.entityName : '' }}</p>
-            <p v-if="boundary.description">{{ boundary.description }}</p>
-            <p v-if="boundary.whenToContact"><strong>When to contact:</strong> {{ boundary.whenToContact }}</p>
-          </article>
-        </Accordion>
-
-        <Accordion v-model:open="representativesOpen" class="representatives-section" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :key="`representatives-${suggestion.id}`" :header="{ label: 'Representatives' }" @update:open="value => value && loadRepresentatives()">
-          <p v-if="representativesLoading" role="status">Loading representatives…</p>
-          <div v-else-if="representativesError" role="alert"><p>{{ representativesError }}</p><button class="action-button" @click="loadRepresentatives">Retry</button></div>
-          <p v-else-if="representativesLoaded && !representatives.length">No representatives found.</p>
-          <article v-for="representative in prioritizedRepresentatives" :key="representative.id" class="context-card">
-            <div class="representative-row-copy">
-              <h3>{{ representative.name || 'Name unavailable' }}</h3>
-              <p class="secondary-copy"><template v-if="representative.title">{{ representative.title }}<br /></template>{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
-            </div>
-            <div class="action-card-controls representative-contact-controls">
-              <details v-if="getRepresentativeContactItems(representative).length" class="representative-contact-menu" @toggle="positionRepresentativeContactMenu">
-                <summary class="action-button"><i class="fa-solid fa-address-card" aria-hidden="true"></i> Contact</summary>
-                <div class="representative-contact-options">
-                  <a v-for="contact in getRepresentativeContactItems(representative)" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`" :title="contact.label"><i :class="['fa-solid', contact.external ? 'fa-globe' : contact.type === 'email' ? 'fa-envelope' : 'fa-phone']" aria-hidden="true"></i><span>{{ contact.buttonLabel }}</span></a>
-                </div>
-              </details>
-            </div>
-            <p v-if="!getRepresentativeContactItems(representative).length" class="secondary-copy">Contact information unavailable</p>
-          </article>
-        </Accordion>
 
         <RecommendedActions :suggestion="suggestion" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :refresh-version="actionsRefreshVersion" />
       </div>
@@ -128,7 +83,6 @@ import { kButton, kCard } from 'konsta/vue';
 import Tray from '../components/Tray.vue';
 import Toolbar from '../components/Toolbar.vue';
 import ContainedSection from '../components/ContainedSection.vue';
-import Accordion from '../components/Accordion.vue';
 import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries } from '../services/api';
 import { bookmarkNotice, bookmarkMessage, isBookmarked, toggleBookmark } from '../services/bookmarks';
 import RecommendedActions from '../components/RecommendedActions.vue';
@@ -146,7 +100,6 @@ function updateStreetmixSummary(summary) { if (suggestion.value) suggestion.valu
 const detailTray = ref(null);
 const trayOpen = ref(true);
 const readingExpanded = ref(false);
-const photosOpen = ref(false), areasOpen = ref(false), representativesOpen = ref(false);
 const viewportHeight = ref(window.innerHeight);
 const detailTrayMediumHeight = computed(() => Math.max(280, Math.min(520, viewportHeight.value * .58)));
 const detailTrayMaxHeight = computed(() => viewportHeight.value - 80);
@@ -175,69 +128,12 @@ function setReadingProgress(progress) {
   workspace.setDetailReadingProgress(readingProgress);
 }
 onBeforeUnmount(() => setReadingProgress(0));
-function setReading(expanded) {
-  if (isLoading.value || readingExpanded.value === expanded) return;
-  releaseAccordionPosition();
-  readingExpanded.value = expanded;
-}
-function wheelTray(event) {
-  const content = detailTray.value?.content;
-  if (isLoading.value || !content?.contains(event.target) || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
-  if (!readingExpanded.value && event.deltaY > 0) { event.preventDefault(); setReading(true); }
-}
 watch(() => route.params.id, () => { setReadingProgress(0); readingExpanded.value = false; });
-let accordionPosition = null;
-let trayResizeObserver;
-let trayPositionFrame = 0;
-function releaseAccordionPosition() { accordionPosition = null; }
-function captureAccordionPosition(event) {
-  const summary = event.target.closest('.accordion__toggle, summary');
-  const content = detailTray.value?.content;
-  if (summary && content?.contains(summary)) accordionPosition = { summary, scrollTop: content.scrollTop, appliedScrollTop: content.scrollTop };
-}
-function preserveAccordionPosition() {
-  cancelAnimationFrame(trayPositionFrame);
-  trayPositionFrame = requestAnimationFrame(() => {
-    const content = detailTray.value?.content;
-    const anchor = accordionPosition;
-    if (!content || !anchor?.summary.isConnected) return;
-    // A user or focus-driven scroll takes precedence over the saved accordion anchor.
-    if (Math.abs(content.scrollTop - anchor.appliedScrollTop) > 1) {
-      releaseAccordionPosition();
-      return;
-    }
-    // Keep the existing reading offset, allowing natural clamping as content shrinks.
-    content.scrollTop = anchor.scrollTop;
-    const bounds = content.getBoundingClientRect();
-    const heading = anchor.summary.getBoundingClientRect();
-    if (heading.top < bounds.top) content.scrollTop -= bounds.top - heading.top;
-    else if (heading.bottom > bounds.bottom) content.scrollTop += heading.bottom - bounds.bottom;
-    anchor.appliedScrollTop = content.scrollTop;
-  });
-}
 function updateViewportHeight() { viewportHeight.value = window.innerHeight; }
 onMounted(() => {
   window.addEventListener('resize', updateViewportHeight, { passive: true });
-  trayResizeObserver = new ResizeObserver(preserveAccordionPosition);
-  const content = detailTray.value?.content;
-  if (content) {
-    trayResizeObserver.observe(content);
-    // Observe changing accordion bodies, including responses arriving after opening.
-    trayContentObserver.observe(content, { childList: true, subtree: true });
-    observeTrayChildren();
-  }
 });
-function observeTrayChildren() {
-  for (const child of detailTray.value?.content?.children || []) trayResizeObserver?.observe(child);
-}
-const trayContentObserver = new MutationObserver(observeTrayChildren);
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateViewportHeight);
-  trayResizeObserver?.disconnect();
-  trayContentObserver.disconnect();
-  cancelAnimationFrame(trayPositionFrame);
-});
-watch(() => route.params.id, releaseAccordionPosition);
+onBeforeUnmount(() => window.removeEventListener('resize', updateViewportHeight));
 
 const suggestion = ref(null);
 const isLoading = ref(true);
@@ -477,7 +373,6 @@ async function refreshSuggestion() {
   actionsRefreshVersion.value++;
   refreshError.value = '';
   workspace.setDetailLoading(true);
-  closeDetailAccordions();
   if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
   isRevealingDetails.value = false;
   try {
@@ -613,11 +508,6 @@ function revealDetails(item) {
   };
   detailsRevealFrame = requestAnimationFrame(reveal);
 }
-function closeDetailAccordions() {
-  document.querySelectorAll('.submission-detail-tray details.detail-accordion[open]').forEach(details => { details.open = false; });
-  photosOpen.value = areasOpen.value = representativesOpen.value = false;
-}
-
 watch(() => route.params.id, async (id) => {
   actionsRefreshVersion.value++;
   const requestVersion = ++suggestionRequestVersion;
@@ -628,7 +518,6 @@ watch(() => route.params.id, async (id) => {
     const restored = restoringSuggestion.value;
     restoringSuggestion.value = null;
     workspace.setDetailLoading(true);
-    closeDetailAccordions();
     suggestion.value = restored;
     setDetailMetadata(restored);
     const layout = await prepareDetails(restored);
@@ -647,8 +536,6 @@ watch(() => route.params.id, async (id) => {
   workspace.setDetailLoading(true);
   isLoading.value = true;
   workspace.setDetailMarkerTarget(id);
-  closeDetailAccordions();
-  const accordionsClosed = previousItem ? new Promise(resolve => setTimeout(resolve, 340)) : Promise.resolve();
   if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
   isRevealingDetails.value = false;
   representativesRequestVersion++;
@@ -683,7 +570,7 @@ watch(() => route.params.id, async (id) => {
   try {
     const item = await getSuggestionById(id);
     if (requestVersion !== suggestionRequestVersion) return;
-    await Promise.all([accordionsClosed, outgoingTextFinished]);
+    await outgoingTextFinished;
     if (requestVersion !== suggestionRequestVersion) return;
     suggestion.value = item;
     workspace.rememberSuggestion(item);
@@ -700,7 +587,7 @@ watch(() => route.params.id, async (id) => {
   } catch (err) {
     if (requestVersion === suggestionRequestVersion) {
       console.error('Failed to load suggestion details:', err);
-      await Promise.all([accordionsClosed, outgoingTextFinished]);
+      await outgoingTextFinished;
       if (mapTransition) await mapTransition;
       if (previousItem && String(previousItem.id) !== String(id)) {
         restoringSuggestion.value = previousItem;

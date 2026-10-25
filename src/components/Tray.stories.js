@@ -2,6 +2,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import Tray from './Tray.vue';
 import HeaderBar from './HeaderBar.vue';
 import Toolbar from './Toolbar.vue';
+import ContainedSection from './ContainedSection.vue';
 const isTransparent = level => level === null || level === 'transparent';
 const surfaceLevelAttribute = level => isTransparent(level) ? 'transparent' : String(level);
 
@@ -47,6 +48,9 @@ const verifyOpenTray = async (canvasElement, args) => {
   await expect(tray).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
   await expect(tray).toBeVisible();
   await expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium');
+  const expectedMediumHeight = Math.min(args.mediumHeight, args.maxHeight);
+  const visibleHeight = canvasElement.ownerDocument.defaultView.innerHeight - tray.getBoundingClientRect().top;
+  expect(visibleHeight).toBeCloseTo(expectedMediumHeight, 0);
   const handle = canvasElement.querySelector('.tray__handle');
   await expect(handle).toBeTruthy();
   await userEvent.click(handle);
@@ -129,9 +133,46 @@ export const WithHeader = {
 export const WithToolbar = {
   name: 'With Toolbar',
   render: (args, { globals }) => ({
-    components: { Tray, Toolbar },
+    components: { Tray, Toolbar, ContainedSection },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><Toolbar :theme="args.theme || globalTheme" variant="neutral" :buttons="[{ icon: \'arrow-left\', label: \'Back\' }, { icon: \'bookmark\', label: \'Save\' }, { icon: \'xmark\', label: \'Close tray\' }]" @button-click="({ button }) => { if (button.label === \'Close tray\') args.open = false }" /></Tray>',
+    template: `
+      <Tray
+        v-model:open="args.open"
+        v-model:maximize="args.maximize"
+        :surface-level="args.surfaceLevel"
+        :medium-height="args.mediumHeight"
+        :max-height="args.maxHeight"
+        :can-drag-close="args.canDragClose"
+        :can-drag-open="args.canDragOpen"
+        :theme="args.theme || globalTheme"
+      >
+        <Toolbar
+          :theme="args.theme || globalTheme"
+          variant="neutral"
+          :leftButtons="[
+            { icon: 'arrow-left', label: 'Back' },
+            { icon: 'arrow-right', label: 'Next' },
+          ]"
+          :rightButtons="[
+            { icon: 'bookmark', label: 'Save' },
+            { icon: 'xmark', label: 'Close tray' },
+          ]"
+          @button-click="({ button }) => {
+            if (button.label === 'Close tray') args.open = false;
+          }"
+        />
+        <ContainedSection :padded="true">
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        </ContainedSection>
+      </Tray>
+    `,
   }),
   play: async ({ canvasElement, args }) => {
     const { canvas, tray } = await verifyOpenTray(canvasElement, args);
