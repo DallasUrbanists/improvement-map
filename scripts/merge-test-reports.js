@@ -9,6 +9,7 @@ const summaries = [];
 const blobs = [];
 const files = [];
 const suiteTimings = [];
+const reused = [];
 
 async function walk(directory) {
   let entries;
@@ -20,6 +21,7 @@ async function walk(directory) {
       files.push(file);
       if (entry.name === 'ux-summary.json') summaries.push(JSON.parse(await readFile(file, 'utf8')));
       else if (entry.name === 'timing.json') suiteTimings.push(JSON.parse(await readFile(file, 'utf8')));
+      else if (entry.name === 'reuse.json') reused.push(JSON.parse(await readFile(file, 'utf8')));
       else if (entry.name.endsWith('.zip') && file.toLowerCase().includes('blob')) blobs.push(file);
     }
   }
@@ -32,9 +34,11 @@ const planned = process.env.PLANNED_MATRIX ? JSON.parse(process.env.PLANNED_MATR
 const missingArtifacts = [];
 for (const row of planned?.rows || []) {
   const returned = files.filter(file => file.includes(row.artifact));
-  const evidencePresent = row.kind === 'ux'
+  const accepted = reused.some(item => item.head === planned.headSha && item.suite === row.suite
+    && item.profile === row.profile && ['trusted-ci', 'local-approved'].includes(item.type));
+  const evidencePresent = accepted || (row.kind === 'ux'
     ? returned.some(file => path.basename(file) === 'ux-summary.json')
-    : returned.some(file => file.toLowerCase().includes('blob-report') && file.endsWith('.zip'));
+    : returned.some(file => file.toLowerCase().includes('blob-report') && file.endsWith('.zip')));
   if (!evidencePresent) missingArtifacts.push(`No usable report artifact received for ${row.suite}/${row.profile}.`);
 }
 if (planned?.runUnit && !files.some(file => file.toLowerCase().includes('advisory-unit'))) missingArtifacts.push('No artifact received for the unit suite.');
@@ -51,9 +55,10 @@ try {
   }));
 } catch { /* timings remain unavailable when the Actions API result could not be saved */ }
 const report = {
-  status: missingArtifacts.length ? 'incomplete' : !planned?.rows?.length && !planned?.runUnit ? 'no-tests-selected' : tests.some(item => item.status !== 'passed') || suiteTimings.some(item => item.testExit !== 0) ? 'failed-or-advisory-failure' : 'passed',
+  status: missingArtifacts.length ? 'incomplete' : !planned?.rows?.length && !planned?.runUnit ? 'no-tests-selected' : tests.some(item => item.status !== 'passed') || suiteTimings.some(item => item.testExit !== 0) ? 'failed-or-advisory-failure' : reused.length ? 'passed-with-reuse' : 'passed',
   planned,
   summaries: tests,
+  reused,
   suiteTimings,
   missingArtifacts,
   jobTimings,
@@ -61,6 +66,11 @@ const report = {
 await mkdir(reportRoot, { recursive: true });
 await writeFile(path.join(reportRoot, 'combined-ux-summary.json'), JSON.stringify(report, null, 2));
 await writeFile(path.join(reportRoot, 'combined-ux-summary.md'), `# Combined Playwright report\n\nStatus: ${report.status}. UX suite summaries received: ${summaries.length}. Blob reports received: ${blobs.length}.\n\n` + summaries.map(item => `- ${item.suite}: ${item.status}; ${item.coverage.reduce((sum, entry) => sum + entry.audited.length, 0)} audited checkpoints.`).join('\n') + `\n\n${missingArtifacts.join('\n') || 'All planned jobs returned artifacts.'}\n\n` + jobTimings.map(job => `- ${job.name}: ${job.durationSeconds ?? 'unknown'} seconds, ${job.status}.`).join('\n') + '\n');
+if (reused.length) {
+  const reuseText = '\n## Reused results (not executed in this run)\n\n' + reused.map(item => `- ${item.suite}/${item.profile}: ${item.type}; ${item.url}`).join('\n') + '\n';
+  const file = path.join(reportRoot, 'combined-ux-summary.md');
+  await writeFile(file, await readFile(file, 'utf8') + reuseText);
+}
 
 if (blobs.length) {
   const blobDirectory = path.join(reportRoot, 'blobs');

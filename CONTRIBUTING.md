@@ -234,6 +234,10 @@ PRs against staging through GitHub's website, including relevant stories, test
 results and visual evidence. Existing issue/branch helpers require optional GitHub
 CLI authentication; the basic local workflow does not.
 
+Advisory CI can reuse matching trusted test results. Maintainers may also approve
+complete local container test evidence for expensive advisory suites; required
+checks still run. See [test evidence and approval instructions](docs/ci-evidence.md).
+
 Optional branch helpers accept a type instead of using a separate command for
 each branch type:
 

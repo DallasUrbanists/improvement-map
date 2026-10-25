@@ -8,6 +8,8 @@ on:
     - cron: '0 13 * * 1'
 permissions:
   contents: read
+  actions: read
+  issues: read
 concurrency:
   group: storybook-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -26,45 +28,77 @@ jobs:
         with:
           node-version: '24.12.0'
           cache: npm
+      - name: Check out trusted reuse policy
+        continue-on-error: true
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .ci-policy
+          persist-credentials: false
+      - name: Check accepted advisory evidence
+        id: reuse
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && hashFiles('.ci-policy/scripts/ci-reuse.js') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_CHECKOUT: ${{ github.workspace }}
+          REUSE_SUITE: storybook
+          REUSE_PROFILE: catalog
+          REUSE_PROJECTS: '[]'
+          REUSE_ARTIFACT: storybook
+          UX_ENFORCE: ${{ vars.UX_ENFORCE }}
+          CI_LOCAL_APPROVERS: ${{ vars.CI_LOCAL_APPROVERS }}
+          CI_REUSE_DISABLED: ${{ vars.CI_REUSE_DISABLED }}
+        run: node .ci-policy/scripts/ci-reuse.js
       - name: Select affected stories
         id: selection
         run: node scripts/storybook-selection.js
       - name: Install dependencies
-        if: steps.selection.outputs.has-tests == 'true'
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
         run: npm ci
       - name: Test selector and packaging contracts
-        if: steps.selection.outputs.has-tests == 'true'
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
         id: tooling
         continue-on-error: true
         run: |
           node --test tests/storybook-tooling.node.mjs
           node --test --test-name-pattern=storybook tests/ci-suites.node.mjs
       - name: Build public catalog
-        if: steps.selection.outputs.has-tests == 'true'
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
         id: build
         run: npm run build:pages
       - name: Install browsers
-        if: steps.selection.outputs.has-tests == 'true'
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
         run: npx playwright install --with-deps chromium webkit
       - name: Component interactions and accessibility
-        if: steps.selection.outputs.has-tests == 'true'
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
         id: interactions
         continue-on-error: true
         run: node scripts/test-storybook-selected.js
       - name: Built catalog and visual candidates
-        if: steps.selection.outputs.has-tests == 'true'
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
         id: visual
         continue-on-error: true
         env:
           STORYBOOK_SELECTED: '1'
         run: npm run test:storybook:visual
       - name: Pages and service worker isolation
-        if: steps.selection.outputs.has-tests == 'true'
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
         id: pages
         continue-on-error: true
         run: npm run test:storybook:pages
+      - name: Verify catalog (${{ steps.reuse.outputs.fingerprint || 'fresh' }})
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
+        env:
+          BUILD: ${{ steps.build.outcome }}
+          TOOLING: ${{ steps.tooling.outcome }}
+          INTERACTIONS: ${{ steps.interactions.outcome }}
+          VISUAL: ${{ steps.visual.outcome }}
+          PAGES: ${{ steps.pages.outcome }}
+        run: node -e "if (['BUILD','TOOLING','INTERACTIONS','VISUAL','PAGES'].some(k => process.env[k] !== 'success')) process.exit(1)"
       - name: Publish advisory summary
-        if: always()
+        if: always() && steps.reuse.outputs.reused != 'true'
         env:
           STORYBOOK_BUILD: ${{ steps.build.outcome }}
           STORYBOOK_TOOLING: ${{ steps.tooling.outcome }}
