@@ -17,10 +17,11 @@
       :surface-level="surfaceLevel"
       :label="label"
       :subtitle="subtitle"
+      :seamless-button-edge="seamlessButtonEdge"
       :buttons="[{ icon: 'xmark', label: 'Close' }]"
       @button-click="close"
     />
-    <div class="floating-modal__content">
+    <div class="floating-modal__content" @scroll="$emit('scroll', $event)">
       <slot />
     </div>
   </section>
@@ -39,9 +40,10 @@ const props = defineProps({
   position: { type: String, default: 'center', validator: value => ['left', 'center', 'right'].includes(value) },
   label: { type: String, default: 'Floating Modal' },
   subtitle: { type: String, default: '' },
+  seamlessButtonEdge: { type: Boolean, default: false },
 });
 const open = defineModel('open', { type: Boolean, default: false });
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'scroll']);
 
 const modalStyle = computed(() => {
   const palette = buttonColors[props.theme]?.neutralByLevel[props.surfaceLevel ?? 5] || buttonColors.light.neutralByLevel[5];
@@ -59,15 +61,19 @@ function close() {
 
 <style scoped>
 .floating-modal {
+  --margins: 8px;
   position: fixed;
   z-index: 1000;
-  inset-block: 4px;
+  pointer-events: auto;
+  top: 64px;
+  bottom: var(--margins);
+  margin-left: auto;
+  margin-right: auto;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  width: calc(100% - 8px);
+  width: calc(100% - var(--margins) * 2);
   max-width: 1024px;
-  height: calc(100% - 8px);
   overflow: hidden;
   border-radius: 8px;
   border: 1px solid var(--floating-modal-border);

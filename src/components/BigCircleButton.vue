@@ -36,7 +36,7 @@ const colors = computed(() => {
   touch-action: manipulation;
 }
 .big-circle-button__label { font-size: 12px; font-weight: 500; line-height: 14px; }
-.big-circle-button:hover:not(:disabled) { background: var(--circle-hover); color: var(--circle-foreground); }
+.big-circle-button.map-ui-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--circle-hover); color: var(--circle-foreground); }
 .big-circle-button:active:not(:disabled) { background: var(--circle-press); color: var(--circle-foreground); box-shadow: inset 0 2px 4px #00000030; }
 .big-circle-button:focus-visible { outline: 2px solid var(--circle-focus); outline-offset: -4px; }
 .big-circle-button:disabled { opacity: 1; cursor: default; }

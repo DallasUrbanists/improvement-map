@@ -85,6 +85,16 @@ export const TextButtonInHeader = {
   },
 };
 
+export const WithSlottedContent = {
+  name: 'With slotted content',
+  args: { open: true, header: { label: 'Idea details' }, content: '' },
+  render: (args, { globals }) => ({
+    components: { Accordion },
+    setup: () => ({ args, globalTheme: globals.theme }),
+    template: '<Accordion v-bind="args" v-model:open="args.open" :theme="args.theme || globalTheme"><p>Content can be composed from application components.</p></Accordion>',
+  }),
+};
+
 export const Locked = {
   args: {
     locked: true,

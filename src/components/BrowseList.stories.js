@@ -1,4 +1,5 @@
 import { expect, fn, userEvent, within } from 'storybook/test';
+import { ref } from 'vue';
 import BrowseList from './BrowseList.vue';
 import { idea } from '../../stories/support/fixtures.js';
 
@@ -28,7 +29,7 @@ const items = [
 export default {
   title: 'MENUS/Browse List',
   component: BrowseList,
-  args: { items, theme: undefined, variant: 'neutral', surfaceLevel: 1, open: true, sortIndex: 0, onBookmarkToggle: fn(), onSortChange: fn(), onClose: fn() },
+  args: { items, theme: undefined, variant: 'neutral', surfaceLevel: 1, open: true, sortIndex: 0, onBookmarkToggle: fn(), onIdeaClick: fn(), onSortChange: fn(), onClose: fn() },
   argTypes: {
     items: { control: 'object', description: 'Browse rows with item text, optional image/emoji, and bookmark state.' },
     theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
@@ -37,18 +38,28 @@ export default {
     open: { control: 'boolean', description: 'Whether the Floating Modal is open.' },
     sortIndex: { control: false, table: { disable: true } },
     onBookmarkToggle: { table: { disable: true } },
+    onIdeaClick: { table: { disable: true } },
     onSortChange: { table: { disable: true } },
     onClose: { table: { disable: true } },
   },
   parameters: {
     layout: 'fullscreen',
     controls: { include: ['theme', 'variant', 'surfaceLevel', 'items', 'open'] },
-    docs: { description: { component: 'Draft. Browse ideas presented inside a Floating Modal. The modal Header Bar includes its close action; Tab Navigation provides the Newest/Nearby tabs and wraps the semantic idea list in its unpadded Contained Section. surfaceLevel controls the neutral surface colors of the modal, header, Tab Navigation and idea rows. Each item supplies its display fields and bookmark state; the parent updates bookmark state in response to bookmark-toggle. sortIndex is controllable and sort-change reports the selected sort.' } },
+    docs: { description: { component: 'Draft. Browse ideas presented inside a Floating Modal. The modal Header Bar includes its close action; Tab Navigation provides the Newest/Nearby tabs and wraps the semantic idea list in its unpadded Contained Section. surfaceLevel controls the neutral surface colors of the modal, header, Tab Navigation and idea rows. Each item supplies its display fields and bookmark state; the parent updates bookmark state in response to bookmark-toggle. Row navigation emits idea-click, while sortIndex is controllable and sort-change reports the selected sort.' } },
   },
   render: (args, { globals }) => ({
     components: { BrowseList },
-    setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<BrowseList v-bind="args" v-model:open="args.open" v-model:sort-index="args.sortIndex" :theme="args.theme || globalTheme" @bookmark-toggle="args.onBookmarkToggle" @sort-change="args.onSortChange" @close="args.onClose" />',
+    setup: () => {
+      const storyItems = ref(args.items.map(item => ({ ...item })));
+      function onBookmarkToggle(payload) {
+        args.onBookmarkToggle(payload);
+        storyItems.value = storyItems.value.map(item => item.id === payload.item.id
+          ? { ...item, bookmarked: payload.bookmarked }
+          : item);
+      }
+      return { args, globalTheme: globals.theme, storyItems, onBookmarkToggle };
+    },
+    template: '<BrowseList v-bind="args" :items="storyItems" v-model:open="args.open" v-model:sort-index="args.sortIndex" :theme="args.theme || globalTheme" @bookmark-toggle="onBookmarkToggle" @idea-click="args.onIdeaClick" @sort-change="args.onSortChange" @close="args.onClose" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -78,6 +89,7 @@ export default {
       await expect(row).toHaveAttribute('data-surface-level', args.surfaceLevel === null ? 'transparent' : String(args.surfaceLevel));
       await userEvent.click(bookmark);
       await expect(args.onBookmarkToggle).toHaveBeenCalledWith({ item, bookmarked: !item.bookmarked });
+      await expect(bookmark).toHaveAttribute('aria-pressed', String(!item.bookmarked));
     }
   },
 };

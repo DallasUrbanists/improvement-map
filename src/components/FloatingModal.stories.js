@@ -66,7 +66,10 @@ const checkModal = async ({ canvasElement, args }) => {
 
 export const CenterPosition = {
   name: 'Center position',
-  args: { position: 'center' },
+  args: {
+    position: 'center',
+    surfaceLevel: 1
+  },
   play: async context => {
     const { canvas, modal } = await checkModal(context);
     const box = modal.getBoundingClientRect();

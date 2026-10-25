@@ -369,7 +369,7 @@ function setSortMode(sort) {
   if (activeSort.value === sort) return;
   activeSort.value = sort;
   nextTick(() => {
-    const content = document.querySelector('.idea-list-tray .map-tray-content');
+    const content = document.querySelector('.idea-list-tray .map-tray-content, .idea-list-tray .floating-modal__content');
     if (content) content.scrollTop = 0;
     saveViewState();
   });

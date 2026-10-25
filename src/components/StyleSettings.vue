@@ -1,12 +1,9 @@
 <template>
-    <button ref="opener" type="button" class="map-ui style-settings-launch" aria-label="Style settings" title="Style settings" @click="open">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 14.0001L12 18.0001L3 14.0001M21 10.0001L12 14.0001L3 10.0001L12 6.00012L21 10.0001Z" /></svg>
-    </button>
-    <button type="button" class="map-ui style-location-launch" data-testid="center-on-location-control"
-      title="Center on my location" aria-label="Center on my location" :aria-busy="locating"
-      :disabled="recenterDisabled" @click="$emit('center')">
-      <i class="fa-solid fa-satellite" :class="{ 'animate-spin': locating }" aria-hidden="true"></i>
-    </button>
+    <SquareIconButton ref="opener" class="style-settings-launch" icon="layer-group" label="Style settings"
+      :theme="isDark ? 'dark' : 'light'" @click="open" />
+    <SquareIconButton class="style-location-launch" data-testid="center-on-location-control" icon="satellite"
+      label="Center on my location" :theme="isDark ? 'dark' : 'light'" :aria-busy="locating"
+      :disabled="recenterDisabled" @click="$emit('center')" />
     <dialog ref="dialog" class="map-ui marker-settings-dialog style-settings-dialog" aria-labelledby="style-settings-title"
       @keydown.esc.stop.prevent="close" @click.self="close" @close="restoreFocus">
       <header class="map-tray-header marker-settings-header">
@@ -31,6 +28,7 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { selectedTheme, isDark, applyTheme } from '../services/theme';
+import SquareIconButton from './SquareIconButton.vue';
 defineProps({ mapStyle: String, iconSize: Number, railsVisible: Boolean, railThickness: Number, locating: Boolean, recenterDisabled: Boolean });
 const emit = defineEmits(['before-open', 'center', 'map-style', 'icon-size', 'rails-visible', 'rail-thickness', 'more-settings']);
 const themeOptions = {
@@ -60,6 +58,6 @@ onBeforeUnmount(() => {
 });
 async function open() { emit('before-open'); await nextTick(); dialog.value?.showModal(); }
 function close() { dialog.value?.close(); }
-function restoreFocus() { opener.value?.focus({ preventScroll: true }); }
+function restoreFocus() { (opener.value?.$el || opener.value)?.focus?.({ preventScroll: true }); }
 defineExpose({ close, getOpener: () => opener.value });
 </script>

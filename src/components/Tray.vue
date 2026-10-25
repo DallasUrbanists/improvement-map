@@ -2,17 +2,19 @@
   <div class="tray-layer" :class="{ 'tray-layer--open': open, 'tray-layer--dragging': dragging }" :data-position="positionName">
     <div class="tray-backdrop" aria-hidden="true"></div>
     <div class="tray-shell" :class="{ 'tray-shell--dragging': dragging, 'tray-shell--closed': !open }" :style="trayStyle">
-      <aside ref="trayElement" class="tray" :data-theme="theme" :data-open="open" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" aria-label="Tray" :inert="!open && !dragging">
-        <div class="tray__content">
+      <aside ref="trayElement" class="tray" :class="panelClass" :data-theme="theme" :data-open="open" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :aria-label="label" :aria-busy="busy || undefined" :inert="!open && !dragging">
+        <div ref="contentElement" class="tray__content">
           <slot />
         </div>
       </aside>
       <button
         v-if="showHandle"
         class="tray__handle"
+        :class="handleClass"
         type="button"
-        :aria-label="open ? 'Close tray' : 'Open tray'"
-        :aria-expanded="open"
+        :aria-label="handleLabel || (open ? 'Close tray' : 'Open tray')"
+        :aria-expanded="toggleMaximizeOnClick ? maximize : open"
+        :disabled="busy"
         @pointerdown="startDrag"
         @pointermove="moveDrag"
         @pointerup="endDrag"
@@ -30,6 +32,12 @@ import { buttonColors } from '../design/buttonColors.js';
 /** Full-width panel that slides up from the bottom edge. */
 const props = defineProps({
   theme: { type: String, default: 'light', validator: value => ['light', 'dark'].includes(value) },
+  label: { type: String, default: 'Tray' },
+  panelClass: { type: String, default: '' },
+  handleClass: { type: String, default: '' },
+  handleLabel: { type: String, default: '' },
+  toggleMaximizeOnClick: Boolean,
+  busy: Boolean,
   surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
   canDragClose: Boolean,
   canDragOpen: Boolean,
@@ -43,6 +51,7 @@ const surface = computed(() => {
   return props.surfaceLevel === null ? { ...palette, background: 'transparent' } : palette;
 });
 const trayElement = ref(null);
+const contentElement = ref(null);
 const dragging = ref(false);
 const dragOffset = ref(null);
 let dragStart = null;
@@ -139,9 +148,12 @@ function endDrag(event) {
 
 function toggleFromClick() {
   if (suppressNextClick) { suppressNextClick = false; return; }
+  if (open.value && props.toggleMaximizeOnClick) { maximize.value = !maximize.value; return; }
   if (open.value && props.canDragClose) setPosition(0);
   else if (!open.value && props.canDragOpen) setPosition(maximize.value ? 2 : 1);
 }
+
+defineExpose({ element: trayElement, content: trayElement, contentElement });
 </script>
 
 <style scoped>
@@ -168,7 +180,7 @@ function toggleFromClick() {
   z-index: 2;
   inset-inline: 0;
   bottom: 0;
-  height: min(var(--tray-max-height), 85vh);
+  height: var(--tray-max-height);
   transition: transform 220ms ease-out;
 }
 .tray-shell--dragging { transition: none; }

@@ -13,6 +13,7 @@
       :label="button.label"
       :disabled="button.disabled"
       :theme="theme"
+      :surface-level="surfaceLevel"
       :variant="button.variant || variant"
       @click="$emit('button-click', { button, index })"
     />

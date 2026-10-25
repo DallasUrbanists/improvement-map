@@ -1,13 +1,11 @@
 <template>
-  <section v-if="!hasDesign" class="detail-accordion streetmix-accordion streetmix-locked" aria-label="Streetmix">
-    <div class="streetmix-header">
-      <h3 class="font-bold">Streetmix</h3>
-      <button type="button" class="action-button" :disabled="loading" @click="$event.currentTarget.focus({ preventScroll: true }); full = true">{{ selecting ? 'Choose street' : 'Create design' }}</button>
+  <Accordion v-if="!hasDesign" v-model:open="expanded" class="streetmix-accordion streetmix-locked" :theme="theme" :surface-level="surfaceLevel" :header="{ label: 'Streetmix' }" :header-text-button="{ label: selecting ? 'Choose street' : 'Create design', disabled: loading }" @header-text-button-click="full = true">
+    <div class="streetmix-panel-copy">
+      <p>Create a street cross-section for this location.</p>
+      <p class="text-sm">About a minute. Creates a public, anonymous design.</p>
     </div>
-  </section>
-  <section v-else class="detail-accordion streetmix-accordion streetmix-generated" aria-label="Streetmix">
-    <details class="detail-accordion" :open="expanded" @toggle="expanded = $event.currentTarget.open">
-    <summary ref="heading" class="font-bold">Streetmix</summary>
+  </Accordion>
+  <Accordion v-else v-model:open="expanded" class="streetmix-accordion streetmix-generated" :theme="theme" :surface-level="surfaceLevel" :header="{ label: 'Streetmix' }" :header-text-button="{ label: 'Open Streetmix' }" @header-text-button-click="openStreetmix">
     <div class="streetmix-preview">
       <template v-if="expanded && !imageFailed">
         <p v-if="!imageLoaded" role="status">Loading design…</p>
@@ -15,9 +13,7 @@
       </template>
       <p v-else-if="expanded" role="status">Preview unavailable.</p>
     </div>
-    </details>
-    <a v-if="editorUrl" :href="editorUrl" target="_blank" rel="noopener noreferrer" class="map-ui-button streetmix-external" aria-label="Open in Streetmix" title="Open in Streetmix" @click.stop><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
-  </section>
+  </Accordion>
   <DetailSheet v-if="!hasDesign" v-model="full" title="Streetmix">
     <div class="actions-panel streetmix-panel">
       <p v-if="loading" role="status">Loading Streetmix…</p>
@@ -61,20 +57,22 @@
   </DetailSheet>
 </template>
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch, useId } from 'vue';
+import { computed, onBeforeUnmount, ref, watch, useId } from 'vue';
 import { kPreloader } from 'konsta/vue';
 import DetailSheet from './DetailSheet.vue';
+import Accordion from './Accordion.vue';
 import StreetmixRoadMap from './StreetmixRoadMap.vue';
 import { useStreetmix } from '../services/useStreetmix';
 import { fetchStreetmixThumbnail, safeStreetmixUrl } from '../services/streetmix';
-const props = defineProps({ suggestion: { type: Object, required: true }, refreshVersion: Number });
+const props = defineProps({ suggestion: { type: Object, required: true }, theme: { type: String, default: 'light', validator: value => ['light', 'dark'].includes(value) }, surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) }, refreshVersion: Number });
 const emit = defineEmits(['saved']);
-const full = ref(false), expanded = ref(false), heading = ref(null);
+const full = ref(false), expanded = ref(false);
 const open = computed(() => full.value || expanded.value);
 const selected = ref(''), imageLoaded = ref(false), imageFailed = ref(false), selectId = useId();
 const { saved, result, workflow, pending, loading, busy, error, storageNotice, authorized, selectionAllowed, regeneration, url, expired, selecting, active, blocked, statusMessage, load, check, start, resume, confirm } = useStreetmix(props, emit, open);
 const hasDesign = computed(() => Boolean(saved.value || result.value));
 const editorUrl = computed(() => url.value || safeStreetmixUrl(saved.value?.streetmixUrl));
+function openStreetmix() { if (editorUrl.value) window.open(editorUrl.value, '_blank', 'noopener,noreferrer'); }
 const imageUrl = ref('');
 let imageController, imageVersion = 0;
 const confirmationPending = computed(() => pending.value?.path.endsWith('/selection'));
@@ -100,12 +98,10 @@ watch([expanded, () => result.value?.streetmixId || saved.value?.streetmixId], a
   } catch { if (version === imageVersion) imageFailed.value = true; }
 });
 onBeforeUnmount(() => { imageVersion++; imageController?.abort(); clearImage(); });
-watch(hasDesign, async value => {
+watch(hasDesign, value => {
   if (value && full.value) {
     full.value = false;
     expanded.value = true;
-    await nextTick();
-    heading.value?.focus({ preventScroll: true });
   }
 });
 </script>

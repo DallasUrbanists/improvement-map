@@ -1,9 +1,6 @@
 <template>
-  <button v-bind="$attrs" type="button" class="map-ui map-ui-button map-list-fab" aria-label="List" :aria-pressed="isBrowse && modelValue === 'list'"
-    @click="browseList">
-    <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
-    <span>List</span>
-  </button>
+  <BigCircleButton v-bind="$attrs" icon="list-ul" label="List" :theme="isDark ? 'dark' : 'light'"
+    :aria-pressed="isBrowse && modelValue === 'list'" @click="browseList" />
   <Teleport to="body">
     <AppMenu v-model:open="menuOpen" :theme="isDark ? 'dark' : 'light'" @item-click="handleAppMenuItemClick" />
   </Teleport>
@@ -145,6 +142,7 @@
 import { computed, ref, useId, watch, onDeactivated, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppMenu from './AppMenu.vue';
+import BigCircleButton from './BigCircleButton.vue';
 import { railThickness, setRailThickness, DEFAULT_RAIL_THICKNESS } from '../services/railSettings.js';
 import { DEFAULT_MARKER_SETTINGS } from '../services/storage.js';
 import { isDark } from '../services/theme';
