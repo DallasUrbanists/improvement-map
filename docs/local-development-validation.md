@@ -59,6 +59,25 @@ selector checks with external networking disabled. Receipt:
 YAML files parsed successfully. Existing widget and advanced-mock limitations
 below remain explicit follow-up work.
 
+## CI follow-up
+
+The first PR run exposed a clean-checkout mount failure before the offline tests
+started. The test service mounted an unused dependency volume inside its read-only
+source bind, requiring a `node_modules` directory that fresh runners do not have.
+Removed that mount: the entrypoint already prepares dependencies in its isolated
+temporary checkout. A fresh Git archive with no host dependencies passed all 5
+Node checks and 2 browser journeys with external networking disabled.
+
+The combined report also encountered container versus host checkout paths and
+different test roots once browser jobs produced their evidence. UX now uses the
+same `tests` root as regression/unit jobs, with its existing spec selection and
+`tests/ux/snapshots` locations preserved. An explicit merge config relocates paths
+to the report checkout. Existing suite-partition checks passed; a new regression
+case creates real blob reports in two checkout roots, merges HTML and JSON, and
+verifies both test results and the `ux/` source prefix. The merger checks and Browse
+journey also passed in the isolated offline test container. No assertions or
+advisory enforcement were relaxed.
+
 ## Storybook Component tests widget limitation
 
 CLI component tests work. The pinned 10.6.3 widget intermittently failed with

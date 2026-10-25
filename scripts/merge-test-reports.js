@@ -68,7 +68,7 @@ if (blobs.length) {
   const { copyFile } = await import('node:fs/promises');
   for (const [index, blob] of blobs.entries()) await copyFile(blob, path.join(blobDirectory, `${index + 1}.zip`));
   const cli = path.resolve('node_modules/@playwright/test/cli.js');
-  const result = spawnSync(process.execPath, [cli, 'merge-reports', '--reporter=html', blobDirectory], { stdio: 'inherit', env: { ...process.env, PLAYWRIGHT_HTML_OUTPUT_DIR: output, PLAYWRIGHT_HTML_OPEN: 'never' } });
+  const result = spawnSync(process.execPath, [cli, 'merge-reports', '--config', path.resolve('playwright.merge.config.js'), '--reporter=html', blobDirectory], { stdio: 'inherit', env: { ...process.env, PLAYWRIGHT_HTML_OUTPUT_DIR: output, PLAYWRIGHT_HTML_OPEN: 'never' } });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exitCode = result.status ?? 1;
 }

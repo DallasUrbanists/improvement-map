@@ -93,12 +93,10 @@ services:
       DEV_FORCE_MOCKS: "1"
     volumes:
       - .:/workspace:ro
-      - test-dependencies:/workspace/node_modules
       - ./test-results:/results
 
 volumes:
   web-dependencies:
   storybook-dependencies:
   mock-dependencies:
-  test-dependencies:
   mock-data:
