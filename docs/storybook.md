@@ -48,6 +48,7 @@ All catalog entries are **Draft**, pending explicit maintainer review. The sourc
 | Large circular icon-and-label action | `src/components/BigCircleButton.vue` | BUTTONS/Big Circle Button | Draft |
 | New idea action with map-pin confirmation and cancel states | `src/components/NewIdeaSpecialButton.vue` | BUTTONS/New Idea Special Button | Draft |
 | Fit-content text action with an optional leading icon | `src/components/TextButton.vue` | BUTTONS/Text Button | Draft |
+| Rounded inline text label with size, palette, click and selection states | `src/components/PillText.vue` | BUTTONS/Pill text | Draft |
 | Full-width, left-aligned menu action | `src/components/RowButton.vue` | BUTTONS/Row Button | Draft |
 | Raw full-width text input with optional placeholder and icon | `src/components/TextInput.vue` | FORM/Text Input | Draft |
 | Full-width text input joined to an icon or text action | `src/components/TextWithInlineButton.vue` | FORM/Text With Inline Button | Draft |
@@ -77,6 +78,8 @@ Big Circle Button has one Floating story and shares the variant, icon, disabled 
 New Idea Special Button composes Big Circle Button and Text Button for the map's submission flow. New opens pin selection, where the main action becomes Set pin and continue and Cancel pin appears as a Text Button. Pin confirmation advances to the submission Close state; cancel returns to New. Its controls preview the three states, primary-action variant and pin-readiness flag. The app retains its map-positioned morph choreography while the component owns the three button presentations and emitted actions. Theme follows the global toolbar.
 
 Text Button shares Square Icon Button's Floating and Tight stories, variant choices, interaction states, and spacing, radius and shadow treatments. Its Active story uses the Tight treatment and the active surface color selected by inherited `surfaceLevel` when `isActive` is true. Its width fits the content, the label always appears, and the icon control includes a `none` option or can display the selected icon to the label's left. Its controls are variant, icon, disabled, isActive and label; `surfaceLevel` is supplied by a parent container. Theme follows the global toolbar.
+
+Pill text is a rounded inline label with small (0.75em), regular (1em) and large (1.5em) sizes and Neutral, Primary and Secondary palette variants. Without `onclick` it renders a span; supplying the callback renders a native button. Selectable pills maintain selected state, exposed through `aria-pressed`; bind `selected` for exclusive groups. Selected pills use the active surface treatment. The global theme toolbar sets its palette. Stories show all size/variant combinations, clickable variants and independently selectable groups.
 
 Text Input is a raw `<input type="text">` with no rendered label or wrapper. It fills the available width, accepts an optional placeholder and a decorative leading icon, and follows the shared neutral colors for its theme. Floating uses Text Button's 4px margin, 8px radius and shadow; Tight removes all three. Its controls are placeholder and icon; its stories cover both layouts. Theme follows the global toolbar.
 
