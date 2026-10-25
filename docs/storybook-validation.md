@@ -54,6 +54,16 @@ Reworded Colors as a shared palette for the entire app, spanning components, pat
 
 Wrapped the light and dark palette sections in matching documentation-only surfaces and explicit Storybook theme providers, so swatch labels remain readable regardless of the surrounding Docs theme. These containers do not affect raw component previews. The static build and **4 focused documentation browser checks passed**, covering the shared-palette wording and both section backgrounds across the existing viewport/theme profiles. The live page was inspected. Tests remain advisory and baselines remain unapproved.
 
+## Drawer browser starting state — October 24, 2026
+
+The two `CONTAINERS/Drawer` slide stories finish their play functions closed. The browser test now verifies that state after `data-storybook-ready` and reopens through the existing accessible `Open drawer` handle before checking the open backdrop and geometry. Production code, story play functions, IDs, screenshots, and existing closed/drag-disabled coverage were not changed.
+
+The focused Storybook build passed. **16 drawer browser cases passed** across `narrow-light`, `desktop-light`, `narrow-dark`, and `desktop-dark`: both `containers-drawer--slide-from-left` and `containers-drawer--slide-from-right` passed their open/close/reopen checks, and all eight closed/drag-disabled cases passed. **6 interaction/accessibility cases passed** for the Drawer stories in light and dark. The initial narrow/light baseline reproduced 2 open-state failures and 2 closed-state passes before the test setup change.
+
+The focused commands were the pinned Storybook build, `node node_modules/@playwright/test/cli.js test --config playwright.storybook.config.js tests/storybook/drawer.spec.js --project=narrow-light --project=desktop-light --project=narrow-dark --project=desktop-dark`, and `PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers node node_modules/vitest/vitest.mjs run --config vitest.storybook.config.js src/components/Drawer.stories.js`. The test container was explicitly mounted to this branch worktree; its bundled Chromium path was used for the interaction run because the branch helper selects a checkout-local browser download path.
+
+Evidence: [browser JSON](../test-results/local-development/test-results/storybook/browser.json), [interaction JSON](../test-results/local-development/test-results/storybook/interactions.json), and [HTML report](../test-results/local-development/playwright-report/storybook/index.html). No screenshot candidates were generated or approved. Drawer designs remain Draft; visual review remains pending.
+
 ## Existing application-test failures
 
 Three scenarios in `tests/ux/mobile-panels.spec.js` fail in all four Android/iPhone light/dark profiles:

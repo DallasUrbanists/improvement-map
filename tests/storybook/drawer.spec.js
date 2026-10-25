@@ -8,6 +8,10 @@ for (const [story, side] of [['slide-from-left', 'left'], ['slide-from-right', '
     await page.goto(`iframe.html?${query}`);
     await expect(page.locator('html')).toHaveAttribute('data-storybook-ready', id);
     const drawer = page.getByRole('complementary', { name: 'Drawer' });
+    // The story play function finishes by closing via the header action.
+    await expect(drawer).toHaveAttribute('data-open', 'false');
+    await page.getByRole('button', { name: 'Open drawer', exact: true }).click();
+    await expect(drawer).toHaveAttribute('data-open', 'true');
     await expect(drawer.locator('.header-bar')).toHaveText('Drawer');
     const backdrop = page.locator('.drawer-backdrop');
     await expect(drawer).toBeVisible();
