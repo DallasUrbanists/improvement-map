@@ -7,7 +7,7 @@ Run focused tests while editing, then use the integration matrix:
 npm run test:unit
 
 # A browser feature on desktop
-npm run test:e2e -- tests/mapWorkspace.spec.js --project=chromium
+npm test -- tests/mapWorkspace.spec.js --project=chromium
 
 # All pure cases once and browser cases on desktop and mobile Chromium
 npm test
@@ -40,11 +40,11 @@ remain deterministic. The connection suite's default is socket-on; use
 Both modes select tagged tests and can be checked without starting Vite:
 
 ```powershell
-npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium --list
+npm test -- --config=playwright.presentation.config.js --project=chromium --list
 $previousSocketTestMode = $env:PRESENTATION_SOCKET_TEST_MODE
 try {
   $env:PRESENTATION_SOCKET_TEST_MODE = 'off'
-  npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium --list
+  npm test -- --config=playwright.presentation.config.js --project=chromium --list
 } finally {
   if ($null -eq $previousSocketTestMode) {
     Remove-Item Env:PRESENTATION_SOCKET_TEST_MODE -ErrorAction SilentlyContinue
@@ -67,7 +67,7 @@ filter. For example:
 
 ```powershell
 npm run test:unit -- tests/speechRecognition.spec.js
-npm run test:e2e -- tests/speechRecognition.spec.js tests/e2e.spec.js --project=chromium --grep speech --grep-invert @unit
+npm test -- tests/speechRecognition.spec.js tests/e2e.spec.js --project=chromium --grep speech --grep-invert @unit
 ```
 
 Regression artifacts live in `test-results/regression`; UX artifacts live in

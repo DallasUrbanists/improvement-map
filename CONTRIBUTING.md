@@ -193,7 +193,7 @@ advisory, and screenshot candidates stay `visual-review-pending` until reviewed.
 For dependent build/check commands, use one invocation so build outputs survive:
 
 ```sh
-docker compose run --rm test sh -c "npm run build-storybook && npm run test:storybook:visual"
+docker compose run --rm test sh -c "npm run build:storybook && npm run test:storybook:visual"
 docker compose run --rm test sh -c "npm run build:pages && npm run test:storybook:pages"
 ```
 
@@ -233,6 +233,33 @@ Use Git to branch from staging, commit focused changes, and push when online. Op
 PRs against staging through GitHub's website, including relevant stories, test
 results and visual evidence. Existing issue/branch helpers require optional GitHub
 CLI authentication; the basic local workflow does not.
+
+Advisory CI can reuse matching trusted test results. Maintainers may also approve
+complete local container test evidence for expensive advisory suites; required
+checks still run. See [test evidence and approval instructions](docs/ci-evidence.md).
+
+Optional branch helpers accept a type instead of using a separate command for
+each branch type:
+
+```sh
+npm run branch:start -- feature improve-search 123
+npm run branch:finish -- feature
+```
+
+`branch:start` accepts `feature`, `fix`, `hotfix`, `release`, `refactor`, `docs`,
+`test`, or `chore`, followed by a lowercase kebab-case description and an optional
+issue number. Without an issue number it prompts for one or offers to create an
+issue. Hotfixes start from main; other types start from staging.
+`branch:finish` accepts `feature` or `refactor`, runs selected tests and the app
+build, and displays changes for review. With a clean working tree it attempts to
+open a draft PR against staging. These helpers need network access and GitHub CLI.
+
+Use `npm test -- <test-file> --project=chromium` for a focused regression test,
+`npm test -- --grep-invert @critical` for noncritical regression tests, and
+`npm run test:ux -- --full` for the comprehensive UX audit. These commands can also
+run through the test container as shown above. For release maintainers,
+`npm run release -- patch` (or `minor` / `major`) creates a version commit/tag and
+pushes main and tags; it refuses to run outside main. See [release instructions](docs/releases.md).
 
 - Engine unavailable: start Docker Desktop and select Linux containers, or start
   Docker Engine using your Linux distribution's service manager. Check `docker info`.

@@ -17,6 +17,8 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  issues: read
 
 concurrency:
   group: playwright-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -49,6 +51,8 @@ jobs:
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           GITHUB_SHA: ${{ github.sha }}
         run: node scripts/ci-test-matrix.js
+      - name: Test advisory evidence policy
+        run: node --test tests/ci-evidence.node.mjs
 
   browser-suites:
     needs: detect-changes
@@ -71,9 +75,35 @@ jobs:
           cache: npm
       - name: Record job start
         run: echo "JOB_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+      - name: Check out trusted reuse policy
+        continue-on-error: true
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .ci-policy
+          persist-credentials: false
+      - name: Check accepted advisory evidence
+        id: reuse
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && hashFiles('.ci-policy/scripts/ci-reuse.js') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_CHECKOUT: ${{ github.workspace }}
+          REUSE_SUITE: ${{ matrix.suite }}
+          REUSE_KIND: ${{ matrix.kind }}
+          REUSE_PROFILE: ${{ matrix.profile }}
+          REUSE_PROJECTS: ${{ toJSON(matrix.projects) }}
+          REUSE_ARTIFACT: ${{ matrix.artifact }}
+          UX_ENFORCE: ${{ vars.UX_ENFORCE }}
+          CI_LOCAL_APPROVERS: ${{ vars.CI_LOCAL_APPROVERS }}
+          CI_REUSE_DISABLED: ${{ vars.CI_REUSE_DISABLED }}
+        run: node .ci-policy/scripts/ci-reuse.js
       - name: Install dependencies
+        if: steps.reuse.outputs.reused != 'true'
         run: npm ci
-      - name: Run selected suite
+      - name: Run selected suite (${{ steps.reuse.outputs.fingerprint || 'fresh' }})
+        if: steps.reuse.outputs.reused != 'true'
         id: test
         shell: bash
         continue-on-error: ${{ matrix.kind == 'ux' && vars.UX_ENFORCE != 'true' || matrix.kind == 'regression' }}

@@ -188,9 +188,9 @@ First inspect status and collection without launching the full suites:
 ```powershell
 git status --short
 git diff --stat
-npm run test:e2e -- --list
+npm test -- --list
 npm run test:unit -- --list
-npm run test:extended -- --list
+npm test -- --grep-invert @critical --list
 npm run test:critical -- --list
 ```
 
@@ -209,8 +209,8 @@ Current filter caveats:
 After repairing the custom diagram test, run focused regressions:
 
 ```powershell
-npm run test:e2e -- tests/customDiagram.spec.js tests/mapWorkspace.spec.js tests/workspaceNavigation.spec.js tests/e2e.spec.js --project=chromium --reporter=list
-npm run test:e2e -- tests/customDiagram.spec.js tests/workspaceNavigation.spec.js tests/e2e.spec.js --project="Mobile Chrome" --reporter=list
+npm test -- tests/customDiagram.spec.js tests/mapWorkspace.spec.js tests/workspaceNavigation.spec.js tests/e2e.spec.js --project=chromium --reporter=list
+npm test -- tests/customDiagram.spec.js tests/workspaceNavigation.spec.js tests/e2e.spec.js --project="Mobile Chrome" --reporter=list
 ```
 
 Run the affected UX cases first on Android/light, then iPhone/light:
@@ -227,7 +227,7 @@ or file. Do not broadly delete additional coverage to obtain green results.
 Once focused checks pass, run the full regression suite and wait for completion:
 
 ```powershell
-npm run test:e2e -- --reporter=list > playwright-report/luna-regression.log 2>&1
+npm test -- --reporter=list > playwright-report/luna-regression.log 2>&1
 ```
 
 Then run the required core UX matrix and wait for completion:
@@ -236,7 +236,7 @@ Then run the required core UX matrix and wait for completion:
 npm run test:ux > playwright-report/luna-ux.log 2>&1
 ```
 
-Do **not** run `test:ux:full`: the core matrix already covers the integration
+Do **not** run `npm run test:ux -- --full`: the core matrix already covers the integration
 checkpoint required here. If final validation reveals a failure and you repair
 it, rerun its affected coverage; do not repeat unrelated passing tests without
 a reason. Explain aggregate evidence accurately if the final state is validated

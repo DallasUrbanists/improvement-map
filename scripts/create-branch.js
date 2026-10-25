@@ -29,7 +29,7 @@ function runCaptured(command, args) {
 }
 
 function usage() {
-  console.error('Usage: npm run start:<type> -- <lowercase-kebab-slug> [issue-number]');
+  console.error('Usage: npm run branch:start -- <type> <lowercase-kebab-slug> [issue-number]');
   console.error('Omit issue-number to enter one interactively or create a new issue.');
   console.error(`Types: ${[...branchTypes].join(', ')}`);
 }

@@ -9,9 +9,9 @@
 | Active Submit development | `npm run test:feature -- submit` | Upload/edit/validation/recovery/persistence assertions |
 | Error-state development | `npm run test:feature -- recovery` | Empty, denied location, missing detail |
 | Audit tooling changes | `npm run test:feature -- guardrails` | Deliberate defects and write-blocking canaries |
-| Other features | `npm run test:e2e -- tests/<feature>.spec.js --project=chromium` | Selected existing spec |
+| Other features | `npm test -- tests/<feature>.spec.js --project=chromium` | Selected existing spec |
 | Integration/review | `npm run test:ux` | Android Chromium + iPhone WebKit, light/dark, all audit states |
-| Launch polishing | `npm run test:ux:full` | Adds 320px iPhone, landscape iPhone, desktop, both themes |
+| Launch polishing | `npm run test:ux -- --full` | Adds 320px iPhone, landscape iPhone, desktop, both themes |
 
 Pass `--project=iphone-light` to a feature command for WebKit. Pass `--grep` or `--project` to audit commands to narrow an investigation. Do not run the full matrix on every edit. `npm test` retains the existing suite and excludes the new UX directory.
 
