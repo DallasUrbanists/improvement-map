@@ -3,9 +3,8 @@ import Toolbar from './Toolbar.vue';
 
 export default {
   title: 'BARS/Toolbar', component: Toolbar,
-  args: { theme: undefined, variant: 'neutral', buttons: [], buttonType: 'icon', onButtonClick: fn() },
+  args: { variant: 'neutral', buttons: [], buttonType: 'icon', onButtonClick: fn() },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Shared color treatment for each button.' },
     leftButtons: { control: 'object', description: 'Button list for the left side. Each item accepts icon, label and optional disabled.' },
     rightButtons: { control: 'object', description: 'Button list for the right side. Each item accepts icon, label and optional disabled.' },
@@ -14,13 +13,13 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'leftButtons', 'rightButtons'] },
+    controls: { include: ['variant', 'leftButtons', 'rightButtons'] },
     docs: { description: { component: 'Draft. Full-width, palette-themed bar with a 1px bottom border, composed from Square Icon Button or Text Button. Buttons always use their Tight treatment: zero margin, corner radius and shadow. Button definitions provide icon, visible or accessible label, and optional disabled state. Activations emit button-click with the selected button and its index.' } },
   },
   render: (args, { globals }) => ({
     components: { Toolbar },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<Toolbar v-bind="args" :theme="args.theme || globalTheme" @button-click="args.onButtonClick" />',
+    template: '<Toolbar v-bind="args" :theme="globalTheme" @button-click="args.onButtonClick" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

@@ -5,7 +5,6 @@ export default {
   title: 'BUTTONS/Square Icon Button', component: SquareIconButton,
   args: { icon: 'bars', disabled: false, isActive: false, surfaceLevel: 1, label: 'Open menu', variant: 'neutral', layout: 'floating', onClick: fn() },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Color treatment from the shared app palette.' },
     icon: { control: 'select', options: ['bars', 'layer-group', 'plus', 'xmark', 'magnifying-glass', 'location-crosshairs', 'bookmark', 'arrow-left', 'arrow-right'] },
     disabled: { control: 'boolean' },
@@ -16,10 +15,10 @@ export default {
     onClick: { table: { disable: true } },
   },
   parameters: {
-    controls: { include: ['theme', 'variant', 'icon', 'disabled', 'isActive', 'label'] },
+    controls: { include: ['variant', 'icon', 'disabled', 'isActive', 'label'] },
     docs: { description: { component: 'Draft. A 48px square icon-only action, composed from MapControlButton. Choose Neutral, Primary or Secondary with the variant control; the shared app palette is documented on Colors. label supplies the accessible name and native hover tooltip; no label text is printed. isActive uses the active surface color at the inherited surfaceLevel (default 1), while hover and focus feedback remain available. Use the Pseudo states toolbar: no selection = default, hover = hover, active = press, focus-visible = keyboard focus. Floating uses a 4px margin, 8px corner radius and component shadow. Tight removes the margin, radius and shadow.' } },
   },
-  render: (args, { globals }) => ({ components: { SquareIconButton }, setup: () => ({ args, globalTheme: globals.theme }), template: '<SquareIconButton v-bind="args" :theme="args.theme || globalTheme" />' }),
+  render: (args, { globals }) => ({ components: { SquareIconButton }, setup: () => ({ args, globalTheme: globals.theme }), template: '<SquareIconButton v-bind="args" :theme="globalTheme" />' }),
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: args.label });
     await expect(button).toHaveAttribute('title', args.label);

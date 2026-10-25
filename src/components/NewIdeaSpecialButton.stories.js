@@ -7,7 +7,6 @@ export default {
   component: NewIdeaSpecialButton,
   args: {
     state: 'new',
-    theme: undefined,
     variant: 'primary',
     pinTop: '50%',
     pinReady: true,
@@ -18,7 +17,6 @@ export default {
   },
   argTypes: {
     state: { control: 'inline-radio', options: ['new', 'pin', 'close'], description: 'Shows the New circle, pin confirmation actions, or the submission Close circle.' },
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Palette for the New and Set pin and continue actions.' },
     pinTop: { control: false, table: { disable: true }, description: 'Map-calculated vertical position for pin confirmation.' },
     pinReady: { control: 'boolean', description: 'Disables Set pin and continue until the pin entrance animation is ready.' },
@@ -29,7 +27,7 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['state', 'theme', 'variant', 'pinReady'] },
+    controls: { include: ['state', 'variant', 'pinReady'] },
     docs: { description: { component: 'Draft. A map-positioned action derived from Big Circle Button. New opens pin selection; the circle becomes Set pin and continue with a separate Cancel pin action. The confirm and cancel actions are instances of Text Button. After pin confirmation, the Close circle returns to the map. Events: new, set-pin, cancel-pin and close.' } },
   },
   render: (args, { globals }) => ({
@@ -43,7 +41,7 @@ export default {
       const close = () => { state.value = 'new'; args.onClose(); };
       return { args, globalTheme: globals.theme, state, enterPin, setPin, cancelPin, close };
     },
-    template: '<NewIdeaSpecialButton :state="state" :theme="args.theme || globalTheme" :variant="args.variant" :pin-top="args.pinTop" :pin-ready="args.pinReady" @new="enterPin" @set-pin="setPin" @cancel-pin="cancelPin" @close="close" />',
+    template: '<NewIdeaSpecialButton :state="state" :theme="globalTheme" :variant="args.variant" :pin-top="args.pinTop" :pin-ready="args.pinReady" @new="enterPin" @set-pin="setPin" @cancel-pin="cancelPin" @close="close" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

@@ -24,7 +24,7 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { expanded: true },
+    controls: { expanded: true, exclude: ['theme'] },
     a11y: { test: 'error' },
     options: { storySort: { order: ['Colors', 'MENUS', 'BUTTONS', 'BARS', 'CONTAINERS', 'FORM', 'EMBEDDABLES'] } },
     docs: { codePanel: true, container: DocsThemeContainer },

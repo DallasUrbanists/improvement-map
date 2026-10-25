@@ -29,10 +29,9 @@ const items = [
 export default {
   title: 'MENUS/Browse List',
   component: BrowseList,
-  args: { items, theme: undefined, variant: 'neutral', surfaceLevel: 1, open: true, sortIndex: 0, onBookmarkToggle: fn(), onIdeaClick: fn(), onSortChange: fn(), onClose: fn() },
+  args: { items, variant: 'neutral', surfaceLevel: 1, open: true, sortIndex: 0, onBookmarkToggle: fn(), onIdeaClick: fn(), onSortChange: fn(), onClose: fn() },
   argTypes: {
     items: { control: 'object', description: 'Browse rows with item text, optional image/emoji, and bookmark state.' },
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Shared row surface and text treatment.' },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Surface level passed to the modal, header, Tab Navigation, and neutral idea rows.' },
     open: { control: 'boolean', description: 'Whether the Floating Modal is open.' },
@@ -44,7 +43,7 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'surfaceLevel', 'items', 'open'] },
+    controls: { include: ['variant', 'surfaceLevel', 'items', 'open'] },
     docs: { description: { component: 'Draft. Browse ideas presented inside a Floating Modal. The modal Header Bar includes its close action; Tab Navigation provides the Newest/Nearby tabs and wraps the semantic idea list in its unpadded Contained Section. surfaceLevel controls the neutral surface colors of the modal, header, Tab Navigation and idea rows. Each item supplies its display fields and bookmark state; the parent updates bookmark state in response to bookmark-toggle. Row navigation emits idea-click, while sortIndex is controllable and sort-change reports the selected sort.' } },
   },
   render: (args, { globals }) => ({
@@ -59,7 +58,7 @@ export default {
       }
       return { args, globalTheme: globals.theme, storyItems, onBookmarkToggle };
     },
-    template: '<BrowseList v-bind="args" :items="storyItems" v-model:open="args.open" v-model:sort-index="args.sortIndex" :theme="args.theme || globalTheme" @bookmark-toggle="onBookmarkToggle" @idea-click="args.onIdeaClick" @sort-change="args.onSortChange" @close="args.onClose" />',
+    template: '<BrowseList v-bind="args" :items="storyItems" v-model:open="args.open" v-model:sort-index="args.sortIndex" :theme="globalTheme" @bookmark-toggle="onBookmarkToggle" @idea-click="args.onIdeaClick" @sort-change="args.onSortChange" @close="args.onClose" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

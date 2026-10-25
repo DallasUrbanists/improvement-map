@@ -3,9 +3,8 @@ import HeaderBar from './HeaderBar.vue';
 
 export default {
   title: 'BARS/Header Bar', component: HeaderBar,
-  args: { label: 'Header', subtitle: '', theme: undefined, variant: 'neutral', surfaceLevel: 1, buttons: [], seamlessButtonEdge: false, onButtonClick: fn() },
+  args: { label: 'Header', subtitle: '', variant: 'neutral', surfaceLevel: 1, buttons: [], seamlessButtonEdge: false, onButtonClick: fn() },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Sets the bar background from the shared app palette.' },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Neutral surface level when variant is neutral.' },
     label: { control: 'text', description: 'Always-visible, left-aligned bold header text.' },
@@ -16,13 +15,13 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'surfaceLevel', 'label', 'subtitle', 'buttons', 'seamlessButtonEdge'] },
+    controls: { include: ['variant', 'surfaceLevel', 'label', 'subtitle', 'buttons', 'seamlessButtonEdge'] },
     docs: { description: { component: 'Draft. Full-width header bar with bold, left-aligned label, optional subtitle and a solid 1px bottom border. The variant control selects the shared palette background (Neutral, Primary or Secondary). With Buttons composes any number of existing Square Icon Buttons in Tight layout; each button inherits the bar variant unless it defines one. seamlessButtonEdge removes the left border from the first button.' } },
   },
   render: (args, { globals }) => ({
     components: { HeaderBar },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<HeaderBar v-bind="args" :theme="args.theme || globalTheme" @button-click="args.onButtonClick" />',
+    template: '<HeaderBar v-bind="args" :theme="globalTheme" @button-click="args.onButtonClick" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

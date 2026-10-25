@@ -11,7 +11,6 @@ export default {
   title: 'FORM/Address Bar',
   component: AddressBar,
   args: {
-    theme: undefined,
     mode: 'browsing',
     modelValue: '1508 Commerce St, Dallas, TX 75201',
     placeholder: 'Search address or place',
@@ -23,7 +22,6 @@ export default {
     onSelectResult: fn(),
   },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     mode: { control: 'inline-radio', options: ['browsing', 'searching', 'viewing'], description: 'Browsing becomes searching when the address field receives focus.' },
     modelValue: { control: false, table: { disable: true } },
     placeholder: { control: false, table: { disable: true } },
@@ -36,7 +34,7 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'mode'] },
+    controls: { include: ['mode'] },
     docs: { description: { component: 'Draft. Floating address bar composed from Square Icon Button, Text With Inline Button, and Row Item. Browsing shows the current address; focusing its field switches to Searching. Searching shows a shadowed, rounded list of place/address results. Viewing locks the address field and changes the trailing action to a location pin.' } },
   },
   render: (args, { globals }) => ({
@@ -50,7 +48,7 @@ export default {
       };
       return { args, globalTheme: globals.theme, mode, updateMode };
     },
-    template: '<AddressBar v-bind="args" :mode="mode" :theme="args.theme || globalTheme" @update:mode="updateMode" @mode-change="args.onModeChange" @update:model-value="args.onUpdateAddress" @menu-click="args.onMenuClick" @select-result="args.onSelectResult" />',
+    template: '<AddressBar v-bind="args" :mode="mode" :theme="globalTheme" @update:mode="updateMode" @mode-change="args.onModeChange" @update:model-value="args.onUpdateAddress" @menu-click="args.onMenuClick" @select-result="args.onSelectResult" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

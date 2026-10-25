@@ -10,7 +10,6 @@ export default {
   title: 'BUTTONS/Text Button', component: TextButton,
   args: { icon: 'bars', disabled: false, isActive: false, surfaceLevel: 1, label: 'Open menu', variant: 'neutral', layout: 'floating', onClick: fn() },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Color treatment from the shared app palette.' },
     icon: { control: 'select', options: icons, mapping: { none: '' }, description: 'Optional leading icon; choose none to show text only.' },
     disabled: { control: 'boolean' },
@@ -21,10 +20,10 @@ export default {
     onClick: { table: { disable: true } },
   },
   parameters: {
-    controls: { include: ['theme', 'variant', 'icon', 'disabled', 'isActive', 'label'] },
+    controls: { include: ['variant', 'icon', 'disabled', 'isActive', 'label'] },
     docs: { description: { component: 'Draft. A fit-content text action, composed from MapControlButton. Its label is always printed, and an optional icon appears to the left. Choose Neutral, Primary or Secondary with the variant control; the shared app palette is documented on Colors. isActive uses the active surface color at the inherited surfaceLevel (default 1), while hover and focus feedback remain available. Use the Pseudo states toolbar: no selection = default, hover = hover, active = press, focus-visible = keyboard focus. Floating uses a 4px margin, 8px corner radius and component shadow. Tight removes the margin, radius and shadow.' } },
   },
-  render: (args, { globals }) => ({ components: { TextButton }, setup: () => ({ args, globalTheme: globals.theme }), template: '<TextButton v-bind="args" :theme="args.theme || globalTheme" />' }),
+  render: (args, { globals }) => ({ components: { TextButton }, setup: () => ({ args, globalTheme: globals.theme }), template: '<TextButton v-bind="args" :theme="globalTheme" />' }),
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: args.label });
     const styles = window.getComputedStyle(button);

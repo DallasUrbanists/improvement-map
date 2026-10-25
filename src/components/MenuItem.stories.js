@@ -5,11 +5,10 @@ export default {
   title: 'BARS/Menu Item',
   component: MenuItem,
   args: {
-    label: 'Menu item', subtitle: '', theme: undefined, variant: 'neutral', href: '/saved-ideas', buttons: [],
+    label: 'Menu item', subtitle: '', variant: 'neutral', href: '/saved-ideas', buttons: [],
     symbolType: 'none', emoji: '', icon: '', onButtonClick: fn(),
   },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Sets optional trailing button colors; the link row always uses Text Button Tight neutral styling.' },
     label: { control: 'text', description: 'Always-visible, left-aligned row text and accessible link name.' },
     subtitle: { control: 'text', description: 'Optional secondary line below the label.' },
@@ -22,13 +21,13 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'label', 'subtitle', 'href', 'buttons', 'symbolType', 'emoji', 'icon'] },
+    controls: { include: ['variant', 'label', 'subtitle', 'href', 'buttons', 'symbolType', 'emoji', 'icon'] },
     docs: { description: { component: 'Draft. A semantic link row with the content controls and stories of Row Item. Its full-row link uses the Text Button Tight neutral treatment. Optional trailing Square Icon Buttons are separate actions; even a single button does not become a full-row link target.' } },
   },
   render: (args, { globals }) => ({
     components: { MenuItem },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<MenuItem v-bind="args" :theme="args.theme || globalTheme" @button-click="args.onButtonClick" />',
+    template: '<MenuItem v-bind="args" :theme="globalTheme" @button-click="args.onButtonClick" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

@@ -16,7 +16,6 @@ export default {
     addressText: 'Elm Street, Dallas, TX',
     dateText: 'Oct 1',
     distanceText: idea._formattedDistance,
-    theme: undefined,
     variant: 'neutral',
     surfaceLevel: 1,
     bookmarked: false,
@@ -30,7 +29,6 @@ export default {
     addressText: { control: 'text', description: 'Formatted address shown on one truncated line.' },
     dateText: { control: 'text', description: 'Formatted creation date.' },
     distanceText: { control: 'text', description: 'Optional distance appended after the date.' },
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Sets row background, text and border from the shared app palette.' },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Neutral row surface depth.' },
     bookmarked: { control: 'boolean', description: 'Preview state for the bookmark action.' },
@@ -38,7 +36,7 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'surfaceLevel', 'id', 'summary', 'photo', 'emoji', 'addressText', 'dateText', 'distanceText', 'bookmarked'] },
+    controls: { include: ['variant', 'surfaceLevel', 'id', 'summary', 'photo', 'emoji', 'addressText', 'dateText', 'distanceText', 'bookmarked'] },
     docs: { description: { component: 'Draft. Full-width BARS item with thumbnail, two-line bold summary, single-line address, date/distance metadata and a bookmark action. Requires a ul parent and Vue Router. Theme and variant match Header Bar and Row Item. id, summary, photo, emoji, addressText, dateText and distanceText are presentation props; address/date are formatted by the consumer. The bookmark slot receives summaryId for aria-describedby. Missing or failed photos use the idea emoji as a full-thumbnail fallback, or a camera glyph when no emoji is available. The app IdeaRow adapter keeps workspace formatting and persisted bookmarks.' } },
   },
   render: (args, { globals }) => ({
@@ -53,7 +51,7 @@ export default {
       return { args, globalTheme: globals.theme, bookmarked, toggleBookmark };
     },
     // li requires a semantic list host; it adds no visual treatment.
-    template: '<ul class="idea-list"><IdeaRowContent :id="args.id" :summary="args.summary" :photo="args.photo" :emoji="args.emoji" :address-text="args.addressText" :date-text="args.dateText" :distance-text="args.distanceText" :theme="args.theme || globalTheme" :variant="args.variant" :surface-level="args.surfaceLevel"><template #bookmark="{ summaryId }"><BookmarkToggle :bookmarked="bookmarked" :aria-describedby="summaryId" @toggle="toggleBookmark" /></template></IdeaRowContent></ul>',
+    template: '<ul class="idea-list"><IdeaRowContent :id="args.id" :summary="args.summary" :photo="args.photo" :emoji="args.emoji" :address-text="args.addressText" :date-text="args.dateText" :distance-text="args.distanceText" :theme="globalTheme" :variant="args.variant" :surface-level="args.surfaceLevel"><template #bookmark="{ summaryId }"><BookmarkToggle :bookmarked="bookmarked" :aria-describedby="summaryId" @toggle="toggleBookmark" /></template></IdeaRowContent></ul>',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

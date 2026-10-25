@@ -13,7 +13,6 @@ export default {
   title: 'CONTAINERS/Floating Modal',
   component: FloatingModal,
   args: {
-    theme: undefined,
     surfaceLevel: 5,
     open: true,
     position: 'center',
@@ -22,7 +21,6 @@ export default {
     sections,
   },
   argTypes: {
-    theme: { control: false },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Surface background level from 0 (deepest) to 5 (lightest), or transparent.' },
     open: { control: 'boolean', description: 'Controls whether the modal is rendered; the component defaults to closed.' },
     position: { control: 'inline-radio', options: ['left', 'center', 'right'], description: 'Horizontal viewport position.' },
@@ -38,7 +36,7 @@ export default {
   render: (args, { globals }) => ({
     components: { FloatingModal, ContainedSection },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<FloatingModal v-bind="args" v-model:open="args.open" :theme="args.theme || globalTheme" @close="args.onClose"><ContainedSection v-for="section in args.sections" :key="section.id" :theme="args.theme || globalTheme" :surface-level="args.surfaceLevel" :padded="true" :content="section.content" /></FloatingModal>',
+    template: '<FloatingModal v-bind="args" v-model:open="args.open" :theme="globalTheme" @close="args.onClose"><ContainedSection v-for="section in args.sections" :key="section.id" :theme="globalTheme" :surface-level="args.surfaceLevel" :padded="true" :content="section.content" /></FloatingModal>',
   }),
 };
 

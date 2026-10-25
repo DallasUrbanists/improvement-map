@@ -7,7 +7,6 @@ export default {
   title: 'FORM/Text With Inline Button',
   component: TextWithInlineButton,
   args: {
-    theme: undefined,
     variant: 'neutral',
     placeholder: 'Search ideas',
     icon: '',
@@ -17,7 +16,6 @@ export default {
     layout: 'floating',
   },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'] },
     placeholder: { control: 'text', description: 'Optional empty-state hint inside the input.' },
     icon: { control: 'select', options: icons, mapping: { none: '' }, description: 'Optional decorative icon inside the input.' },
@@ -28,13 +26,13 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'placeholder', 'icon', 'buttonIcon', 'buttonText', 'buttonLabel'] },
+    controls: { include: ['variant', 'placeholder', 'icon', 'buttonIcon', 'buttonText', 'buttonLabel'] },
     docs: { description: { component: 'Draft. A full-width text input joined edge-to-edge with an action. Supply at least one of buttonIcon or buttonText. An icon alone uses Square Icon Button; buttonText uses Text Button, with buttonIcon optionally displayed to its left. The input and button share a seam: square input corners on the right, square button corners and no left border on the left. Floating keeps 4px of outer margin; Tight removes it.' } },
   },
   render: (args, { globals }) => ({
     components: { TextWithInlineButton },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<TextWithInlineButton v-bind="args" :theme="args.theme || globalTheme" />',
+    template: '<TextWithInlineButton v-bind="args" :theme="globalTheme" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

@@ -7,9 +7,8 @@ const surfaceLevelAttribute = level => isTransparent(level) ? 'transparent' : St
 
 export default {
   title: 'CONTAINERS/Drawer', component: Drawer,
-  args: { theme: undefined, surfaceLevel: 1, fromDirection: 'left', open: true, canDragClose: true, canDragOpen: true, menuItems: [], onMenuItemClick: fn() },
+  args: { surfaceLevel: 1, fromDirection: 'left', open: true, canDragClose: true, canDragOpen: true, menuItems: [], onMenuItemClick: fn() },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Surface background level from 0 (deepest) to 5 (lightest), or transparent.' },
     fromDirection: { control: 'inline-radio', options: ['left', 'right'], description: 'Edge from which the drawer enters.' },
     side: { control: false, table: { disable: true } },
@@ -21,13 +20,13 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'surfaceLevel', 'fromDirection', 'open', 'canDragClose', 'canDragOpen'] },
+    controls: { include: ['surfaceLevel', 'fromDirection', 'open', 'canDragClose', 'canDragOpen'] },
     docs: { description: { component: 'Draft. Full-height, 320px maximum-width drawer surface. Each story anchors to its named edge and demonstrates the existing Header Bar With Buttons component at the top, with one xmark action that closes the drawer. The default slot holds drawer content. open controls its position; canDragClose and canDragOpen independently enable close/open gestures. The 12px handle has a 6px grip at half the drawer height; it is white except when the theme is light and the drawer is closed with canDragOpen enabled, when it is black. It fades from 50% opacity to 80% on hover and 100% while dragging. Drag release snaps to the nearer endpoint; a quick flick selects its direction. A closed drawer moves fully off-screen; its handle remains visible only when canDragOpen is enabled. When open, a dimmed, blurred backdrop covers the underlying content.' } },
   },
   render: (args, { globals }) => ({
     components: { Drawer, HeaderBar, RowButton },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<Drawer v-model:open="args.open" :from-direction="args.fromDirection || args.side" :surface-level="args.surfaceLevel" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><HeaderBar label="Drawer" variant="neutral" :theme="args.theme || globalTheme" :buttons="[{ icon: \'xmark\', label: \'Close drawer\' }]" @button-click="args.open = false" /><RowButton v-for="(item, index) in args.menuItems || []" :key="`${item.label}-${index}`" :theme="args.theme || globalTheme" :variant="item.variant || \'neutral\'" :icon="item.icon" :disabled="item.disabled" :label="item.label" @click="args.onMenuItemClick(item, index)" /></Drawer>',
+    template: '<Drawer v-model:open="args.open" :from-direction="args.fromDirection || args.side" :surface-level="args.surfaceLevel" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="globalTheme"><HeaderBar label="Drawer" variant="neutral" :theme="globalTheme" :buttons="[{ icon: \'xmark\', label: \'Close drawer\' }]" @button-click="args.open = false" /><RowButton v-for="(item, index) in args.menuItems || []" :key="`${item.label}-${index}`" :theme="globalTheme" :variant="item.variant || \'neutral\'" :icon="item.icon" :disabled="item.disabled" :label="item.label" @click="args.onMenuItemClick(item, index)" /></Drawer>',
   }),
 };
 
@@ -93,7 +92,7 @@ export const MenuDrawer = {
     ],
   },
   parameters: {
-    controls: { include: ['theme', 'surfaceLevel', 'fromDirection', 'open', 'canDragClose', 'canDragOpen', 'menuItems'] },
+    controls: { include: ['surfaceLevel', 'fromDirection', 'open', 'canDragClose', 'canDragOpen', 'menuItems'] },
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
