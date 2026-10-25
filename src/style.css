@@ -731,8 +731,8 @@ body {
 @media (max-width: 600px) { .detail-sheet { inset: 8px 0 0; width: 100%; height: calc(100dvh - 8px); border-radius: 16px 16px 0 0; } }
 
 /* Idea View uses the shared Tray and its shared section compositions. */
-.submission-detail-tray { position: relative; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; }
-.submission-detail-tray .tray__content { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 100%; overflow-anchor: none; }
+.submission-detail-tray { position: relative; display: flex; flex-direction: column; overflow: hidden; }
+.submission-detail-tray .tray__body { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-anchor: none; }
 .submission-detail-tray .detail-toolbar { position: sticky; top: 0; z-index: 5; flex: 0 0 auto; }
 .submission-detail-tray .detail-toolbar .map-ui-button:disabled { cursor: not-allowed; opacity: .45; }
 .submission-detail-tray .detail-description { flex: 1 1 auto; min-height: 0; }

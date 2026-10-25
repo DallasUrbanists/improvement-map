@@ -5,6 +5,7 @@ import Toolbar from './Toolbar.vue';
 import ContainedSection from './ContainedSection.vue';
 const isTransparent = level => level === null || level === 'transparent';
 const surfaceLevelAttribute = level => isTransparent(level) ? 'transparent' : String(level);
+const sampleParagraph = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. '.repeat(4);
 
 const sharedArgs = {
   theme: undefined,
@@ -78,6 +79,7 @@ const flickHandle = async (canvasElement, delta, startPosition) => {
   dispatch('pointerdown', y, 10);
   dispatch('pointermove', y + delta, 12, 1);
   dispatch('pointerup', y + delta, 14);
+  handle.click();
 };
 
 const dragHandleSlowly = async (canvasElement, delta) => {
@@ -100,9 +102,9 @@ const expectPosition = (canvasElement, position) =>
 export const WithHeader = {
   name: 'With Header',
   render: (args, { globals }) => ({
-    components: { Tray, HeaderBar },
-    setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><HeaderBar label="Tray" :theme="args.theme || globalTheme" variant="neutral" :buttons="[{ icon: \'xmark\', label: \'Close tray\' }]" @button-click="args.open = false" /></Tray>',
+    components: { Tray, HeaderBar, ContainedSection },
+    setup: () => ({ args, globalTheme: globals.theme, sampleParagraph }),
+    template: `<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><template #head><HeaderBar label="Tray" :theme="args.theme || globalTheme" variant="neutral" :buttons="[{ icon: 'xmark', label: 'Close tray' }]" @button-click="args.open = false" /></template><ContainedSection :padded="true"><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p></ContainedSection></Tray>`,
   }),
   play: async ({ canvasElement, args }) => {
     const { canvas, tray } = await verifyOpenTray(canvasElement, args);
@@ -146,7 +148,7 @@ export const WithToolbar = {
         :can-drag-open="args.canDragOpen"
         :theme="args.theme || globalTheme"
       >
-        <Toolbar
+        <template #head><Toolbar
           :theme="args.theme || globalTheme"
           variant="neutral"
           :leftButtons="[
@@ -160,7 +162,7 @@ export const WithToolbar = {
           @button-click="({ button }) => {
             if (button.label === 'Close tray') args.open = false;
           }"
-        />
+        /></template>
         <ContainedSection :padded="true">
           <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
           <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
@@ -187,5 +189,27 @@ export const WithToolbar = {
     await expect(tray).toHaveAttribute('data-open', 'false');
     await userEvent.click(canvas.getByRole('button', { name: 'Open tray' }));
     await expect(tray).toHaveAttribute('data-open', 'true');
+  },
+};
+
+export const ShortBody = {
+  name: 'Short Body',
+  render: (args, { globals }) => ({
+    components: { Tray, HeaderBar, ContainedSection },
+    setup: () => ({ args, globalTheme: globals.theme }),
+    template: `<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><template #head><HeaderBar label="Tray" :theme="args.theme || globalTheme" variant="neutral" :buttons="[{ icon: 'xmark', label: 'Close tray' }]" @button-click="args.open = false" /></template><ContainedSection :padded="true"><p>This short paragraph demonstrates a tray body that does not need scrolling.</p></ContainedSection></Tray>`,
+  }),
+  play: async ({ canvasElement, args }) => {
+    const tray = within(canvasElement).getByRole('complementary', { name: 'Tray' });
+    await expect(tray).toBeVisible();
+    await waitFor(() => expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium'));
+    const visibleHeight = canvasElement.ownerDocument.defaultView.innerHeight - tray.getBoundingClientRect().top;
+    expect(visibleHeight).toBeLessThan(args.mediumHeight);
+    await flickHandle(canvasElement, -24, 'medium');
+    await expectPosition(canvasElement, 'medium');
+    await userEvent.click(canvasElement.querySelector('.tray__handle'));
+    await expect(tray).toHaveAttribute('data-open', 'false');
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Open tray' }));
+    await waitFor(() => expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium'));
   },
 };

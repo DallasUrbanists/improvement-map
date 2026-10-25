@@ -78,18 +78,19 @@ test('wheel gestures move between medium and max only at the scroll boundary', a
     el.dispatchEvent(event);
     return event.defaultPrevented;
   }, deltaY);
+  const body = tray.locator('.tray__body');
+  await body.evaluate(el => { el.insertAdjacentHTML('beforeend', '<div style="height:1600px;flex:0 0 auto"></div>'); });
+  await expect.poll(() => body.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
   expect(await wheel(120)).toBe(true);
   await expect(trayLayer).toHaveAttribute('data-position', 'max');
-  await tray.locator('.tray__content').evaluate(el => { el.style.minHeight = '1600px'; });
-  await expect.poll(() => tray.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
 
-  await tray.evaluate(el => { el.scrollTop = 40; });
-  await expect.poll(() => tray.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  await body.evaluate(el => { el.scrollTop = 40; });
+  await expect.poll(() => body.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
   expect(await wheel(-120)).toBe(false);
   await expect(trayLayer).toHaveAttribute('data-position', 'max');
 
-  await tray.evaluate(el => { el.scrollTop = 0; });
-  await expect.poll(() => tray.evaluate(el => el.scrollTop)).toBe(0);
+  await body.evaluate(el => { el.scrollTop = 0; });
+  await expect.poll(() => body.evaluate(el => el.scrollTop)).toBe(0);
   expect(await wheel(-120)).toBe(true);
   await expect(trayLayer).toHaveAttribute('data-position', 'medium');
 });
