@@ -4,6 +4,8 @@ import { mkdirSync, readFileSync, existsSync, writeFileSync, renameSync } from '
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { seedSuggestions } from '../../dev/fixtures.js';
+import { mockRecommendedActions } from '../../dev/recommended-actions.js';
+import { mockRepresentatives } from '../../dev/representatives.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -16,6 +18,14 @@ export function createMockServer({ dataDir = path.join(root, 'node_modules/.cach
     writeFileSync(`${storeFile}.tmp`, JSON.stringify(suggestions, null, 2));
     renameSync(`${storeFile}.tmp`, storeFile);
   };
+  const populateRelatedData = () => {
+    for (const suggestion of suggestions) {
+      if (!suggestion.recommendedActions?.length) suggestion.recommendedActions = mockRecommendedActions(suggestion);
+      if (!suggestion.representatives?.length) suggestion.representatives = mockRepresentatives(suggestion);
+    }
+    save();
+  };
+  populateRelatedData();
   const json = (response, status, body) => { response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(body)); };
   const fail = (response, status, message) => json(response, status, { error: 'LOCAL_MOCK_ERROR', message });
   const server = createServer(async (request, response) => {
@@ -24,7 +34,7 @@ export function createMockServer({ dataDir = path.join(root, 'node_modules/.cach
       const pathname = url.pathname;
       const method = request.method;
       if (pathname === '/__mock/health') return json(response, 200, { status: 'ok', environment: 'local-mock' });
-      if (pathname === '/__mock/reset' && method === 'POST') { suggestions = seedSuggestions(); uploads.clear(); save(); return json(response, 200, { reset: true }); }
+      if (pathname === '/__mock/reset' && method === 'POST') { suggestions = seedSuggestions(); uploads.clear(); populateRelatedData(); return json(response, 200, { reset: true }); }
       if (pathname === '/__mock/crossing.svg' && method === 'GET') {
         response.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-store' });
         return response.end(readFileSync(path.join(root, 'stories/assets/crossing.svg')));
@@ -76,6 +86,8 @@ export function createMockServer({ dataDir = path.join(root, 'node_modules/.cach
         if (method === 'POST') {
           if (!body.content?.details?.trim() || !Number.isFinite(body.location?.latitude) || !Number.isFinite(body.location?.longitude)) return fail(response, 422, 'A description and location are required.');
           const suggestion = { ...body, id: Math.max(0, ...suggestions.map(item => Number(item.id))) + 1, creationDate: new Date().toISOString(), status: 'open' };
+          suggestion.recommendedActions = mockRecommendedActions(suggestion);
+          suggestion.representatives = mockRepresentatives(suggestion);
           suggestions.unshift(suggestion); save(); return json(response, 201, { data: suggestion });
         }
       }
@@ -84,8 +96,9 @@ export function createMockServer({ dataDir = path.join(root, 'node_modules/.cach
         const item = suggestions.find(value => String(value.id) === itemMatch[1]);
         if (!item) return fail(response, 404, 'Suggestion not found.');
         if (method === 'GET' && !itemMatch[2]) return json(response, 200, { data: item });
-        if (method === 'GET' && itemMatch[2] === 'representatives') return json(response, 200, []);
-        if (method === 'GET' && ['boundaries', 'recommended-actions'].includes(itemMatch[2])) return json(response, 200, { data: [] });
+        if (method === 'GET' && itemMatch[2] === 'representatives') return json(response, 200, item.representatives);
+        if (method === 'GET' && itemMatch[2] === 'boundaries') return json(response, 200, { data: [] });
+        if (method === 'GET' && itemMatch[2] === 'recommended-actions') return json(response, 200, { data: item.recommendedActions });
         if (method === 'GET' && itemMatch[2] === 'streetmix') return json(response, 200, { streetmix: null, result: null, activeRequest: null });
       }
       if (pathname === '/api/recommendables/match' && method === 'POST') return json(response, 200, { data: [] });

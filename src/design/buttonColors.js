@@ -22,7 +22,7 @@ function variant(theme, name, surfaceLevel = 1) {
   const hue = isNeutral ? null : principalHues[name];
   const baseLuminance = luminance(reference);
   const foreground = theme === 'light' ? '#000000' : '#ffffff';
-  const border = isNeutral ? textColors.muted[theme].neutral[`level${surfaceLevel}`] : reference;
+  const border = theme === 'dark' ? 'rgb(0 0 0 / 50%)' : 'rgb(255 255 255 / 50%)';
   const focus = isNeutral ? principalColors[theme].primary : foreground;
   const gradientTop = hue === null ? colorAtLuminance(reference, adjustedLuminance(baseLuminance, 0.05)) : colorAtHueSaturationLuminance(hue, adjustedLuminance(baseLuminance, 0.05), 1);
   const gradientMiddle = reference;

@@ -37,10 +37,10 @@
               </p>
               <p class="detail-description-byline">{{ formattedDate }} · {{ suggestion.author?.name || 'Anonymous Contributor' }}</p>
               <p class="detail-pills">
-                <PillText label="Photos" data-selectable variant="secondary" size="regular" :selected="activeDetailSection === 'photos'" @click="activeDetailSection = 'photos'" />
-                <PillText label="Representatives" data-selectable variant="secondary" size="regular" :selected="activeDetailSection === 'representatives'" @click="activeDetailSection = 'representatives'" />
-                <PillText label="Streetmix" data-selectable variant="secondary" size="regular" :selected="activeDetailSection === 'streetmix'" @click="activeDetailSection = 'streetmix'" />
-                <PillText label="Recommended Actions" data-selectable variant="secondary" size="regular" :selected="activeDetailSection === 'actions'" @click="activeDetailSection = 'actions'" />
+                <PillText label="Photos" selectable variant="secondary" size="regular" :theme="isDark ? 'dark' : 'light'" :selected="activeDetailSection === 'photos'" :onclick="() => activeDetailSection = 'photos'" />
+                <PillText label="Representatives" selectable variant="secondary" size="regular" :theme="isDark ? 'dark' : 'light'" :selected="activeDetailSection === 'representatives'" :onclick="() => activeDetailSection = 'representatives'" />
+                <PillText label="Streetmix" selectable variant="secondary" size="regular" :theme="isDark ? 'dark' : 'light'" :selected="activeDetailSection === 'streetmix'" :onclick="() => activeDetailSection = 'streetmix'" />
+                <PillText label="Recommended Actions" selectable variant="secondary" size="regular" :theme="isDark ? 'dark' : 'light'" :selected="activeDetailSection === 'actions'" :onclick="() => activeDetailSection = 'actions'" />
               </p>
               <div v-if="activeDetailSection === 'photos'" class="detail-photo-content">
                 <p v-if="!photosList.length">No photos available.</p>
@@ -52,16 +52,23 @@
                 </div>
               </div>
               <div v-else-if="activeDetailSection === 'representatives'" class="detail-context-content">
-                <section class="representatives-section">
+                <section class="representatives-section" :style="representativeColors">
+                  <p v-if="representativeNotice" role="alert">{{ representativeNotice }}</p>
+                  <p class="sr-only" role="status">{{ representativeMessage }}</p>
                   <p v-if="representativesLoading" role="status">Loading representatives…</p>
                   <div v-else-if="representativesError" role="alert"><p>{{ representativesError }}</p><button class="action-button" @click="loadRepresentatives">Retry</button></div>
                   <p v-else-if="representativesLoaded && !representatives.length">No representatives found.</p>
                   <article v-for="representative in prioritizedRepresentatives" :key="representative.id" class="context-card">
                     <div class="representative-row-copy">
                       <h3>{{ representative.name || 'Name unavailable' }}</h3>
-                      <p class="secondary-copy"><template v-if="representative.title">{{ representative.title }}<br /></template>{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
+                      <p v-if="representative.title" class="secondary-copy">{{ representative.title }}</p>
+                      <p class="secondary-copy representative-jurisdiction">{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
                     </div>
                     <div class="action-card-controls representative-contact-controls">
+                      <SquareIconButton icon="bookmark" layout="tight" :theme="isDark ? 'dark' : 'light'" :surface-level="2"
+                        :label="`${isRepresentativeSaved(representative.id) ? 'Unsave' : 'Save'} representative: ${representative.name}`"
+                        :is-active="isRepresentativeSaved(representative.id)" :aria-pressed="isRepresentativeSaved(representative.id)"
+                        @click="toggleRepresentative(representative, suggestion.id)" />
                       <details v-if="getRepresentativeContactItems(representative).length" class="representative-contact-menu" @toggle="positionRepresentativeContactMenu">
                         <summary class="action-button"><i class="fa-solid fa-address-card" aria-hidden="true"></i> Contact</summary>
                         <div class="representative-contact-options">
@@ -106,6 +113,10 @@ import Tray from '../components/Tray.vue';
 import Toolbar from '../components/Toolbar.vue';
 import ContainedSection from '../components/ContainedSection.vue';
 import PillText from '../components/PillText.vue';
+import SquareIconButton from '../components/SquareIconButton.vue';
+import { surfaceColors } from '../design/surfaceColors';
+import { textColors } from '../design/textColors';
+import { representativeNotice, representativeMessage, isRepresentativeSaved, toggleRepresentative } from '../services/savedRepresentatives';
 import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries } from '../services/api';
 import { bookmarkNotice, bookmarkMessage, isBookmarked, toggleBookmark } from '../services/bookmarks';
 import RecommendedActions from '../components/RecommendedActions.vue';
@@ -206,6 +217,13 @@ function handlePhotoBackdropClick(event) {
   if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dismissLightbox();
 }
 const representatives = ref([]);
+const representativeColors = computed(() => {
+  const theme = isDark.value ? 'dark' : 'light';
+  return {
+    '--representative-menu-background': surfaceColors[theme].neutral.level3,
+    '--representative-muted': textColors.muted[theme].neutral.level2,
+  };
+});
 const representativesLoading = ref(false);
 const representativesLoaded = ref(false);
 const representativesError = ref('');
@@ -296,6 +314,7 @@ function getRepresentativeContactItems(representative) {
       items.push({
         label,
         value,
+        buttonLabel: value,
         type,
         href: type === 'email' ? 'mailto:' + value : 'tel:' + value,
         external: false,
@@ -308,15 +327,7 @@ function getRepresentativeContactItems(representative) {
 
   const website = representative.webpage_url;
   if (typeof website === 'string' && /^https?:\/\//i.test(website)) {
-    items.push({ label: 'Website', buttonLabel: 'Website', href: website, external: true });
-  }
-
-  for (const type of ['email', 'phone']) {
-    const contacts = items.filter(item => item.type === type);
-    contacts.forEach(contact => {
-      const kindLabel = type === 'email' ? 'Email' : 'Call';
-      contact.buttonLabel = contacts.length > 1 ? truncateContactValue(contact.value, type === 'email' ? 24 : 18) : kindLabel;
-    });
+    items.push({ label: website, buttonLabel: truncateContactValue(website, 32), href: website, external: true });
   }
 
   return items;
@@ -622,6 +633,12 @@ watch(() => route.params.id, async (id) => {
         workspace.setDetailLoading(false);
       }
     }
+  }
+}, { immediate: true });
+
+watch([activeDetailSection, () => suggestion.value?.id, isLoading], ([section, id, loading]) => {
+  if (section === 'representatives' && !loading && String(id) === String(route.params.id)) {
+    loadRepresentatives();
   }
 }, { immediate: true });
 </script>

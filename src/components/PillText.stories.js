@@ -120,12 +120,14 @@ export const Selectable = {
     const firstVariant = variants[0];
     for (const choice of choices) {
       await userEvent.click(getPill(firstVariant, choice));
+      await userEvent.unhover(getPill(firstVariant, choice));
       selection[firstVariant] = choice;
       await expectSelection();
     }
     for (const variant of variants.slice(1)) {
       const choice = choices[0];
       await userEvent.click(getPill(variant, choice));
+      await userEvent.unhover(getPill(variant, choice));
       selection[variant] = choice;
       await expectSelection();
     }

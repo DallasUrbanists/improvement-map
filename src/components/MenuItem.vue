@@ -1,6 +1,6 @@
 <template>
   <div class="menu-item" :data-theme="theme" :style="colors">
-    <a class="menu-item__link text-button" :href="href" :data-theme="theme" data-variant="neutral" data-layout="tight" :aria-label="label" :title="label">
+    <a class="menu-item__link text-button" :style="{ paddingRight: `${buttons.length * 48}px` }" :href="href" :data-theme="theme" data-variant="neutral" data-layout="tight" :title="label" @click="$emit('link-click', $event)">
       <span class="menu-item__leading">
         <span v-if="symbolType === 'emoji' && emoji" class="menu-item__symbol menu-item__emoji" aria-hidden="true">{{ emoji }}</span>
         <i v-else-if="symbolType === 'icon' && icon" class="menu-item__symbol fa-solid" :class="`fa-${icon}`" aria-hidden="true"></i>
@@ -14,7 +14,7 @@
     <input v-if="symbolType === 'checkbox'" class="menu-item__checkbox" type="checkbox" :aria-label="label" @click.stop />
     <SquareIconButton
       v-for="(button, index) in buttons"
-      :key="`${button.label}-${index}`"
+      :key="index"
       class="menu-item__action"
       layout="tight"
       :icon="button.icon"
@@ -22,7 +22,7 @@
       :disabled="button.disabled"
       :theme="theme"
       :variant="button.variant || variant"
-      @click="$emit('button-click', { button, index })"
+      @click="$emit('button-click', { button, index, event: $event })"
     />
   </div>
 </template>
@@ -67,7 +67,7 @@ const colors = computed(() => {
     '--menu-item-action-press': actionPalette.press,
   };
 });
-defineEmits(['button-click']);
+defineEmits(['button-click', 'link-click']);
 </script>
 
 <style scoped>
@@ -76,6 +76,7 @@ defineEmits(['button-click']);
   box-sizing: border-box;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   width: 100%;
   min-height: 49px;
   color: var(--text-button-foreground);
@@ -115,8 +116,8 @@ defineEmits(['button-click']);
   padding: 0 12px;
 }
 .menu-item__text { display: flex; flex: 1 1 auto; min-width: 0; flex-direction: column; align-items: flex-start; }
-.menu-item__label { min-width: 0; overflow: hidden; font-weight: 600; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
-.menu-item__subtitle { min-width: 0; overflow: hidden; font-size: 10px; line-height: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.menu-item__label { min-width: 0; max-width: 100%; overflow: hidden; font-weight: 600; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.menu-item__subtitle { min-width: 0; max-width: 100%; overflow: hidden; font-size: 10px; line-height: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .menu-item__symbol { position: relative; z-index: 2; display: inline-flex; flex: 0 0 18px; align-items: center; justify-content: center; width: 18px; height: 18px; color: inherit; }
 .menu-item__emoji { font-size: 18px; line-height: 18px; }
 .menu-item__checkbox { position: absolute; z-index: 3; top: 50%; left: 12px; box-sizing: border-box; width: 18px; height: 18px; margin: 0; transform: translateY(-50%); accent-color: currentColor; cursor: pointer; }

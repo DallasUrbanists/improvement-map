@@ -669,6 +669,7 @@ body {
 .representative-row-copy { flex: 1; min-width: 0; }
 .representative-row-copy h3 { margin: 0; }
 .representative-row-copy p { margin: 0; }
+.representative-jurisdiction { color: var(--representative-muted); }
 .representatives-section .representative-row-copy h3,
 .representatives-section .representative-row-copy p { margin-block: 0; }
 .section-count { margin-left: auto; font-size: 14px; font-weight: normal; }
@@ -677,14 +678,16 @@ body {
 .representatives-section .actions-panel > .action-button { display: flex; width: 100%; margin: 0; border: 0; border-top: 1px solid var(--map-control-border); border-radius: 0; background: var(--map-control-active); color: var(--map-control-active-text); }
 .representative-contact-menu > summary { background: var(--map-control-active); color: var(--map-control-active-text); }
 .representative-contact-controls { flex: 0 0 auto; align-items: center; }
+.context-card .representative-contact-controls > .square-icon-button { width: 48px; flex: 0 0 48px; }
 .representatives-section .context-card .representative-contact-controls > .representative-contact-menu { width: auto; flex: 0 0 auto; }
 .representative-contact-menu { position: relative; z-index: 1; }
 .representative-contact-menu[open] { z-index: 4; }
 .representative-contact-menu > summary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 8px; cursor: pointer; list-style: none; }
 .representative-contact-menu > summary::-webkit-details-marker { display: none; }
-.representative-contact-options { position: absolute; z-index: 10; top: calc(100% + 4px); right: 0; display: grid; gap: 4px; min-width: max(100%, 220px); max-height: 320px; overflow-y: auto; padding: 6px; border: 1px solid var(--map-control-border); border-radius: 8px; background: var(--map-control-bg); box-shadow: 0 4px 12px #0005; }
+.representative-contact-options { position: absolute; z-index: 10; top: calc(100% + 4px); right: 0; display: grid; gap: 4px; min-width: max(100%, 220px); max-height: 320px; overflow-y: auto; padding: 6px; border: 1px solid var(--map-control-border); border-radius: 8px; background: var(--representative-menu-background, var(--contained-section-background, #fff)); box-shadow: 0 4px 12px #0005; }
 .representative-contact-menu.opens-up .representative-contact-options { top: auto; bottom: calc(100% + 4px); }
-.representative-contact-options .action-button { display: flex; justify-content: flex-start; gap: 8px; width: 100%; }
+.representative-contact-options { width: min(320px, calc(100vw - 48px)); min-width: 0; }
+.representative-contact-options .action-button { display: flex; justify-content: flex-start; gap: 8px; width: 100%; min-width: 0; }
 .representative-contact-options .action-button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .context-card h3 { font-weight: 650; }
 .context-card p { margin: 6px 0; }

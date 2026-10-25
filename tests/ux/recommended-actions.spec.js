@@ -12,18 +12,21 @@ test('311 search uses the configured API origin without navigating', async ({ pa
   await open(page);
   await expect(page.getByRole('link', { name: 'Go to 311 search' })).toHaveAttribute('href', 'https://api.presentation.test/playground/recommendables?idea=1');
 });
-test('save and hide independently, reload, review and remove from My actions', async ({ page }) => {
+test('hiding clears saved status, hidden rows can be reviewed, and actions can be saved again', async ({ page }) => {
   await page.addInitScript(a => { window.__ux.actions = [a]; }, action);
   await open(page);
-  await page.getByRole('button', { name: 'Add to My actions', exact: true }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('button', { name: 'Hide', exact: true }).click();
   await expect(page.getByText('All recommendations are hidden.', { exact: false })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Find actions' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'My actions (0)' })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Recommended Actions', exact: true }).click();
   await page.getByRole('button', { name: 'Show hidden (1)', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Remove from My actions' })).toBeVisible();
+  await expect(page.locator('.action-row')).toHaveCSS('opacity', '0.75');
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Unhide', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'My actions (0)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('link', { name: 'My actions (1)' }).click();
   await expect(page.getByRole('heading', { name: action.summary })).toBeVisible();
   await page.getByRole('button', { name: 'Remove', exact: true }).click();

@@ -20,7 +20,11 @@ test.beforeEach(async ({ page }) => {
     export async function apiHeaders(headers={}){return headers;}
     export async function getSuggestions(){return items;}
     export async function getSuggestionById(id){const item=items.find(item=>item.id===id);if(!item)throw new Error('Suggestion not found');return item;}
-    export async function getSuggestionRepresentatives(){return [];}
+    export async function getSuggestionRepresentatives(id){
+      (window.__representativeRequests ||= []).push(id);
+      if(window.__representativesFail)throw Error('Representatives unavailable');
+      return window.__representativesById?.[id] || [];
+    }
     export async function getSuggestionBoundaries(){return [];}
     export async function getSuggestionRecommendedActions(){return [];}
     export async function matchSuggestionRecommendations(){return [];}
@@ -32,6 +36,73 @@ test.beforeEach(async ({ page }) => {
     export async function generateSuggestionSummary(){return 'Crossing improvement';}
   ` }));
   await page.route(/overpass|__overpass/, route => route.fulfill({ headers: { 'access-control-allow-origin': '*' }, json: { elements: [] } }));
+});
+
+test('Representatives selection loads contacts and follows idea navigation', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__representativesById = {
+      1: [{ id: 'city-1', name: 'Avery Morgan (synthetic)', title: 'Council member', boundary: { entityName: 'Synthetic City', districtName: 'District A' }, emails: ['office@example.invalid'], phones: ['+12145550100'], webpage_url: 'https://example.invalid/office' }],
+      2: [{ id: 'city-2', name: 'Jordan Ellis (synthetic)', title: 'County commissioner' }],
+    };
+  });
+  await page.goto('/suggestion/1');
+  const representatives = page.getByRole('button', { name: 'Representatives', exact: true });
+  await representatives.focus();
+  await page.keyboard.press('Enter');
+  await expect(representatives).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', { name: 'Avery Morgan (synthetic)' })).toBeVisible();
+  await expect(page.getByText('Synthetic City')).toBeVisible();
+  const ideaBookmark = page.locator('#bookmark');
+  await expect(ideaBookmark.locator('i')).toHaveClass(/fa-regular/);
+  await ideaBookmark.click();
+  await expect(ideaBookmark.locator('i')).toHaveClass(/fa-solid/);
+  const activeBackground = await ideaBookmark.evaluate(button => getComputedStyle(button).backgroundColor);
+  await ideaBookmark.hover();
+  await expect(ideaBookmark).toHaveCSS('background-color', activeBackground);
+  await expect(ideaBookmark).toHaveCSS('background-image', 'none');
+  await page.getByRole('button', { name: 'Save representative: Avery Morgan (synthetic)', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Unsave representative: Avery Morgan (synthetic)', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.representative-contact-menu summary').click();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(async theme => { (await import('/src/services/theme.js')).applyTheme(theme); }, theme);
+    const appearance = await page.locator('.representative-contact-options').evaluate(menu => ({
+      background: getComputedStyle(menu).backgroundColor,
+      muted: getComputedStyle(document.querySelector('.representative-jurisdiction')).color,
+      title: getComputedStyle(document.querySelector('.representative-row-copy h3')).color,
+    }));
+    expect(appearance.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(appearance.muted).not.toBe(appearance.title);
+  }
+  await expect(page.getByRole('link', { name: 'Email: office@example.invalid' })).toHaveAttribute('href', 'mailto:office@example.invalid');
+  await expect(page.getByRole('link', { name: 'Call: +12145550100' })).toHaveAttribute('href', 'tel:+12145550100');
+  await expect(page.getByRole('link', { name: 'Email: office@example.invalid' })).toHaveText('office@example.invalid');
+  await expect(page.getByRole('link', { name: 'Call: +12145550100' })).toHaveText('+12145550100');
+  await expect(page.getByRole('link', { name: 'Website: https://example.invalid/office' })).toHaveAttribute('href', 'https://example.invalid/office');
+  await expect(page.getByRole('link', { name: 'Website: https://example.invalid/office' })).toHaveText('https://example.invalid/office');
+  await page.getByRole('button', { name: 'Photos', exact: true }).click();
+  await representatives.click();
+  expect(await page.evaluate(() => window.__representativeRequests)).toEqual(['1']);
+  await page.getByRole('button', { name: 'Previous idea', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Jordan Ellis (synthetic)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Avery Morgan (synthetic)' })).toHaveCount(0);
+  await expect(page.getByText('Contact information unavailable')).toBeVisible();
+  expect(await page.evaluate(() => window.__representativeRequests)).toEqual(['1', '2']);
+  await page.goto('/suggestion/1');
+  await representatives.click();
+  const saved = page.getByRole('button', { name: 'Unsave representative: Avery Morgan (synthetic)', exact: true });
+  await expect(saved).toHaveAttribute('aria-pressed', 'true');
+  await saved.click();
+  await expect(page.getByRole('button', { name: 'Save representative: Avery Morgan (synthetic)', exact: true })).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('Representatives selection supports retry and an empty result', async ({ page }) => {
+  await page.goto('/suggestion/1');
+  await page.evaluate(() => { window.__representativesFail = true; });
+  await page.getByRole('button', { name: 'Representatives', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Representatives unavailable');
+  await page.evaluate(() => { window.__representativesFail = false; });
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(page.getByText('No representatives found.')).toBeVisible();
 });
 
 const mapDocuments = new WeakMap();

@@ -1,5 +1,16 @@
 import { test, expect } from './fixture.js';
 test.use({ reducedMotion: 'no-preference' });
+test('detail section pills use the dark-theme foreground', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('improvement_map_theme', 'dark'));
+  await page.goto('/suggestion/2');
+  await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
+  const pills = page.locator('.detail-pills .pill-text');
+  await expect(pills).toHaveCount(4);
+  for (const pill of await pills.all()) {
+    await expect(pill).toHaveAttribute('data-theme', 'dark');
+    await expect(pill).toHaveCSS('color', 'rgb(255, 255, 255)');
+  }
+});
 test('map movement waits for outgoing text to finish', async ({ page }) => {
   await page.goto('/suggestion/2');
   const tray = page.locator('.submission-detail-tray');

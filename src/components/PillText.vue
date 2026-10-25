@@ -35,6 +35,7 @@
 import { computed, ref } from 'vue';
 import { buttonColors } from '../design/buttonColors.js';
 import { surfaceColors } from '../design/surfaceColors.js';
+import { textColors } from '../design/textColors.js';
 
 const props = defineProps({
   theme: { type: String, default: 'light', validator: value => ['light', 'dark'].includes(value) },
@@ -51,11 +52,15 @@ const internalSelected = ref(false);
 const isSelected = computed(() => props.selected ?? internalSelected.value);
 const colors = computed(() => {
   const palette = buttonColors[props.theme]?.[props.variant] || buttonColors.light.neutral;
+  const border = props.variant === 'neutral'
+    ? textColors.muted[props.theme]?.neutral.level1 || textColors.muted.light.neutral.level1
+    : palette.background;
   const activeBackground = surfaceColors[props.theme]?.active.level1 || surfaceColors.light.active.level1;
   return {
     '--pill-text-background': palette.backgroundGradient || palette.background,
     '--pill-text-foreground': palette.foreground,
-    '--pill-text-border': palette.border,
+    '--pill-text-border': border,
+    '--pill-text-selectable-foreground': palette.foreground,
     '--pill-text-hover': palette.hoverGradient || palette.hover,
     '--pill-text-press': palette.pressGradient || palette.press,
     '--pill-text-focus': palette.focus,
@@ -99,7 +104,7 @@ function handleClick(event) {
 .pill-text--selectable,
 .pill-text[data-selectable]:not([data-selectable="false"]) {
   background: transparent;
-  color: var(--pill-text-border);
+  color: var(--pill-text-selectable-foreground);
 }
 .pill-text--button { touch-action: manipulation; }
 .pill-text--small { font-size: 0.75em; }
@@ -110,10 +115,9 @@ function handleClick(event) {
 .pill-text--button:active { background: var(--pill-text-press); }
 .pill-text:focus-visible { outline: 2px solid var(--pill-text-focus); outline-offset: 2px; }
 .pill-text[data-selected="true"],
+.pill-text[data-selectable][data-selected="true"],
 .pill-text[data-selected="true"]:hover,
-.pill-text[data-selected="true"]:active,
-.pill-text[data-selectable]:not([data-selectable="false"]):hover {
-  /* background: var(--pill-text-selected); */
+.pill-text[data-selected="true"]:active {
   background: var(--pill-text-background);
   color: var(--pill-text-foreground);
 }

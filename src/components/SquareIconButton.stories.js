@@ -1,5 +1,6 @@
 import { expect, fn, userEvent, within } from 'storybook/test';
 import SquareIconButton from './SquareIconButton.vue';
+import { ref } from 'vue';
 
 export default {
   title: 'BUTTONS/Square Icon Button', component: SquareIconButton,
@@ -41,3 +42,27 @@ export default {
 export const Floating = { args: { layout: 'floating' } };
 export const Tight = { args: { layout: 'tight' } };
 export const Active = { args: { layout: 'tight', isActive: true }, parameters: { docs: { description: { story: 'Tight button shown in its active-surface state. Toggle isActive to compare the state.' } } } };
+
+export const Bookmark = {
+  args: { icon: 'bookmark', label: 'Save bookmark', layout: 'tight' },
+  render: (args, { globals }) => ({
+    components: { SquareIconButton },
+    setup: () => ({ args, globalTheme: globals.theme, saved: ref(false) }),
+    template: '<SquareIconButton v-bind="args" :theme="globalTheme" :is-active="saved" :aria-pressed="saved" @click="saved = !saved" />',
+  }),
+  play: async ({ canvasElement }) => {
+    const button = within(canvasElement).getByRole('button', { name: 'Save bookmark' });
+    await expect(button.querySelector('i')).toHaveClass('fa-regular');
+    await userEvent.click(button);
+    await userEvent.unhover(button);
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
+    await expect(button.querySelector('i')).toHaveClass('fa-solid');
+    const selected = getComputedStyle(button).backgroundColor;
+    await userEvent.hover(button);
+    await expect(getComputedStyle(button).backgroundColor).toBe(selected);
+    await expect(getComputedStyle(button).backgroundImage).toBe('none');
+    await userEvent.click(button);
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
+    await expect(button.querySelector('i')).toHaveClass('fa-regular');
+  },
+};

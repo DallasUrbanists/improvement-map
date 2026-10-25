@@ -13,11 +13,12 @@ export default {
     label: { control: 'text', description: 'Always-visible, left-aligned row text and accessible link name.' },
     subtitle: { control: 'text', description: 'Optional secondary line below the label.' },
     href: { control: 'text', description: 'Destination URL for the entire row link.' },
+    onLinkClick: { table: { disable: true }, description: 'Receives the native link click event; call preventDefault to open local details instead of navigating.' },
     buttons: { control: 'object', description: 'Independent Square Icon Buttons rendered at the right. Each accepts icon, label, optional variant and disabled.' },
     symbolType: { control: 'inline-radio', options: ['none', 'emoji', 'icon', 'checkbox'] },
     emoji: { control: 'text', description: 'Required when symbolType is emoji.' },
     icon: { control: 'text', description: 'Font Awesome solid icon name; required when symbolType is icon.' },
-    onButtonClick: { table: { disable: true } },
+    onButtonClick: { table: { disable: true }, description: 'Receives the button configuration, index and native click event.' },
   },
   parameters: {
     layout: 'fullscreen',
@@ -31,7 +32,7 @@ export default {
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    const link = canvas.getByRole('link', { name: args.label });
+    const link = canvas.getByRole('link');
     const row = link.closest('.menu-item');
     await expect(link).toHaveAttribute('href', args.href);
     await expect(row).toHaveTextContent(args.label);
@@ -51,6 +52,17 @@ export default {
     }
     const buttons = Array.from(row.querySelectorAll('.menu-item__action'));
     await expect(buttons).toHaveLength(args.buttons.length);
+    if (buttons.length) {
+      // Keep trailing actions against the right edge without covering the label.
+      const rowBounds = row.getBoundingClientRect();
+      const firstBounds = buttons[0].getBoundingClientRect();
+      const lastBounds = buttons.at(-1).getBoundingClientRect();
+      await expect(Math.abs(lastBounds.right - rowBounds.right)).toBeLessThanOrEqual(1);
+      await expect(row.querySelector('.menu-item__text').getBoundingClientRect().right).toBeLessThanOrEqual(firstBounds.left);
+      for (let index = 1; index < buttons.length; index++) {
+        await expect(Math.abs(buttons[index].getBoundingClientRect().left - buttons[index - 1].getBoundingClientRect().right)).toBeLessThanOrEqual(1);
+      }
+    }
     for (const [index, item] of args.buttons.entries()) {
       const button = buttons[index];
       await expect(button).toHaveAccessibleName(item.label);
