@@ -17,7 +17,7 @@
       ref="mainButton"
       class="new-idea-fab is-primary is-pin-continue"
       :class="{ 'is-morphing': morphing, 'is-morph-prep': morphPhase === 'travel' && morphing, 'is-morph-circle': morphPhase === 'reverse-expand' }"
-      :style="{ top: pinTop }"
+      :style="{ top: `calc(${pinTop} + 100px)` }"
       :theme="theme"
       :variant="variant"
       layout="floating"
@@ -29,7 +29,7 @@
     <TextButton
       v-if="state === 'pin'"
       class="cancel-pin-button"
-      :style="{ top: `calc(${pinTop} + 60px)` }"
+      :style="{ top: `calc(${pinTop} + 160px)` }"
       :theme="theme"
       variant="neutral"
       layout="floating"
