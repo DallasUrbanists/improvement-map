@@ -1,24 +1,47 @@
 <template>
   <div class="toolbar" :data-button-type="buttonType" :data-theme="theme" :data-variant="variant" :style="colors">
-    <component
-      :is="buttonType === 'text' ? TextButton : SquareIconButton"
-      v-for="(button, index) in buttons"
-      :key="`${button.label}-${index}`"
-      :theme="theme"
-      :variant="variant"
-      :layout="'tight'"
-      :icon="button.icon || ''"
-      :label="button.label"
-      :disabled="button.disabled"
-      :is-active="button.isActive || false"
-      :surface-level="surfaceLevel"
-      :id="button.id"
-      :role="button.role"
-      :aria-selected="button.role === 'tab' ? String(Boolean(button.isActive)) : undefined"
-      :aria-controls="button.controls"
-      :tabindex="button.role === 'tab' ? (button.isActive ? 0 : -1) : undefined"
-      @click="$emit('button-click', { button, index })"
-    />
+    <div class="toolbar__left">
+      <component
+        :is="buttonType === 'text' ? TextButton : SquareIconButton"
+        v-for="(button, index) in leftButtons"
+        :key="`${button.label}-${index}`"
+        :theme="theme"
+        :variant="variant"
+        :layout="'tight'"
+        :icon="button.icon || ''"
+        :label="button.label"
+        :disabled="button.disabled"
+        :is-active="button.isActive || false"
+        :surface-level="surfaceLevel"
+        :id="button.id"
+        :role="button.role"
+        :aria-selected="button.role === 'tab' ? String(Boolean(button.isActive)) : undefined"
+        :aria-controls="button.controls"
+        :tabindex="button.role === 'tab' ? (button.isActive ? 0 : -1) : undefined"
+        @click="$emit('button-click', { button, index })"
+      />
+    </div>
+    <div class="toolbar__right">
+      <component
+        :is="buttonType === 'text' ? TextButton : SquareIconButton"
+        v-for="(button, index) in rightButtons"
+        :key="`${button.label}-${index}`"
+        :theme="theme"
+        :variant="variant"
+        :layout="'tight'"
+        :icon="button.icon || ''"
+        :label="button.label"
+        :disabled="button.disabled"
+        :is-active="button.isActive || false"
+        :surface-level="surfaceLevel"
+        :id="button.id"
+        :role="button.role"
+        :aria-selected="button.role === 'tab' ? String(Boolean(button.isActive)) : undefined"
+        :aria-controls="button.controls"
+        :tabindex="button.role === 'tab' ? (button.isActive ? 0 : -1) : undefined"
+        @click="$emit('button-click', { button, index })"
+      />
+    </div>
   </div>
 </template>
 
@@ -33,7 +56,8 @@ const props = defineProps({
   theme: { type: String, default: 'light', validator: value => ['light', 'dark'].includes(value) },
   variant: { type: String, default: 'neutral', validator: value => ['neutral', 'primary', 'secondary'].includes(value) },
   /** Each entry accepts icon, label and optional disabled. */
-  buttons: { type: Array, default: () => [] },
+  leftButtons: { type: Array, default: () => [] },
+  rightButtons: { type: Array, default: () => [] },
   /** Surface depth forwarded to buttons that use their active surface state. */
   surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
   /** Story-level composition choice; consumers normally choose a story. */
@@ -56,6 +80,7 @@ defineEmits(['button-click']);
   min-height: 49px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   background-color: var(--toolbar-background);
   border-bottom: 1px solid var(--toolbar-border);
 }
@@ -65,5 +90,5 @@ defineEmits(['button-click']);
   border-top: 0;
   border-bottom: 0;
 }
-.toolbar :deep(.map-ui-button:first-child) { border-left: 0; }
+.toolbar .toolbar__left :deep(.map-ui-button:first-child) { border-left: 0; }
 </style>

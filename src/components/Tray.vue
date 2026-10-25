@@ -1,6 +1,5 @@
 <template>
   <div class="tray-layer" :class="{ 'tray-layer--open': open, 'tray-layer--dragging': dragging }" :data-position="positionName">
-    <div class="tray-backdrop" aria-hidden="true"></div>
     <div class="tray-shell" :class="{ 'tray-shell--dragging': dragging, 'tray-shell--closed': !open }" :style="trayStyle">
       <aside ref="trayElement" class="tray" :class="panelClass" :data-theme="theme" :data-open="open" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :aria-label="label" :aria-busy="busy || undefined" :inert="!open && !dragging">
         <div ref="contentElement" class="tray__content">
@@ -164,16 +163,6 @@ defineExpose({ element: trayElement, content: trayElement, contentElement });
   overflow: hidden;
   pointer-events: none;
 }
-.tray-backdrop {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  background: rgb(0 0 0 / 36%);
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  transition: opacity 220ms ease-out;
-}
-.tray-layer--open .tray-backdrop { opacity: 1; }
 .tray-shell, .tray__handle { pointer-events: auto; }
 .tray-shell {
   position: absolute;
@@ -182,6 +171,9 @@ defineExpose({ element: trayElement, content: trayElement, contentElement });
   bottom: 0;
   height: var(--tray-max-height);
   transition: transform 220ms ease-out;
+  max-width: 1024px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .tray-shell--dragging { transition: none; }
 .tray-shell--closed, .tray-shell--closed .tray { pointer-events: none; }
@@ -227,6 +219,6 @@ defineExpose({ element: trayElement, content: trayElement, contentElement });
 .tray-shell--dragging .tray__handle .tray__grip { opacity: 1; }
 .tray-shell--closed .tray__handle { pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) {
-  .tray-shell, .tray-backdrop, .tray__grip { transition: none; }
+  .tray-shell, .tray__grip { transition: none; }
 }
 </style>

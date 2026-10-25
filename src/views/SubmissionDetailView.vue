@@ -1,6 +1,6 @@
 <template>
   <Tray ref="detailTray" v-model:open="trayOpen" v-model:maximize="readingExpanded" :theme="isDark ? 'dark' : 'light'" :surface-level="2" panel-class="submission-detail-tray" :handle-label="readingExpanded ? 'Show map' : 'Expand details'" :busy="isLoading" :can-drag-close="true" :can-drag-open="true" :toggle-maximize-on-click="true" :medium-height="detailTrayMediumHeight" :max-height="detailTrayMaxHeight" label="Idea details" @scroll="workspace.saveViewState" @click="captureAccordionPosition" @wheel.passive="releaseAccordionPosition" @pointerdown="releaseAccordionPosition" @keydown.capture="releaseAccordionPosition" @wheel="wheelTray">
-    <Toolbar class="detail-toolbar" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :buttons="detailToolbarButtons" @button-click="handleToolbarAction" />
+    <Toolbar class="detail-toolbar" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :leftButtons="detailToolbarLeftButtons" :rightButtons="detailToolbarRightButtons" @button-click="handleToolbarAction" />
     <div v-if="isLoading" class="detail-loading-message" role="status" aria-live="polite">{{ isRefreshing ? 'Refreshing idea, please wait...' : 'Loading next idea, please wait...' }}</div>
     <ContainedSection v-if="readingExpanded && suggestion" class="detail-reading-heading" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true">
       <h1>{{ suggestion.content?.summary || suggestion.summary }}</h1>
@@ -150,13 +150,14 @@ const photosOpen = ref(false), areasOpen = ref(false), representativesOpen = ref
 const viewportHeight = ref(window.innerHeight);
 const detailTrayMediumHeight = computed(() => Math.max(280, Math.min(520, viewportHeight.value * .58)));
 const detailTrayMaxHeight = computed(() => viewportHeight.value - 80);
-const detailToolbarButtons = computed(() => [
-  { id: 'close', icon: 'arrow-left', label: 'Close idea' },
+const detailToolbarLeftButtons = computed(() => [
   { id: 'previous', icon: 'chevron-left', label: 'Previous idea', disabled: isLoading.value || !workspace.detailNavigation.value.olderId },
   { id: 'next', icon: 'chevron-right', label: 'Next idea', disabled: isLoading.value || !workspace.detailNavigation.value.newerId },
+]);
+const detailToolbarRightButtons = computed(() => [
   { id: 'bookmark', icon: 'bookmark', label: isBookmarked(suggestion.value?.id) ? 'Remove bookmark' : 'Save idea', isActive: isBookmarked(suggestion.value?.id), disabled: isLoading.value || !suggestion.value },
   { id: 'copy', icon: 'link', label: 'Copy idea link', disabled: isLoading.value || !suggestion.value },
-  { id: 'refresh', icon: 'rotate', label: 'Refresh idea', disabled: isLoading.value || !suggestion.value },
+  { id: 'close', icon: 'xmark', label: 'Close idea' },
 ]);
 function handleToolbarAction({ button }) {
   if (button.id === 'close') goBack();
