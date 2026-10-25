@@ -169,7 +169,7 @@ defineExpose({ element: trayElement, content: trayElement, contentElement });
   z-index: 2;
   inset-inline: 0;
   bottom: 0;
-  height: var(--tray-max-height);
+  max-height: var(--tray-max-height);
   transition: transform 220ms ease-out;
   max-width: 1024px;
   margin-left: auto;

@@ -366,7 +366,6 @@ body {
 .map-workspace .map-search-overlay { z-index: 40; }
 .map-tray { position: absolute; top: 72px; right: 12px; bottom: 12px; left: 12px; width: calc(100% - 24px); max-width: 960px; margin-inline: auto; display: flex; flex-direction: column; min-height: 0; overflow: hidden; pointer-events: auto; }
 .map-tray:focus { outline: none; }
-.submission-detail-tray.map-tray { top: auto; height: auto; max-height: calc(60dvh - 148px); }
 .submission-detail-tray .map-tray-content { display: flex; flex: 1 1 auto; flex-direction: column; overflow-anchor: none; }
 @media (orientation: landscape) and (max-height: 500px) {
   .submission-detail-tray.map-tray { max-height: calc(100dvh - 184px); }
