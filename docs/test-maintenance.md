@@ -143,6 +143,7 @@ baseline was approved as part of this cleanup.
 | Tab selection, selected panel, keyboard focus, padding and Browse List sorting/bookmarks | Tabbar, Tab Navigation and Browse List story play functions. Tab seams and inactive-tab appearance are reviewed visually. |
 | Usable geometry and focus indicators | Row-wide action bounds, joined input/action bounds, input containment, drawer edge/drag checks and Idea Row keyboard focus indication. |
 | Modal solid border and independent scrolling | Floating Modal story assertions retain the explicitly requested solid border on each side, without fixing its thickness, plus scrolling-container behavior. |
+| Main app Floating Modal migration | `tests/floatingModalMigration.spec.js` covers the seven configurations, saved-panel route exits and non-blocking controls, settings persistence/focus handoff, welcome/release exits and focus trapping, and photo draft/navigation/footer behavior. Existing app journeys keep their routing, persistence, undo and cross-tab assertions, with selectors updated from tray regions and native dialogs to named Floating Modal dialogs and the shared Close action. Blocking Attach photos intentionally prevents menu excursions until it closes; draft refresh/history coverage remains. |
 | Rendering, isolation and screenshot review | `tests/storybook/catalog.spec.js`; storage/network isolation and page error checks remain. |
 
 Application routing, persistence, recovery, map and cross-component journey

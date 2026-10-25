@@ -22,7 +22,7 @@ function variant(theme, name, surfaceLevel = 1) {
   const hue = isNeutral ? null : principalHues[name];
   const baseLuminance = luminance(reference);
   const foreground = theme === 'light' ? '#000000' : '#ffffff';
-  const border = isNeutral ? textColors.muted[theme].neutral[`level${surfaceLevel}`] : reference;
+  const border = theme === 'dark' ? 'rgb(0 0 0 / 50%)' : 'rgb(255 255 255 / 50%)';
   const focus = isNeutral ? principalColors[theme].primary : foreground;
   const gradientTop = hue === null ? colorAtLuminance(reference, adjustedLuminance(baseLuminance, 0.05)) : colorAtHueSaturationLuminance(hue, adjustedLuminance(baseLuminance, 0.05), 1);
   const gradientMiddle = reference;
@@ -43,9 +43,9 @@ function variant(theme, name, surfaceLevel = 1) {
   };
 }
 
-function disabledVariant(theme, name) {
+function disabledVariant(theme, name, surfaceLevel = 1) {
   const isNeutral = name === 'neutral';
-  const reference = isNeutral ? surfaceColors[theme].neutral.level1 : principalColors[theme][name];
+  const reference = isNeutral ? surfaceColors[theme].neutral[`level${surfaceLevel}`] : principalColors[theme][name];
   const hue = isNeutral ? principalHues.primary : principalHues[name];
   const background = colorAtHueSaturationLuminance(hue, luminance(reference), 0.05);
   const foreground = theme === 'light' ? '#000000' : '#f2f2f2';
@@ -65,6 +65,7 @@ export const buttonColors = Object.fromEntries(['light', 'dark'].map(theme => [t
   secondary: variant(theme, 'secondary'),
   disabled: {
     neutral: disabledVariant(theme, 'neutral'),
+    neutralByLevel: Object.fromEntries(Array.from({ length: 6 }, (_, level) => [level, disabledVariant(theme, 'neutral', level)])),
     primary: disabledVariant(theme, 'primary'),
     secondary: disabledVariant(theme, 'secondary'),
   },

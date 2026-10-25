@@ -5,7 +5,7 @@ const detail = page => page.getByRole('region', { name: 'Idea details', exact: t
 async function ready(page) { await expect(detail(page)).toHaveAttribute('aria-busy', 'false'); }
 async function bookmarks(page) {
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Saved ideas', exact: true }).click();
+  await page.getByRole('link', { name: 'Saved ideas', exact: true }).click();
 }
 async function mapState(page) {
   return page.evaluate(async () => {
@@ -27,7 +27,7 @@ test('desktop side tray keeps the map usable; mobile restores modal map behavior
   await page.setViewportSize({ width: 360, height: 800 });
   await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
   await expect.poll(async () => (await mapState(page)).gestures).toBe('none');
-  await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Saved ideas', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(tray(page)).toBeVisible();
 });
 
@@ -41,7 +41,7 @@ test('search reveals the map, keeps list position, and tray exits are explicit',
   await page.getByRole('button', { name: 'List', exact: true }).click();
   await expect.poll(() => tray(page).locator('.map-tray-content').evaluate(el => el.scrollTop)).toBe(200);
   await bookmarks(page);
-  await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Saved ideas', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(tray(page)).toBeVisible();
   await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await expect(page).toHaveURL(/view=map/);
@@ -54,19 +54,20 @@ test('search reveals the map, keeps list position, and tray exits are explicit',
   await expect(page).toHaveURL(/view=map/);
 });
 
-test('Submit retains content, refresh keeps its step, and bookmark excursions return there', async ({ page }) => {
+test('Submit retains content, refresh keeps its step, and browser navigation returns there', async ({ page }) => {
   await page.goto('/?view=list');
   await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   await page.getByTestId('pin-and-continue').click();
-  await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
-  await bookmarks(page);
-  await page.getByRole('button', { name: 'Close Saved ideas', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Attach photos' })).toBeVisible();
+  // Blocking photos deliberately excludes the menu; route/history changes still preserve the draft origin.
+  await page.evaluate(async () => { const { default: router } = await import('/src/router/index.js'); await router.push('/bookmarks'); });
+  await page.getByRole('dialog', { name: 'Saved ideas', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Attach photos' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('region', { name: 'Attach photos' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close Attach photos', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Attach photos' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Attach photos', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   const draft = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), draftKey);
@@ -113,7 +114,7 @@ test('map failures, unsupported GPS, and broken thumbnails still allow bookmarks
   await expect(page.locator('.idea-thumbnail .fa-camera')).toBeVisible();
   await page.getByRole('button', { name: 'Bookmark idea', exact: true }).click();
   await bookmarks(page);
-  await expect(page.getByRole('region', { name: 'Saved ideas', exact: true }).locator('[data-suggestion-id="long"]')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Saved ideas', exact: true }).locator('[data-suggestion-id="long"]')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -140,7 +141,7 @@ test('bookmark menu fits a narrow screen with 44px targets', async ({ page }, in
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/?view=list');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await expect(page.getByRole('menuitem', { name: 'Saved ideas', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Saved ideas', exact: true })).toBeVisible();
   await page.locator('.map-menu-popover').evaluate(async element => {
     await Promise.all(element.getAnimations({ subtree: true }).map(animation => animation.finished.catch(() => {})));
   });

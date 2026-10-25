@@ -1,5 +1,6 @@
 <template>
-  <FloatingModal v-model:open="open" label="Browse ideas" :theme="theme" :surface-level="surfaceLevel" @close="$emit('close')">
+  <Transition name="browse-list">
+    <FloatingModal class="browse-list-modal" v-model:open="open" label="Browse ideas" :theme="theme" :surface-level="surfaceLevel" :seamless-button-edge="true" @close="$emit('close')" @scroll="$emit('scroll', $event)">
     <TabNavigation
       v-model:selected-index="sortIndex"
       class="browse-list__navigation"
@@ -10,6 +11,7 @@
       @tab-change="selectSort"
     >
       <template #section>
+        <slot name="status" />
         <ul class="browse-list" :data-theme="theme" :data-variant="variant">
           <IdeaRowContent
             v-for="item in items"
@@ -24,6 +26,7 @@
             :theme="theme"
             :variant="variant"
             :surface-level="surfaceLevel"
+            @click="onIdeaRowClick($event, item)"
           >
             <template #bookmark="{ summaryId }">
               <BookmarkToggle
@@ -34,9 +37,13 @@
             </template>
           </IdeaRowContent>
         </ul>
+        <slot v-if="!items.length" name="empty">
+          <div class="browse-list__empty" role="status">No ideas to show.</div>
+        </slot>
       </template>
     </TabNavigation>
-  </FloatingModal>
+    </FloatingModal>
+  </Transition>
 </template>
 
 <script setup>
@@ -45,7 +52,7 @@ import FloatingModal from './FloatingModal.vue';
 import IdeaRowContent from './IdeaRowContent.vue';
 import TabNavigation from './TabNavigation.vue';
 
-/** Presentational browse list in a modal with parent-controlled sorting and bookmark state. */
+/** Presentational browse list in a modal with parent-controlled sorting and bookmark state. Row navigation emits idea-click. */
 defineProps({
   /** Browse rows with id, summary, photo, emoji, addressText, dateText, distanceText and bookmarked. */
   items: { type: Array, default: () => [] },
@@ -56,7 +63,7 @@ defineProps({
 });
 const open = defineModel('open', { type: Boolean, default: true });
 const sortIndex = defineModel('sortIndex', { type: Number, default: 0 });
-const emit = defineEmits(['bookmark-toggle', 'close', 'sort-change']);
+const emit = defineEmits(['bookmark-toggle', 'close', 'idea-click', 'scroll', 'sort-change']);
 const sortTabs = [
   { id: 'newest', label: 'Newest', role: 'tab' },
   { id: 'nearby', label: 'Nearby', role: 'tab' },
@@ -64,6 +71,10 @@ const sortTabs = [
 
 function selectSort({ tab, index }) {
   emit('sort-change', { sort: tab.id, index });
+}
+
+function onIdeaRowClick(event, item) {
+  if (event.target.closest?.('.idea-row-link')) emit('idea-click', { item });
 }
 </script>
 
@@ -74,4 +85,18 @@ function selectSort({ tab, index }) {
   padding: 0;
 }
 .browse-list__navigation { flex: 0 0 auto; }
+.browse-list__empty { padding: 16px; }
+.browse-list-enter-active,
+.browse-list-leave-active {
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out;
+}
+.browse-list-enter-from,
+.browse-list-leave-to {
+  transform: translate(-50%, 100%);
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .browse-list-enter-active,
+  .browse-list-leave-active { transition: none; }
+}
 </style>

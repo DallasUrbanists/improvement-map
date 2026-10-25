@@ -7,7 +7,6 @@ export default {
   title: 'BUTTONS/Row Button', component: RowButton,
   args: { icon: 'bars', disabled: false, label: 'Browse', variant: 'neutral', onClick: fn() },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Color treatment from the shared app palette.' },
     icon: { control: 'select', options: icons, mapping: { none: '' }, description: 'Optional leading icon; choose none to show text only.' },
     disabled: { control: 'boolean' },
@@ -16,13 +15,13 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'icon', 'disabled', 'label'] },
+    controls: { include: ['variant', 'icon', 'disabled', 'label'] },
     docs: { description: { component: 'Draft. Full-width, left-aligned row action based on Text Button Tight. It keeps the Tight treatment (no margin, corner radius or shadow), with an optional leading icon and always-visible label. Only the bottom border is shown. In With icon, a fixed icon column keeps labels aligned across rows. Choose Neutral, Primary or Secondary with the variant control. Use the Pseudo states toolbar to inspect default, hover, press and keyboard focus.' } },
   },
   render: (args, { globals }) => ({
     components: { RowButton },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<RowButton v-bind="args" :theme="args.theme || globalTheme" />',
+    template: '<RowButton v-bind="args" :theme="globalTheme" />',
   }),
   play: async ({ canvasElement, args }) => {
     const button = within(canvasElement).getByRole('button', { name: args.label });

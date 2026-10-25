@@ -1,11 +1,12 @@
 <template>
-  <div class="accordion" :data-locked="locked" :data-open="open" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :style="accordionStyle">
+  <div class="accordion" :data-locked="locked" :data-open="open" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :style="accordionStyle" @click="toggleFromHeader">
     <div class="accordion__header-row">
       <SquareIconButton
         class="accordion__toggle"
         :class="{ 'accordion__toggle--locked': locked, 'accordion__toggle--open': open }"
         layout="tight"
         :theme="theme"
+        :surface-level="surfaceLevel"
         :variant="header.variant || 'neutral'"
         icon="caret-right"
         :label="open ? `Collapse ${header.label}` : `Expand ${header.label}`"
@@ -16,6 +17,7 @@
       <HeaderBar
         class="accordion__header"
         :theme="theme"
+        :surface-level="surfaceLevel"
         :variant="header.variant || 'neutral'"
         :label="header.label"
         :subtitle="header.subtitle || ''"
@@ -27,6 +29,7 @@
         class="accordion__text-button"
         layout="tight"
         :theme="theme"
+        :surface-level="surfaceLevel"
         :variant="headerTextButton.variant || header.variant || 'neutral'"
         :icon="headerTextButton.icon || ''"
         :label="headerTextButton.label"
@@ -41,7 +44,7 @@
       @before-leave="beforeLeave"
       @leave="leaveSection"
     >
-      <ContainedSection v-if="open" :theme="theme" :surface-level="surfaceLevel" :padded="padded" :content="content" />
+      <ContainedSection v-if="open" :theme="theme" :surface-level="surfaceLevel" :padded="padded" :content="content"><slot /></ContainedSection>
     </Transition>
   </div>
 </template>
@@ -67,6 +70,7 @@ const props = defineProps({
   /** Optional Text Button rendered at the right edge of the header row. */
   headerTextButton: { type: Object, default: null },
   padded: { type: Boolean, default: true },
+  /** Simple HTML body content; composed application content can use the default slot. */
   content: { type: String, default: '' },
 });
 const open = defineModel('open', { type: Boolean, default: true });
@@ -137,6 +141,11 @@ function leaveSection(element, done) {
 function toggle() {
   if (!props.locked) open.value = !open.value;
 }
+
+function toggleFromHeader(event) {
+  if (event.target.closest('button')) return;
+  toggle();
+}
 </script>
 
 <style scoped>
@@ -151,9 +160,18 @@ function toggle() {
   display: flex;
   align-items: stretch;
   width: 100%;
+  min-height: 49px;
 }
-.accordion__header { flex: 1 1 auto; min-width: 0; }
-.accordion__toggle { border: 0; background: transparent; }
+.accordion__header { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+.accordion__header :deep(.header-bar__text) { padding-left: 0; }
+.accordion__toggle {
+    min-width: 34px;
+    flex: 0 0 34px;
+    aspect-ratio: unset;
+    border: 0;
+    background: transparent;
+    width: 34px;
+}
 .accordion__toggle:hover:not(:disabled), .accordion__toggle:active:not(:disabled) { background: transparent; box-shadow: none; }
 .accordion__toggle :deep(i) { transform: rotate(0deg); transition: transform 180ms ease; }
 .accordion__toggle--open :deep(i) { transform: rotate(90deg); }
@@ -161,6 +179,7 @@ function toggle() {
 .accordion__header.header-bar { background: transparent; }
 .accordion__toggle--locked :deep(i) { color: var(--accordion-muted-caret); }
 .accordion__text-button { flex: 0 0 auto; }
+.accordion__text-button.text-button[data-layout="tight"] { height: 49px; min-height: 49px; border-right: none;}
 .accordion[data-locked="true"] :deep(.contained-section) { background: transparent; }
 .accordion-section-enter-active, .accordion-section-leave-active { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {

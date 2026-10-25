@@ -45,7 +45,8 @@ test('real API adapter validates matches, handles HTTP failures, timeout and can
 async function open(page) {
   await page.goto('/suggestion/1');
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
+  await page.getByRole('button', { name: 'Recommended Actions', exact: true }).click();
+  await expect(page.locator('.recommended-actions-content')).toBeVisible();
 }
 test('no-match, double click, and navigation discard a late generation', async ({ page }) => {
   await open(page);
@@ -76,7 +77,7 @@ test('changed generation input invalidates cache and preserves saved snapshots',
   await page.evaluate(() => { window.__ux.details = 'A completely different suggestion description.'; });
   await page.getByRole('button', { name: 'Refresh idea', exact: true }).click();
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
+  await page.getByRole('button', { name: 'Recommended Actions', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Find actions' })).toBeVisible();
   await page.getByRole('link', { name: 'My actions (1)' }).click();
   await expect(page.getByRole('heading', { name: action.summary })).toBeVisible();
@@ -97,7 +98,7 @@ test('another tab updates saves and hiding without affecting other suggestions',
   await expect(page.getByText('All recommendations are hidden.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Next idea', exact: true }).click();
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
+  await page.getByRole('button', { name: 'Recommended Actions', exact: true }).click();
   await expect(page.getByRole('heading', { name: action.summary })).toBeVisible();
   await other.close();
 });
@@ -115,9 +116,9 @@ test('details and My actions have no new accessibility violations', async ({ pag
 });
 test('menu opens My actions and direct-entry close returns to Browse', async ({ page }) => {
   await page.goto('/my-actions');
-  await page.getByRole('button', { name: 'Close My actions', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Saved actions', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page).toHaveURL(/\/browse$/);
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'My actions', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'My actions', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Saved actions', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Saved actions', exact: true })).toBeVisible();
 });

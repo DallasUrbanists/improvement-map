@@ -111,4 +111,6 @@ function selectButton(button, index) {
   color: var(--tabbar-inactive-foreground);
 }
 .tabbar :deep(.map-ui-button:first-child) { border-left: 0; }
+.tabbar :deep(.map-ui-button[data-tabbar-selected="true"]),
+.tabbar :deep(.map-ui-button[data-tabbar-selected="true"] + .map-ui-button) { border-left: 0; }
 </style>

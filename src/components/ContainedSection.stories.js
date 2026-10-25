@@ -12,26 +12,25 @@ const sampleContent = '<p>Lorem ipsum dolor sit amet, consectetur adipiscing eli
 export default {
   title: 'CONTAINERS/Contained Section',
   component: ContainedSection,
-  args: { theme: undefined, surfaceLevel: 1, padded: true, content: sampleContent },
+  args: { surfaceLevel: 1, padded: true, content: sampleContent },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Surface background level from 0 (deepest) to 5 (lightest), or transparent.' },
     padded: { control: 'boolean', description: 'Adds 12px of padding around the content.' },
     content: { control: 'text', description: 'HTML content rendered inside the section.' },
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'surfaceLevel', 'padded', 'content'] },
+    controls: { include: ['surfaceLevel', 'padded', 'content'] },
     docs: { description: { component: 'Draft. A generic full-width section for content inside another container. It has a 1px bottom border unless it is the last child of its container.' } },
   },
   render: (args, { globals }) => ({
     components: { ContainedSection },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<ContainedSection v-bind="args" :theme="args.theme || globalTheme" />',
+    template: '<ContainedSection v-bind="args" :theme="globalTheme" />',
   }),
   play: async ({ canvasElement, args, globals }) => {
     const section = within(canvasElement).getByText(/Lorem ipsum/).parentElement;
-    const theme = args.theme || globals.theme || 'light';
+    const theme = globals.theme || 'light';
     await expect(section).toHaveClass('contained-section');
     await expect(section).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
     // Representative contract for theme/surfaceLevel token mapping, shared by composed sections.

@@ -35,8 +35,9 @@ const sectionStyle = computed(() => {
   background: var(--contained-section-background);
   color: var(--contained-section-foreground);
 }
-.contained-section--padded { padding: 12px; }
+.contained-section--padded { padding: 12px; text-wrap: pretty; }
 .contained-section:not(:last-child) { border-bottom: 1px solid var(--contained-section-border); }
+.contained-section :deep(p) { margin-bottom: 1em; }
 .contained-section :deep(p:first-child) { margin-top: 0; }
 .contained-section :deep(p:last-child) { margin-bottom: 0; }
 </style>

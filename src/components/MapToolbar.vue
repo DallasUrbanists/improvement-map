@@ -1,47 +1,13 @@
 <template>
-  <button v-bind="$attrs" type="button" class="map-ui map-ui-button map-list-fab" aria-label="List" :aria-pressed="isBrowse && modelValue === 'list'"
-    @click="browseList">
-    <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
-    <span>List</span>
-  </button>
-  <button ref="menuButton" :id="menuId" type="button" class="map-ui map-ui-button map-icon-button map-menu-launch" :inert="$attrs.inert" aria-label="Menu" title="Menu" aria-haspopup="menu" :aria-expanded="menuOpen"
-    @click="menuOpen = !menuOpen">
-    <i class="fa-solid fa-bars" aria-hidden="true"></i>
-  </button>
+  <BigCircleButton v-bind="$attrs" icon="list-ul" label="List" :theme="isDark ? 'dark' : 'light'"
+    :aria-pressed="isBrowse && modelValue === 'list'" @click="browseList" />
   <Teleport to="body">
-    <div class="map-menu-layer">
-      <k-popover :opened="menuOpen" :target="`#${menuId}`" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
-        <div class="p-1" role="menu" aria-label="Map options">
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Saved ideas</button>
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/my-actions')">My actions</button>
-          <button v-if="presentationEnabled" type="button" role="menuitem" class="map-ui-button w-full" @click="openPresentationSetup">Enter TV mode</button>
-          <button v-if="presentationEnabled" type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/remote')">Remote controller</button>
-          <div class="menu-divider" role="separator"></div>
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('welcome')">Welcome &amp; guide</button>
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('history')">What's new</button>
-          <a role="menuitem" class="map-ui-button w-full" :href="catalogUrl" target="_blank" rel="noopener noreferrer" @click="menuOpen = false">UI component catalog ↗</a>
-          <div class="menu-divider" role="separator"></div>
-          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings()">Map settings<i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
-          <div class="menu-divider" role="separator"></div>
-          <button type="button" role="menuitemcheckbox" :aria-checked="isDark" class="map-ui-button w-full justify-between" @click="applyTheme(isDark ? 'light' : 'dark')">Dark mode<span class="theme-switch" :class="{ 'is-on': isDark }" aria-hidden="true"></span></button>
-        </div>
-      </k-popover>
-    </div>
+    <AppMenu v-model:open="menuOpen" :theme="isDark ? 'dark' : 'light'" @item-click="handleAppMenuItemClick" />
   </Teleport>
   <Teleport to="body">
-    <dialog ref="markerSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-settings-title`"
-      @keydown.esc.stop.prevent="closeMarkerSettings" @click.self="closeMarkerSettings" @close="restoreMarkerSettingsFocus">
-      <header class="map-tray-header marker-settings-header">
-        <div class="map-tray-heading">
-          <h2 :id="`${menuId}-settings-title`">Map settings</h2>
-        </div>
-        <button type="button" class="map-ui-button map-tray-header-action" :aria-label="`Reset ${settingsTab} settings`" @click="settingsTab === 'markers' ? resetMarkerSettings() : setRailThickness(DEFAULT_RAIL_THICKNESS)">
-          Reset
-        </button>
-        <button type="button" class="map-ui-button map-tray-close" aria-label="Close Map settings" @click="closeMarkerSettings">
-          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-        </button>
-      </header>
+    <FloatingModal :surface-level="2" v-model:open="markerSettingsOpen" class="map-settings-modal" label="Map settings" form-factor="tall" position="center" blocking
+      :theme="isDark ? 'dark' : 'light'" :header-buttons="[{ type: 'text', label: 'Reset to default', 'aria-label': `Reset ${settingsTab} settings` }]"
+      @header-button-click="settingsTab === 'markers' ? resetMarkerSettings() : setRailThickness(DEFAULT_RAIL_THICKNESS)" @backdrop-click="closeMarkerSettings">
       <div class="settings-tabs" role="group" aria-label="Settings category"><button class="action-button" :aria-pressed="settingsTab === 'markers'" @click="settingsTab = 'markers'">Markers</button><button class="action-button" :aria-pressed="settingsTab === 'rail'" @click="settingsTab = 'rail'">Rail</button></div>
       <div v-show="settingsTab === 'markers'" class="marker-settings-panel">
         <div class="map-marker-threshold-setting" role="group" aria-label="Marker visibility threshold">
@@ -157,27 +123,27 @@
           <svg class="rail-preview" viewBox="0 0 240 40" role="img" aria-label="Rail line preview"><path d="M10 20 H230" stroke="currentColor" :stroke-width="railThickness + 2" /><path d="M10 20 H230" stroke="#eab308" :stroke-width="railThickness" /></svg>
         </div>
       </div>
-    </dialog>
+    </FloatingModal>
 
   </Teleport>
 </template>
 
 <script setup>
-const catalogUrl = import.meta.env.VITE_LOCAL_STORYBOOK_URL || (import.meta.env.DEV ? 'http://localhost:6006/' : `${import.meta.env.BASE_URL}storybook/`);
 import { computed, ref, useId, watch, onDeactivated, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { kPopover } from 'konsta/vue';
+import AppMenu from './AppMenu.vue';
+import BigCircleButton from './BigCircleButton.vue';
+import FloatingModal from './FloatingModal.vue';
 import { railThickness, setRailThickness, DEFAULT_RAIL_THICKNESS } from '../services/railSettings.js';
 import { DEFAULT_MARKER_SETTINGS } from '../services/storage.js';
-import { applyTheme, isDark } from '../services/theme';
+import { isDark } from '../services/theme';
 import { openAnnouncement } from '../services/announcements';
 function showAnnouncement(screen) {
   menuOpen.value = false;
-  menuButton.value?.focus({ preventScroll: true });
+  document.querySelector('.address-bar__menu')?.focus({ preventScroll: true });
   openAnnouncement(screen);
 }
 import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
-import { presentationIsEnabled } from '../services/presentationApi.js';
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
   modelValue: { type: String, default: 'streets' },
@@ -195,16 +161,13 @@ const props = defineProps({
   markerSpotlightSize: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightSize },
   markerSpotlightFeather: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightFeather },
 });
-const emit = defineEmits(['update:modelValue', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather', 'present-on-tv']);
+const emit = defineEmits(['update:modelValue', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
 const route = useRoute();
 const router = useRouter();
 const isBrowse = computed(() => route.path === '/' || route.path === '/browse');
 const menuId = `map-menu-${useId()}`;
 const menuOpen = ref(false);
-const menuButton = ref(null);
-const presentationEnabled = presentationIsEnabled();
-const markerSettingsDialog = ref(null);
-const markerSettingsReturnFocus = ref(null);
+const markerSettingsOpen = ref(false);
 const settingsTab = ref('markers');
 const animationEnabled = computed(() => props.markerPulseScale > 1 || props.markerBobAngle > 0);
 let previousAnimation;
@@ -232,23 +195,27 @@ function resetMarkerSettings() {
 }
 async function openMarkerSettings(returnFocus = null) {
   menuOpen.value = false;
-  markerSettingsReturnFocus.value = returnFocus;
   await nextTick();
-  markerSettingsDialog.value?.show();
+  (returnFocus || document.querySelector('.address-bar__menu'))?.focus({ preventScroll: true });
+  markerSettingsOpen.value = true;
 }
-function closeMarkerSettings() { markerSettingsDialog.value?.close(); }
-function restoreMarkerSettingsFocus() {
-  (markerSettingsReturnFocus.value || menuButton.value)?.focus({ preventScroll: true });
-  markerSettingsReturnFocus.value = null;
-}
+function closeMarkerSettings() { markerSettingsOpen.value = false; }
 function openTray(path) {
   menuOpen.value = false;
-  menuButton.value?.focus({ preventScroll: true });
+  document.querySelector('.address-bar__menu')?.focus({ preventScroll: true });
   router.push(path);
 }
-function openPresentationSetup() {
+function handleAppMenuItemClick(item) {
   menuOpen.value = false;
-  emit('present-on-tv');
+  if (item.label === 'Saved ideas' || item.label === 'Saved actions') {
+    openTray(item.href);
+  } else if (item.label === 'Welcome guide') {
+    showAnnouncement('welcome');
+  } else if (item.label === "What's new") {
+    showAnnouncement('history');
+  } else if (item.label === 'Map settings') {
+    openMarkerSettings();
+  }
 }
 function browseList() {
   if (props.showMapControls) emit('update:modelValue', 'list');
@@ -256,5 +223,5 @@ function browseList() {
 }
 watch(() => route.fullPath, () => { menuOpen.value = false; closeMarkerSettings(); });
 onDeactivated(() => { menuOpen.value = false; closeMarkerSettings(); });
-defineExpose({ openMarkerSettings, closeMarkerSettings });
+defineExpose({ openMarkerSettings, closeMarkerSettings, toggleMenu: () => { menuOpen.value = !menuOpen.value; }, menuIsOpen: menuOpen });
 </script>

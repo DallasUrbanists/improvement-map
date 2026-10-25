@@ -11,7 +11,6 @@ export default {
   title: 'FORM/Address Bar',
   component: AddressBar,
   args: {
-    theme: undefined,
     mode: 'browsing',
     modelValue: '1508 Commerce St, Dallas, TX 75201',
     placeholder: 'Search address or place',
@@ -23,7 +22,6 @@ export default {
     onSelectResult: fn(),
   },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     mode: { control: 'inline-radio', options: ['browsing', 'searching', 'viewing'], description: 'Browsing becomes searching when the address field receives focus.' },
     modelValue: { control: false, table: { disable: true } },
     placeholder: { control: false, table: { disable: true } },
@@ -36,7 +34,7 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'mode'] },
+    controls: { include: ['mode'] },
     docs: { description: { component: 'Draft. Floating address bar composed from Square Icon Button, Text With Inline Button, and Row Item. Browsing shows the current address; focusing its field switches to Searching. Searching shows a shadowed, rounded list of place/address results. Viewing locks the address field and changes the trailing action to a location pin.' } },
   },
   render: (args, { globals }) => ({
@@ -50,7 +48,7 @@ export default {
       };
       return { args, globalTheme: globals.theme, mode, updateMode };
     },
-    template: '<AddressBar v-bind="args" :mode="mode" :theme="args.theme || globalTheme" @update:mode="updateMode" @mode-change="args.onModeChange" @update:model-value="args.onUpdateAddress" @menu-click="args.onMenuClick" @select-result="args.onSelectResult" />',
+    template: '<AddressBar v-bind="args" :mode="mode" :theme="globalTheme" @update:mode="updateMode" @mode-change="args.onModeChange" @update:model-value="args.onUpdateAddress" @menu-click="args.onMenuClick" @select-result="args.onSelectResult" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -72,12 +70,19 @@ export default {
       await userEvent.type(canvas.getByRole('textbox'), 'x');
       await expect(args.onUpdateAddress).toHaveBeenCalled();
     } else if (args.mode === 'searching') {
-      await expect(canvas.getByRole('list', { name: 'Address search results' })).toBeVisible();
-      await expect(canvas.getAllByRole('listitem')).toHaveLength(results.length);
-      await expect(canvas.getByText('Pegasus City Brewery')).toBeVisible();
-      await expect(canvas.getByText('1508 Commerce St, Dallas, TX 75201')).toBeVisible();
-      await userEvent.click(canvas.getByRole('button', { name: 'Go to Pegasus City Brewery' }));
-      await expect(args.onSelectResult).toHaveBeenCalledWith(results[0]);
+      if (args.modelValue.trim()) {
+        await expect(canvas.getByRole('list', { name: 'Address search results' })).toBeVisible();
+        await expect(canvas.getAllByRole('listitem')).toHaveLength(results.length);
+        await expect(canvas.getByText('Pegasus City Brewery')).toBeVisible();
+        await expect(canvas.getByText('1508 Commerce St, Dallas, TX 75201')).toBeVisible();
+        const lastRow = canvasElement.querySelector('.address-bar__results .row-item:last-child');
+        await expect(getComputedStyle(lastRow).borderBottomWidth).toBe('0px');
+        await expect(getComputedStyle(lastRow, '::after').display).toBe('none');
+        await userEvent.click(canvas.getByRole('button', { name: 'Go to Pegasus City Brewery' }));
+        await expect(args.onSelectResult).toHaveBeenCalledWith(results[0]);
+      } else {
+        await expect(canvas.queryByRole('list', { name: 'Address search results' })).toBeNull();
+      }
     } else {
       await expect(input).toHaveAttribute('readonly');
       await expect(canvas.queryByRole('list', { name: 'Address search results' })).toBeNull();
@@ -91,4 +96,5 @@ export default {
 
 export const Browsing = { args: { mode: 'browsing' } };
 export const Searching = { args: { mode: 'searching', modelValue: 'Pegasus' } };
+export const SearchingEmpty = { name: 'Searching (Empty Query)', args: { mode: 'searching', modelValue: '' } };
 export const Viewing = { args: { mode: 'viewing' } };

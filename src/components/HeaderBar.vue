@@ -4,15 +4,17 @@
       <span class="header-bar__label">{{ label }}</span>
       <span v-if="subtitle" class="header-bar__subtitle">{{ subtitle }}</span>
     </div>
+    <slot name="actions" />
     <SquareIconButton
       v-for="(button, index) in buttons"
       :key="`${button.label}-${index}`"
-      class="header-bar__close"
+      :class="['header-bar__close', { 'header-bar__close--seamless-edge': seamlessButtonEdge && index === 0 }]"
       layout="tight"
       :icon="button.icon"
       :label="button.label"
       :disabled="button.disabled"
       :theme="theme"
+      :surface-level="surfaceLevel"
       :variant="button.variant || variant"
       @click="$emit('button-click', { button, index })"
     />
@@ -32,6 +34,8 @@ const props = defineProps({
   subtitle: { type: String, default: '' },
   /** Square Icon Button props; each inherits the bar variant unless it sets its own. */
   buttons: { type: Array, default: () => [] },
+  /** Removes the left border from the left-most button. */
+  seamlessButtonEdge: { type: Boolean, default: false },
   /** Neutral surface level used when variant is neutral. */
   surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
 });
@@ -97,4 +101,5 @@ defineEmits(['button-click']);
   border-bottom: 0;
   border-right: 0;
 }
+.header-bar :deep(.header-bar__close--seamless-edge) { border-left: 0; }
 </style>

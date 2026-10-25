@@ -66,6 +66,35 @@ for (const size of [{ width: 375, height: 667 }, { width: 320, height: 568 }]) {
   });
 }
 
+test('wheel gestures move between medium and max only at the scroll boundary', async ({ page }) => {
+  await page.goto('/suggestion/1');
+  const tray = page.locator('.submission-detail-tray');
+  const trayLayer = page.locator('.tray-layer').filter({ has: tray });
+  await expect(tray).not.toHaveAttribute('aria-busy', 'true');
+  await expect(trayLayer).toHaveAttribute('data-position', 'medium');
+
+  const wheel = deltaY => tray.evaluate((el, deltaY) => {
+    const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 0, deltaY });
+    el.dispatchEvent(event);
+    return event.defaultPrevented;
+  }, deltaY);
+  const body = tray.locator('.tray__body');
+  await tray.locator('.tray__body-content').evaluate(el => { el.insertAdjacentHTML('beforeend', '<div style="height:1600px;flex:0 0 auto"></div>'); });
+  await expect.poll(() => body.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+  expect(await wheel(120)).toBe(true);
+  await expect(trayLayer).toHaveAttribute('data-position', 'max');
+
+  await body.evaluate(el => { el.scrollTop = 40; });
+  await expect.poll(() => body.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  expect(await wheel(-120)).toBe(false);
+  await expect(trayLayer).toHaveAttribute('data-position', 'max');
+
+  await body.evaluate(el => { el.scrollTop = 0; });
+  await expect.poll(() => body.evaluate(el => el.scrollTop)).toBe(0);
+  expect(await wheel(-120)).toBe(true);
+  await expect(trayLayer).toHaveAttribute('data-position', 'medium');
+});
+
 test('reading tray animates both directions and resizes its grip', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/suggestion/1');

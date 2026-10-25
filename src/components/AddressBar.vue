@@ -3,6 +3,9 @@
     <div class="address-bar__controls">
       <SquareIconButton
         class="address-bar__menu"
+        :id="menuId"
+        aria-haspopup="menu"
+        :aria-expanded="menuExpanded"
         :theme="theme"
         icon="bars"
         label="Menu"
@@ -22,7 +25,7 @@
         @update:model-value="updateAddress"
       />
     </div>
-    <div v-if="activeMode === 'searching'" class="address-bar__results" role="list" aria-label="Address search results">
+    <div v-if="activeMode === 'searching' && addressValue.trim() && results.length > 0" class="address-bar__results" role="list" aria-label="Address search results">
       <RowItem
         v-for="(result, index) in results"
         :key="result.id || `${result.label}-${index}`"
@@ -56,6 +59,9 @@ const props = defineProps({
   results: { type: Array, default: () => [] },
   /** Optional replacement for the default searching hint. */
   placeholder: { type: String, default: 'Search address or place' },
+  /** Optional id and expanded state when the menu is controlled by a parent popover. */
+  menuId: { type: String, default: undefined },
+  menuExpanded: { type: Boolean, default: false },
 });
 const emit = defineEmits(['update:mode', 'mode-change', 'update:modelValue', 'menu-click', 'select-result']);
 const activeMode = ref(props.mode);
@@ -95,6 +101,7 @@ function updateAddress(value) {
   width: 100%;
   min-width: 0;
   color: inherit;
+  padding: 4px;
 }
 .address-bar__controls {
   box-sizing: border-box;
@@ -123,5 +130,11 @@ function updateAddress(value) {
   border-radius: 8px;
   background: var(--address-background);
   box-shadow: 0 3px 12px #00000040;
+}
+.address-bar__results :deep(.row-item:last-child) {
+  border-bottom: 0;
+}
+.address-bar__results :deep(.row-item:last-child::after) {
+  display: none;
 }
 </style>

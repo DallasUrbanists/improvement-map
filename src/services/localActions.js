@@ -49,7 +49,12 @@ export function saveAction(action, suggestion) {
   return write(data => { data.saved[action.key] = { action, suggestionId: String(suggestion.id), suggestionSummary: suggestion.content?.summary || suggestion.summary || 'Suggestion', savedAt: new Date().toISOString() }; });
 }
 export const removeAction = key => write(data => { delete data.saved[key]; });
-export const setHidden = (key, hidden) => write(data => { if (hidden) data.hidden[key] = true; else delete data.hidden[key]; });
+export const setHidden = (key, hidden) => write(data => {
+  if (hidden) {
+    data.hidden[key] = true;
+    delete data.saved[key];
+  } else delete data.hidden[key];
+});
 export const cachedActions = (id, fingerprint) => {
   const entry = state.value.generated[String(id)];
   return entry?.fingerprint === fingerprint ? entry.actions : null;
@@ -66,7 +71,7 @@ export function normalizeActions(items, suggestionId, catalog = false) {
   return items.filter(a => a && a.id != null && typeof a.summary === 'string').map(a => {
     const catalogId = catalog ? String(a.id) : a.recommendableId;
     return { id: String(a.id), catalogId, key: JSON.stringify([String(suggestionId), catalogId ? 'catalog' : 'attached', String(catalogId || a.id)]), summary: a.summary,
-      instructions: a.instructions || '', reason: catalog ? a.why || '' : a.reason || '', sourceUrl: a.sourceUrl || '',
+      photos: Array.isArray(a.photos) ? a.photos : [], description: a.description || '', instructions: a.instructions || '', reason: catalog ? a.why || '' : a.reason || '', sourceUrl: a.sourceUrl || '',
       expirationDate: a.expirationDate || null, status: catalog ? null : a.status || null };
   }).filter(a => { if (seen.has(a.key)) return false; seen.add(a.key); return true; });
 }

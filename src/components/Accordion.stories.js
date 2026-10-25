@@ -9,7 +9,6 @@ export default {
   title: 'CONTAINERS/Accordion',
   component: Accordion,
   args: {
-    theme: undefined,
     surfaceLevel: 1,
     locked: false,
     open: true,
@@ -21,7 +20,6 @@ export default {
     onHeaderTextButtonClick: fn(),
   },
   argTypes: {
-    theme: { control: false },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Surface background level from 0 (deepest) to 5 (lightest), or transparent.' },
     locked: { control: 'boolean', description: 'Prevents opening or closing through the caret; header actions remain usable.' },
     open: { control: false, description: 'Story state, not a user-facing control.' },
@@ -40,7 +38,7 @@ export default {
   render: (args, { globals }) => ({
     components: { Accordion },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<Accordion v-bind="args" v-model:open="args.open" :theme="args.theme || globalTheme" @header-button-click="args.onHeaderButtonClick" @header-text-button-click="args.onHeaderTextButtonClick" />',
+    template: '<Accordion v-bind="args" v-model:open="args.open" :theme="globalTheme" @header-button-click="args.onHeaderButtonClick" @header-text-button-click="args.onHeaderTextButtonClick" />',
   }),
 };
 
@@ -83,6 +81,16 @@ export const TextButtonInHeader = {
     await expect(args.onHeaderTextButtonClick).toHaveBeenCalledTimes(1);
     await expect(canvas.getByText(/Lorem ipsum/)).toBeVisible();
   },
+};
+
+export const WithSlottedContent = {
+  name: 'With slotted content',
+  args: { open: true, header: { label: 'Idea details' }, content: '' },
+  render: (args, { globals }) => ({
+    components: { Accordion },
+    setup: () => ({ args, globalTheme: globals.theme }),
+    template: '<Accordion v-bind="args" v-model:open="args.open" :theme="globalTheme"><p>Content can be composed from application components.</p></Accordion>',
+  }),
 };
 
 export const Locked = {

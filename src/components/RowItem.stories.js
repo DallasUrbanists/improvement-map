@@ -5,11 +5,10 @@ export default {
   title: 'BARS/Row Item',
   component: RowItem,
   args: {
-    label: 'Row item', subtitle: '', theme: undefined, variant: 'neutral', buttons: [],
+    label: 'Row item', subtitle: '', variant: 'neutral', buttons: [],
     symbolType: 'none', emoji: '', icon: '', onButtonClick: fn(),
   },
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     variant: { control: 'inline-radio', options: ['neutral', 'primary', 'secondary'], description: 'Sets the row background, text and border from the shared app palette.' },
     label: { control: 'text', description: 'Always-visible, left-aligned bold row text.' },
     subtitle: { control: 'text', description: 'Optional secondary line below the label.' },
@@ -21,13 +20,13 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'variant', 'label', 'subtitle', 'buttons', 'symbolType', 'emoji', 'icon'] },
+    controls: { include: ['variant', 'label', 'subtitle', 'buttons', 'symbolType', 'emoji', 'icon'] },
     docs: { description: { component: 'Draft. Full-width row styled like Header Bar with optional subtitle, right-side Square Icon Buttons, and an optional leading symbol. When exactly one action is present, its button fills the row hit area and applies its hover, press and focus styles across the row. With multiple actions, buttons remain separate. The symbol has a 12px gap before the label/subtitle block. Set emoji when symbolType is emoji and icon when symbolType is icon. Checkbox renders as an interactive native checkbox. Buttons inherit the row theme and variant unless an item sets its own variant.' } },
   },
   render: (args, { globals }) => ({
     components: { RowItem },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<RowItem v-bind="args" :theme="args.theme || globalTheme" @button-click="args.onButtonClick" />',
+    template: '<RowItem v-bind="args" :theme="globalTheme" @button-click="args.onButtonClick" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -64,6 +63,10 @@ export default {
       const buttonRect = button.getBoundingClientRect();
       expect(buttonRect.width).toBeCloseTo(rowRect.width, 0);
       expect(buttonRect.height).toBeCloseTo(rowRect.height, 0);
+      expect(getComputedStyle(row, '::after').content).not.toBe('none');
+      const leading = row.querySelector('.row-item__leading');
+      expect(getComputedStyle(leading).zIndex).toBe('1');
+      expect(getComputedStyle(leading).pointerEvents).toBe('none');
     }
     for (const [index, item] of args.buttons.entries()) {
       const button = buttons[index];

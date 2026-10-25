@@ -10,9 +10,8 @@ const tabs = [
 export default {
   title: 'CONTAINERS/Tab Navigation',
   component: TabNavigation,
-  args: { theme: undefined, surfaceLevel: 1, padded: true, tabs, selectedIndex: 0 },
+  args: { surfaceLevel: 1, padded: true, tabs, selectedIndex: 0 },
   argTypes: {
-    theme: { control: false },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Neutral surface depth for the selected tab, section and root background. Other tabs are transparent; the root background is shown at half brightness.' },
     padded: { control: 'boolean', description: 'Whether the selected Contained Section adds interior padding.' },
     tabs: { control: false },
@@ -26,7 +25,7 @@ export default {
   render: (args, { globals }) => ({
     components: { TabNavigation },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<TabNavigation v-bind="args" v-model:selected-index="args.selectedIndex" :theme="args.theme || globalTheme" />',
+    template: '<TabNavigation v-bind="args" v-model:selected-index="args.selectedIndex" :theme="globalTheme" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

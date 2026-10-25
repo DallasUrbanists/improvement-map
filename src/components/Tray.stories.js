@@ -2,11 +2,12 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import Tray from './Tray.vue';
 import HeaderBar from './HeaderBar.vue';
 import Toolbar from './Toolbar.vue';
+import ContainedSection from './ContainedSection.vue';
 const isTransparent = level => level === null || level === 'transparent';
 const surfaceLevelAttribute = level => isTransparent(level) ? 'transparent' : String(level);
+const sampleParagraph = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. '.repeat(4);
 
 const sharedArgs = {
-  theme: undefined,
   surfaceLevel: 1,
   open: true,
   maximize: false,
@@ -20,7 +21,6 @@ export default {
   title: 'CONTAINERS/Tray', component: Tray,
   args: sharedArgs,
   argTypes: {
-    theme: { control: 'inline-radio', options: ['light', 'dark'], description: 'Overrides the theme toolbar; when unset, follows it.' },
     surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null }, description: 'Surface background level from 0 (deepest) to 5 (lightest), or transparent.' },
     open: { control: 'boolean', description: 'Whether the tray is open.' },
     maximize: { control: 'boolean', description: 'Open to maxHeight instead of mediumHeight.' },
@@ -31,13 +31,13 @@ export default {
   },
   parameters: {
     layout: 'fullscreen',
-    controls: { include: ['theme', 'surfaceLevel', 'open', 'maximize', 'mediumHeight', 'maxHeight', 'canDragClose', 'canDragOpen'] },
+    controls: { include: ['surfaceLevel', 'open', 'maximize', 'mediumHeight', 'maxHeight', 'canDragClose', 'canDragOpen'] },
     docs: { story: { inline: false, height: 568 }, description: { component: 'Draft. Full-width panel that slides up from below the viewport and closes by sliding down. It has closed, mediumHeight and maxHeight positions. Drag release snaps to the nearest allowed position; a quick flick moves one position in its direction. maximize selects the maxHeight position. The horizontal handle sits just above the top border; when closed, it remains at the bottom edge only when canDragOpen is enabled. The theme-aware panel uses the shared neutral surface colors and the same dimmed, blurred backdrop as Drawer.' } },
   },
   render: (args, { globals }) => ({
     components: { Tray, HeaderBar, Toolbar },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme" />',
+    template: '<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="globalTheme" />',
   }),
 };
 
@@ -46,7 +46,11 @@ const verifyOpenTray = async (canvasElement, args) => {
   const tray = canvas.getByRole('complementary', { name: 'Tray' });
   await expect(tray).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
   await expect(tray).toBeVisible();
+  expect(canvasElement.ownerDocument.defaultView.getComputedStyle(canvasElement.querySelector('.tray-shell')).transitionProperty).toContain('height');
   await expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium');
+  const expectedMediumHeight = Math.min(args.mediumHeight, args.maxHeight);
+  const visibleHeight = canvasElement.ownerDocument.defaultView.innerHeight - tray.getBoundingClientRect().top;
+  expect(visibleHeight).toBeCloseTo(expectedMediumHeight, 0);
   const handle = canvasElement.querySelector('.tray__handle');
   await expect(handle).toBeTruthy();
   await userEvent.click(handle);
@@ -74,6 +78,7 @@ const flickHandle = async (canvasElement, delta, startPosition) => {
   dispatch('pointerdown', y, 10);
   dispatch('pointermove', y + delta, 12, 1);
   dispatch('pointerup', y + delta, 14);
+  handle.click();
 };
 
 const dragHandleSlowly = async (canvasElement, delta) => {
@@ -96,9 +101,9 @@ const expectPosition = (canvasElement, position) =>
 export const WithHeader = {
   name: 'With Header',
   render: (args, { globals }) => ({
-    components: { Tray, HeaderBar },
-    setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><HeaderBar label="Tray" :theme="args.theme || globalTheme" variant="neutral" :buttons="[{ icon: \'xmark\', label: \'Close tray\' }]" @button-click="args.open = false" /></Tray>',
+    components: { Tray, HeaderBar, ContainedSection },
+    setup: () => ({ args, globalTheme: globals.theme, sampleParagraph }),
+    template: `<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="globalTheme"><template #head><HeaderBar label="Tray" :theme="globalTheme" variant="neutral" :buttons="[{ icon: 'xmark', label: 'Close tray' }]" @button-click="args.open = false" /></template><ContainedSection :theme="globalTheme" :padded="true"><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p><p>{{ sampleParagraph }}</p></ContainedSection></Tray>`,
   }),
   play: async ({ canvasElement, args }) => {
     const { canvas, tray } = await verifyOpenTray(canvasElement, args);
@@ -129,9 +134,46 @@ export const WithHeader = {
 export const WithToolbar = {
   name: 'With Toolbar',
   render: (args, { globals }) => ({
-    components: { Tray, Toolbar },
+    components: { Tray, Toolbar, ContainedSection },
     setup: () => ({ args, globalTheme: globals.theme }),
-    template: '<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="args.theme || globalTheme"><Toolbar :theme="args.theme || globalTheme" variant="neutral" :buttons="[{ icon: \'arrow-left\', label: \'Back\' }, { icon: \'bookmark\', label: \'Save\' }, { icon: \'xmark\', label: \'Close tray\' }]" @button-click="({ button }) => { if (button.label === \'Close tray\') args.open = false }" /></Tray>',
+    template: `
+      <Tray
+        v-model:open="args.open"
+        v-model:maximize="args.maximize"
+        :surface-level="args.surfaceLevel"
+        :medium-height="args.mediumHeight"
+        :max-height="args.maxHeight"
+        :can-drag-close="args.canDragClose"
+        :can-drag-open="args.canDragOpen"
+        :theme="globalTheme"
+      >
+        <template #head><Toolbar
+          :theme="globalTheme"
+          variant="neutral"
+          :leftButtons="[
+            { icon: 'arrow-left', label: 'Back' },
+            { icon: 'arrow-right', label: 'Next' },
+          ]"
+          :rightButtons="[
+            { icon: 'bookmark', label: 'Save' },
+            { icon: 'xmark', label: 'Close tray' },
+          ]"
+          @button-click="({ button }) => {
+            if (button.label === 'Close tray') args.open = false;
+          }"
+        /></template>
+        <ContainedSection :theme="globalTheme" :padded="true">
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        </ContainedSection>
+      </Tray>
+    `,
   }),
   play: async ({ canvasElement, args }) => {
     const { canvas, tray } = await verifyOpenTray(canvasElement, args);
@@ -146,5 +188,30 @@ export const WithToolbar = {
     await expect(tray).toHaveAttribute('data-open', 'false');
     await userEvent.click(canvas.getByRole('button', { name: 'Open tray' }));
     await expect(tray).toHaveAttribute('data-open', 'true');
+  },
+};
+
+export const ShortBody = {
+  name: 'Short Body',
+  render: (args, { globals }) => ({
+    components: { Tray, HeaderBar, ContainedSection },
+    setup: () => ({ args, globalTheme: globals.theme }),
+    template: `<Tray v-model:open="args.open" v-model:maximize="args.maximize" :surface-level="args.surfaceLevel" :medium-height="args.mediumHeight" :max-height="args.maxHeight" :can-drag-close="args.canDragClose" :can-drag-open="args.canDragOpen" :theme="globalTheme"><template #head><HeaderBar label="Tray" :theme="globalTheme" variant="neutral" :buttons="[{ icon: 'xmark', label: 'Close tray' }]" @button-click="args.open = false" /></template><ContainedSection :theme="globalTheme" :padded="true"><p>This short paragraph demonstrates a tray body that does not need scrolling.</p></ContainedSection></Tray>`,
+  }),
+  play: async ({ canvasElement, args }) => {
+    const tray = within(canvasElement).getByRole('complementary', { name: 'Tray' });
+    await expect(tray).toBeVisible();
+    await waitFor(() => expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium'));
+    const body = canvasElement.querySelector('.tray__body');
+    await expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-scrollable', 'false');
+    await expect.poll(() => body.scrollHeight - body.clientHeight).toBe(0);
+    const visibleHeight = canvasElement.ownerDocument.defaultView.innerHeight - tray.getBoundingClientRect().top;
+    expect(visibleHeight).toBeLessThan(args.mediumHeight);
+    await flickHandle(canvasElement, -24, 'medium');
+    await expectPosition(canvasElement, 'medium');
+    await userEvent.click(canvasElement.querySelector('.tray__handle'));
+    await expect(tray).toHaveAttribute('data-open', 'false');
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Open tray' }));
+    await waitFor(() => expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium'));
   },
 };

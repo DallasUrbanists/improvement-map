@@ -21,16 +21,20 @@ const props = defineProps({
   icon: { type: String, default: '' },
   disabled: Boolean,
   isActive: { type: Boolean, default: false },
-  /** Inherited surface depth used when isActive is true; null means transparent. */
-  surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
+  /** Inherited neutral surface depth; omitted defaults to level 1, null means transparent. */
+  surfaceLevel: { type: Number, default: undefined, validator: value => value === null || value === undefined || (Number.isInteger(value) && value >= 0 && value <= 5) },
   /** Visible button label, accessible name and native hover tooltip. */
   label: { type: String, required: true },
 });
 const colors = computed(() => {
   const theme = buttonColors[props.theme] || buttonColors.light;
-  const palette = props.disabled ? theme.disabled[props.variant] : theme[props.variant];
-  const activeBackground = props.surfaceLevel === null ? 'transparent' : surfaceColors[props.theme]?.active[`level${props.surfaceLevel}`] || surfaceColors.light.active.level1;
-  return Object.fromEntries(Object.entries({ ...palette, background: palette.backgroundGradient || palette.background, hover: palette.hoverGradient || palette.hover, press: palette.pressGradient || palette.press, activeBackground }).map(([key, value]) => [`--text-button-${key}`, value]));
+  const surfaceLevel = props.surfaceLevel === undefined ? 1 : props.surfaceLevel;
+  const level = surfaceLevel ?? 1;
+  const palette = props.disabled
+    ? props.variant === 'neutral' ? theme.disabled.neutralByLevel[level] : theme.disabled[props.variant]
+    : props.variant === 'neutral' ? theme.neutralByLevel[level] : theme[props.variant];
+  const activeBackground = surfaceLevel === null ? 'transparent' : surfaceColors[props.theme]?.active[`level${level}`] || surfaceColors.light.active.level1;
+  return Object.fromEntries(Object.entries({ ...palette, background: surfaceLevel === null && props.variant === 'neutral' ? 'transparent' : palette.backgroundGradient || palette.background, hover: palette.hoverGradient || palette.hover, press: palette.pressGradient || palette.press, activeBackground }).map(([key, value]) => [`--text-button-${key}`, value]));
 });
 </script>
 <style scoped>
@@ -46,6 +50,7 @@ const colors = computed(() => {
 .text-button i { font-size: 18px; }
 .text-button__label { white-space: nowrap; }
 .text-button:hover:not(:disabled) { background: var(--text-button-hover); color: var(--text-button-foreground); }
+.text-button.map-ui-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--text-button-hover); color: var(--text-button-foreground); }
 .text-button:active:not(:disabled) { background: var(--text-button-press); color: var(--text-button-foreground); box-shadow: inset 0 2px 4px #00000030; }
 .text-button:focus-visible { outline: 2px solid var(--text-button-focus); outline-offset: -4px; }
 .text-button[data-active="true"], .text-button[data-active="true"]:hover:not(:disabled), .text-button[data-active="true"]:active:not(:disabled) { background: var(--text-button-activeBackground); }
