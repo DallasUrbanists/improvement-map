@@ -1,7 +1,7 @@
 <template>
   <div class="drawer-layer" :class="{ 'drawer-layer--open': open, 'drawer-layer--dragging': dragging }">
     <div class="drawer-backdrop" aria-hidden="true"></div>
-    <div class="drawer-shell" :class="[`drawer-shell--from-${side}`, { 'drawer-shell--dragging': dragging }]" :style="drawerStyle">
+    <div class="drawer-shell" :class="[`drawer-shell--from-${fromDirection}`, { 'drawer-shell--dragging': dragging }]" :style="drawerStyle">
       <aside ref="drawerElement" class="drawer" :data-theme="theme" :data-open="open" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" aria-label="Drawer">
         <div class="drawer__content" :inert="!open && !dragging">
           <slot />
@@ -29,12 +29,15 @@ import { buttonColors } from '../design/buttonColors.js';
 
 /** Full-height panel that enters from the selected viewport edge. */
 const props = defineProps({
-  side: { type: String, default: 'left', validator: value => ['left', 'right'].includes(value) },
+  /** Edge from which the drawer enters. `side` remains as a legacy alias. */
+  fromDirection: { type: String, default: undefined, validator: value => value === undefined || ['left', 'right'].includes(value) },
+  side: { type: String, default: undefined, validator: value => value === undefined || ['left', 'right'].includes(value) },
   theme: { type: String, default: 'light', validator: value => ['light', 'dark'].includes(value) },
   surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
   canDragClose: Boolean,
   canDragOpen: Boolean,
 });
+const fromDirection = computed(() => props.fromDirection || props.side || 'left');
 const open = defineModel('open', { type: Boolean, default: true });
 const surface = computed(() => {
   const palette = buttonColors[props.theme]?.neutralByLevel[props.surfaceLevel ?? 1] || buttonColors.light.neutralByLevel[1];
@@ -50,15 +53,15 @@ const travel = () => Math.max(0, drawerElement.value?.getBoundingClientRect().wi
 const drawerStyle = computed(() => {
   if (dragOffset.value === null) {
     if (open.value) return { transform: 'translateX(0px)' };
-    return { transform: props.side === 'left' ? 'translateX(-100%)' : 'translateX(100%)' };
+    return { transform: fromDirection.value === 'left' ? 'translateX(-100%)' : 'translateX(100%)' };
   }
-  const translation = props.side === 'left' ? -dragOffset.value : dragOffset.value;
+  const translation = fromDirection.value === 'left' ? -dragOffset.value : dragOffset.value;
   return { transform: `translateX(${translation}px)` };
 });
 
 watch(open, () => { if (!dragging.value) dragOffset.value = null; });
 
-function towardClosed(delta) { return props.side === 'left' ? -delta : delta; }
+function towardClosed(delta) { return fromDirection.value === 'left' ? -delta : delta; }
 function clampOffset(value) { return Math.min(travel(), Math.max(0, value)); }
 
 function startDrag(event) {
