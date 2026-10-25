@@ -80,13 +80,27 @@ defineEmits(['button-click']);
   color: var(--row-item-foreground);
   border-bottom: 1px solid var(--row-item-border);
 }
+.row-item::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  z-index: 2;
+  height: 1px;
+  background: var(--row-item-border);
+  pointer-events: none;
+}
 .row-item__leading {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 12px;
   padding-left: 12px;
+  pointer-events: none;
 }
 .row-item__text {
   min-width: 0;
@@ -130,6 +144,7 @@ defineEmits(['button-click']);
   cursor: pointer;
   position: relative;
   z-index: 1;
+  pointer-events: auto;
 }
 .row-item__action {
   margin: 0;

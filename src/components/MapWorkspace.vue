@@ -34,36 +34,11 @@
       </router-view>
     </div>
       <MapSearchOverlay :has-suggestions="mapSearchResults.length > 0" :inert="detailLoading">
-        <div
-          class="map-ui map-search-panel relative flex items-center bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-xl">
-          <input type="text" v-model="mapSearchQuery" :readonly="readOnlyAddress" aria-label="Search address or neighborhood" @input="onMapSearchInput" @focus="searchEditing = true" @blur="searchEditing = false"
-            placeholder="Search address or neighborhood..."
-            class="w-full py-2.5 pr-8 bg-transparent text-xs sm:text-sm text-black dark:text-white placeholder-zinc-400 focus:outline-none" />
-          <span v-if="!isSearching" class="map-search-icon" aria-hidden="true">
-            <i :class="['fa-solid', readOnlyAddress ? 'fa-location-dot' : 'fa-magnifying-glass']"></i>
-          </span>
-          <button v-if="mapSearchQuery && !readOnlyAddress" @click="mapSearchQuery = ''; mapSearchResults = []"
-            class="map-search-clear p-2 text-zinc-400 hover:text-black dark:hover:text-white" aria-label="Clear search" type="button">
-            <i class="fa-solid fa-xmark text-sm"></i>
-          </button>
-          <button v-if="readOnlyAddress && isSubmit" type="button" class="map-ui-button map-search-edit-location" aria-label="Edit location" @click="submission?.editLocation()">
-            <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
-            Edit
-          </button>
-          <span v-if="isSearching" class="map-search-spinner pr-3 text-zinc-400">
-            <i class="fa-solid fa-spinner animate-spin text-sm"></i>
-          </span>
-        </div>
-
-        <!-- Autocomplete dropdown list -->
-        <div v-if="mapSearchResults.length > 0"
-          class="map-ui map-search-results mt-1 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-2xl max-h-56 overflow-y-auto z-40 divide-y divide-zinc-200 dark:divide-zinc-800">
-          <button v-for="item in mapSearchResults" :key="item.id" type="button" @click="selectMapSearchResult(item)"
-            class="w-full text-left px-3.5 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-start gap-2 text-xs sm:text-sm text-black dark:text-white">
-            <i class="fa-solid fa-location-dot mt-0.5 flex-shrink-0 text-zinc-500"></i>
-            <span class="line-clamp-2">{{ item.displayName }}</span>
-          </button>
-        </div>
+        <AddressBar :theme="isDark ? 'dark' : 'light'" :mode="addressBarMode" :model-value="mapSearchQuery"
+          :results="addressBarResults" menu-id="map-menu-trigger" :menu-expanded="Boolean(mapToolbar?.menuIsOpen)"
+          placeholder="Search address or neighborhood..." @update:model-value="setMapSearchQuery"
+          @update:mode="onAddressBarModeChange" @menu-click="mapToolbar?.toggleMenu?.()"
+          @select-result="selectAddressBarResult" />
       </MapSearchOverlay>
     <StyleSettings ref="styleSettings" :map-style="selectedMapStyle" :icon-size="suggestionIconSize"
       :rails-visible="railVisible" :rail-thickness="railThickness" @map-style="changeMapStyle" @icon-size="setSuggestionIconSize"
@@ -97,6 +72,7 @@
 import MapToolbar from './MapToolbar.vue';
 import NewIdeaSpecialButton from './NewIdeaSpecialButton.vue';
 import MapSearchOverlay from './MapSearchOverlay.vue';
+import AddressBar from './AddressBar.vue';
 import StyleSettings from './StyleSettings.vue';
 import { ref, computed, onMounted, provide, shallowRef, inject, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -295,7 +271,7 @@ function fitDetailText() {
   const frame = tray.getBoundingClientRect();
   const target = text.parentElement.getBoundingClientRect();
   const bounds = browseMapContainerEl.value?.getBoundingClientRect();
-  const searchBottom = document.querySelector('.map-search-panel')?.getBoundingClientRect().bottom || 60;
+  const searchBottom = document.querySelector('.address-bar')?.getBoundingClientRect().bottom || 60;
   text.style.width = `${Math.max(1, frame.width - 16)}px`;
   text.style.left = `${frame.left + frame.width / 2 - target.left}px`;
   const summaryOffset = bounds?.height <= 500 ? 24 : detailSummaryOffset;
@@ -1313,6 +1289,20 @@ function openPresentationSetup() {
   router.push('/tv');
 }
 const readOnlyAddress = computed(() => isDetail.value || (isSubmit.value && draft.value.step > 1));
+const addressBarMode = computed(() => readOnlyAddress.value ? 'viewing' : searchEditing.value ? 'searching' : 'browsing');
+const addressBarResults = computed(() => mapSearchResults.value.map(item => ({ id: item.id, label: item.displayName, subtitle: '' })));
+function setMapSearchQuery(value) {
+  mapSearchQuery.value = value;
+  onMapSearchInput();
+}
+function onAddressBarModeChange(mode) { searchEditing.value = mode === 'searching'; }
+function selectAddressBarResult(result) {
+  const item = mapSearchResults.value.find(candidate => candidate.id === result.id);
+  if (item) {
+    searchEditing.value = false;
+    selectMapSearchResult(item);
+  }
+}
 const trayOpen = computed(() => isList.value || route.name === 'MyActions' || route.name === 'Bookmarks' || route.name === 'SubmissionDetail' || readOnlyAddress.value);
 const wideScreen = window.matchMedia('(min-width: 1024px)');
 const isWideScreen = ref(wideScreen.matches);
@@ -1509,7 +1499,7 @@ function transitionToDetailLocation(location, finalTrayTop, trayAnimation) {
   const lat = Number(location.latitude), lng = Number(location.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return Promise.resolve();
   const tray = document.querySelector('.submission-detail-tray');
-  const search = document.querySelector('.map-search-panel');
+  const search = document.querySelector('.address-bar');
   const bounds = browseMapContainerEl.value?.getBoundingClientRect();
   let target = { lat, lng };
   const projection = map.getProjection?.();
@@ -1614,7 +1604,7 @@ function frameDetailLocation(immediate = false) {
   const position = { lat: Number(latitude), lng: Number(longitude) };
   if (!Number.isFinite(position.lat) || !Number.isFinite(position.lng)) return;
   const tray = document.querySelector('.submission-detail-tray');
-  const search = document.querySelector('.map-search-panel');
+  const search = document.querySelector('.address-bar');
   const bounds = browseMapContainerEl.value?.getBoundingClientRect();
   if (!tray || !search || !bounds) return;
   if (tray.classList.contains('is-reading') || tray.classList.contains('is-dragging')) return;
@@ -1647,7 +1637,7 @@ function frameSubmissionLocation() {
     if (!Number.isFinite(position.lat) || !Number.isFinite(position.lng)) return;
     const title = draft.value.step === 3 ? 'Describe your idea' : 'Review submission';
     const tray = document.querySelector(`.submission-content-tray[aria-label="${title}"]`);
-    const search = document.querySelector('.map-search-panel');
+    const search = document.querySelector('.address-bar');
     const mapBounds = browseMapContainerEl.value?.getBoundingClientRect();
     if (!tray || !search || !mapBounds) return;
     const searchBottom = search.getBoundingClientRect().bottom;
@@ -1840,7 +1830,7 @@ function handleEscape(event) {
   if (event.key !== 'Escape' || event.defaultPrevented) return;
   if (detailLoading.value) { event.preventDefault(); return; }
   if (isPopupOpen.value) { closeInfoWindow(); removeStoredActiveInfoWindowSuggestionId(); event.preventDefault(); return; }
-  const openMenu = document.querySelector('.map-menu-launch[aria-expanded="true"]');
+  const openMenu = document.querySelector('.address-bar__menu[aria-expanded="true"]');
   if (openMenu) { openMenu.click(); event.preventDefault(); return; }
   if (isSubmit.value && submission.value?.dismissNested?.()) { event.preventDefault(); return; }
   if (workspace.dismissDetail?.()) { event.preventDefault(); return; }
@@ -1990,7 +1980,7 @@ watch([isSubmit, isMapReady, () => draft.value.step], async (_, __, onCleanup) =
   if (cancelled) return;
   const title = draft.value.step === 3 ? 'Describe your idea' : 'Review submission';
   const tray = document.querySelector(`.submission-content-tray[aria-label="${title}"]`);
-  const search = document.querySelector('.map-search-panel');
+  const search = document.querySelector('.address-bar');
   observer = new ResizeObserver(scheduleSubmissionFrame);
   for (const element of [tray, search, browseMapContainerEl.value]) {
     if (element) observer.observe(element);

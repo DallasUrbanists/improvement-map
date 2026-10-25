@@ -4,13 +4,9 @@
     <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
     <span>List</span>
   </button>
-  <button ref="menuButton" :id="menuId" type="button" class="map-ui map-ui-button map-icon-button map-menu-launch" :inert="$attrs.inert" aria-label="Menu" title="Menu" aria-haspopup="menu" :aria-expanded="menuOpen"
-    @click="menuOpen = !menuOpen">
-    <i class="fa-solid fa-bars" aria-hidden="true"></i>
-  </button>
   <Teleport to="body">
     <div class="map-menu-layer">
-      <k-popover :opened="menuOpen" :target="`#${menuId}`" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
+      <k-popover :opened="menuOpen" :target="'.address-bar__menu'" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
         <div class="p-1" role="menu" aria-label="Map options">
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Saved ideas</button>
           <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/my-actions')">My actions</button>
@@ -173,7 +169,7 @@ import { applyTheme, isDark } from '../services/theme';
 import { openAnnouncement } from '../services/announcements';
 function showAnnouncement(screen) {
   menuOpen.value = false;
-  menuButton.value?.focus({ preventScroll: true });
+  document.querySelector('.address-bar__menu')?.focus({ preventScroll: true });
   openAnnouncement(screen);
 }
 import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
@@ -201,7 +197,6 @@ const router = useRouter();
 const isBrowse = computed(() => route.path === '/' || route.path === '/browse');
 const menuId = `map-menu-${useId()}`;
 const menuOpen = ref(false);
-const menuButton = ref(null);
 const presentationEnabled = presentationIsEnabled();
 const markerSettingsDialog = ref(null);
 const markerSettingsReturnFocus = ref(null);
@@ -238,12 +233,12 @@ async function openMarkerSettings(returnFocus = null) {
 }
 function closeMarkerSettings() { markerSettingsDialog.value?.close(); }
 function restoreMarkerSettingsFocus() {
-  (markerSettingsReturnFocus.value || menuButton.value)?.focus({ preventScroll: true });
+  (markerSettingsReturnFocus.value || document.querySelector('.address-bar__menu'))?.focus({ preventScroll: true });
   markerSettingsReturnFocus.value = null;
 }
 function openTray(path) {
   menuOpen.value = false;
-  menuButton.value?.focus({ preventScroll: true });
+  document.querySelector('.address-bar__menu')?.focus({ preventScroll: true });
   router.push(path);
 }
 function openPresentationSetup() {
@@ -256,5 +251,5 @@ function browseList() {
 }
 watch(() => route.fullPath, () => { menuOpen.value = false; closeMarkerSettings(); });
 onDeactivated(() => { menuOpen.value = false; closeMarkerSettings(); });
-defineExpose({ openMarkerSettings, closeMarkerSettings });
+defineExpose({ openMarkerSettings, closeMarkerSettings, toggleMenu: () => { menuOpen.value = !menuOpen.value; }, menuIsOpen: menuOpen });
 </script>

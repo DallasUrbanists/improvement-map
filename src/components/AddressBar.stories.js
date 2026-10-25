@@ -72,12 +72,19 @@ export default {
       await userEvent.type(canvas.getByRole('textbox'), 'x');
       await expect(args.onUpdateAddress).toHaveBeenCalled();
     } else if (args.mode === 'searching') {
-      await expect(canvas.getByRole('list', { name: 'Address search results' })).toBeVisible();
-      await expect(canvas.getAllByRole('listitem')).toHaveLength(results.length);
-      await expect(canvas.getByText('Pegasus City Brewery')).toBeVisible();
-      await expect(canvas.getByText('1508 Commerce St, Dallas, TX 75201')).toBeVisible();
-      await userEvent.click(canvas.getByRole('button', { name: 'Go to Pegasus City Brewery' }));
-      await expect(args.onSelectResult).toHaveBeenCalledWith(results[0]);
+      if (args.modelValue.trim()) {
+        await expect(canvas.getByRole('list', { name: 'Address search results' })).toBeVisible();
+        await expect(canvas.getAllByRole('listitem')).toHaveLength(results.length);
+        await expect(canvas.getByText('Pegasus City Brewery')).toBeVisible();
+        await expect(canvas.getByText('1508 Commerce St, Dallas, TX 75201')).toBeVisible();
+        const lastRow = canvasElement.querySelector('.address-bar__results .row-item:last-child');
+        await expect(getComputedStyle(lastRow).borderBottomWidth).toBe('0px');
+        await expect(getComputedStyle(lastRow, '::after').display).toBe('none');
+        await userEvent.click(canvas.getByRole('button', { name: 'Go to Pegasus City Brewery' }));
+        await expect(args.onSelectResult).toHaveBeenCalledWith(results[0]);
+      } else {
+        await expect(canvas.queryByRole('list', { name: 'Address search results' })).toBeNull();
+      }
     } else {
       await expect(input).toHaveAttribute('readonly');
       await expect(canvas.queryByRole('list', { name: 'Address search results' })).toBeNull();
@@ -91,4 +98,5 @@ export default {
 
 export const Browsing = { args: { mode: 'browsing' } };
 export const Searching = { args: { mode: 'searching', modelValue: 'Pegasus' } };
+export const SearchingEmpty = { name: 'Searching (Empty Query)', args: { mode: 'searching', modelValue: '' } };
 export const Viewing = { args: { mode: 'viewing' } };

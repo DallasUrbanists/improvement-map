@@ -64,6 +64,10 @@ export default {
       const buttonRect = button.getBoundingClientRect();
       expect(buttonRect.width).toBeCloseTo(rowRect.width, 0);
       expect(buttonRect.height).toBeCloseTo(rowRect.height, 0);
+      expect(getComputedStyle(row, '::after').content).not.toBe('none');
+      const leading = row.querySelector('.row-item__leading');
+      expect(getComputedStyle(leading).zIndex).toBe('1');
+      expect(getComputedStyle(leading).pointerEvents).toBe('none');
     }
     for (const [index, item] of args.buttons.entries()) {
       const button = buttons[index];
