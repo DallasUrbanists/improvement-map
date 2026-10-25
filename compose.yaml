@@ -4,6 +4,8 @@ x-development: &development
   image: improvement-map-development
   init: true
   working_dir: /workspace
+  # Use the checked-out startup logic with the prepared image's dependencies.
+  entrypoint: [node, /workspace/scripts/local-development/container-entrypoint.js]
   env_file:
     - path: .env.development.local
       required: false
@@ -39,7 +41,7 @@ services:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:5173/__dev').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
-      start_period: 30s
+      start_period: 5m
       retries: 12
 
   storybook:
@@ -59,7 +61,7 @@ services:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:6006/index.json').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
-      start_period: 45s
+      start_period: 5m
       retries: 12
 
   mock:
@@ -69,9 +71,10 @@ services:
       <<: *environment
       MOCK_HOST: 0.0.0.0
       MOCK_DATA_DIR: /mock-data
+      # The mock server imports only Node built-ins and local fixture files.
+      DEV_SKIP_DEPENDENCIES: "1"
     volumes:
       - .:/workspace
-      - mock-dependencies:/workspace/node_modules
       - mock-data:/mock-data
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:4010/__mock/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -98,5 +101,4 @@ services:
 volumes:
   web-dependencies:
   storybook-dependencies:
-  mock-dependencies:
   mock-data:
