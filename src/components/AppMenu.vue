@@ -9,7 +9,7 @@
       @button-click="open = false"
     />
     <div class="app-menu__items">
-      <MenuItem v-for="item in items" :key="item.label" :theme="theme" :label="item.label" :href="item.href" />
+      <MenuItem v-for="item in items" :key="item.label" :theme="theme" :label="item.label" :href="item.href" @click.prevent="$emit('item-click', item)" />
     </div>
   </Drawer>
 </template>
@@ -24,6 +24,7 @@ defineProps({
   surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) },
 });
 const open = defineModel('open', { type: Boolean, default: true });
+defineEmits(['item-click']);
 const items = [
   { label: 'Saved ideas', href: '/bookmarks' },
   { label: 'Saved actions', href: '/my-actions' },

@@ -5,24 +5,7 @@
     <span>List</span>
   </button>
   <Teleport to="body">
-    <div class="map-menu-layer">
-      <k-popover :opened="menuOpen" :target="'.address-bar__menu'" :angle="false" @backdropclick="menuOpen = false" class="map-ui map-menu-popover min-w-48">
-        <div class="p-1" role="menu" aria-label="Map options">
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/bookmarks')">Saved ideas</button>
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/my-actions')">My actions</button>
-          <button v-if="presentationEnabled" type="button" role="menuitem" class="map-ui-button w-full" @click="openPresentationSetup">Enter TV mode</button>
-          <button v-if="presentationEnabled" type="button" role="menuitem" class="map-ui-button w-full" @click="openTray('/remote')">Remote controller</button>
-          <div class="menu-divider" role="separator"></div>
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('welcome')">Welcome &amp; guide</button>
-          <button type="button" role="menuitem" class="map-ui-button w-full" @click="showAnnouncement('history')">What's new</button>
-          <a role="menuitem" class="map-ui-button w-full" :href="catalogUrl" target="_blank" rel="noopener noreferrer" @click="menuOpen = false">UI component catalog ↗</a>
-          <div class="menu-divider" role="separator"></div>
-          <button type="button" role="menuitem" class="map-ui-button w-full justify-between" aria-haspopup="dialog" @click="openMarkerSettings()">Map settings<i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
-          <div class="menu-divider" role="separator"></div>
-          <button type="button" role="menuitemcheckbox" :aria-checked="isDark" class="map-ui-button w-full justify-between" @click="applyTheme(isDark ? 'light' : 'dark')">Dark mode<span class="theme-switch" :class="{ 'is-on': isDark }" aria-hidden="true"></span></button>
-        </div>
-      </k-popover>
-    </div>
+    <AppMenu v-model:open="menuOpen" :theme="isDark ? 'dark' : 'light'" @item-click="handleAppMenuItemClick" />
   </Teleport>
   <Teleport to="body">
     <dialog ref="markerSettingsDialog" class="map-ui marker-settings-dialog marker-settings-tray" :aria-labelledby="`${menuId}-settings-title`"
@@ -159,13 +142,12 @@
 </template>
 
 <script setup>
-const catalogUrl = import.meta.env.VITE_LOCAL_STORYBOOK_URL || (import.meta.env.DEV ? 'http://localhost:6006/' : `${import.meta.env.BASE_URL}storybook/`);
 import { computed, ref, useId, watch, onDeactivated, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { kPopover } from 'konsta/vue';
+import AppMenu from './AppMenu.vue';
 import { railThickness, setRailThickness, DEFAULT_RAIL_THICKNESS } from '../services/railSettings.js';
 import { DEFAULT_MARKER_SETTINGS } from '../services/storage.js';
-import { applyTheme, isDark } from '../services/theme';
+import { isDark } from '../services/theme';
 import { openAnnouncement } from '../services/announcements';
 function showAnnouncement(screen) {
   menuOpen.value = false;
@@ -173,7 +155,6 @@ function showAnnouncement(screen) {
   openAnnouncement(screen);
 }
 import { createEmojiMarkerSvg } from '../services/emojiMapMarker';
-import { presentationIsEnabled } from '../services/presentationApi.js';
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
   modelValue: { type: String, default: 'streets' },
@@ -191,13 +172,12 @@ const props = defineProps({
   markerSpotlightSize: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightSize },
   markerSpotlightFeather: { type: Number, default: DEFAULT_MARKER_SETTINGS.markerSpotlightFeather },
 });
-const emit = defineEmits(['update:modelValue', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather', 'present-on-tv']);
+const emit = defineEmits(['update:modelValue', 'update:markerZoomThreshold', 'update:heatmapOpacity', 'update:heatmapRadius', 'update:markerPulseSpeed', 'update:markerPulseScale', 'update:markerBobAngle', 'update:markerBobSpeed', 'update:markerPulseEasing', 'update:markerBobEasing', 'update:markerSpotlightSize', 'update:markerSpotlightFeather']);
 const route = useRoute();
 const router = useRouter();
 const isBrowse = computed(() => route.path === '/' || route.path === '/browse');
 const menuId = `map-menu-${useId()}`;
 const menuOpen = ref(false);
-const presentationEnabled = presentationIsEnabled();
 const markerSettingsDialog = ref(null);
 const markerSettingsReturnFocus = ref(null);
 const settingsTab = ref('markers');
@@ -241,9 +221,17 @@ function openTray(path) {
   document.querySelector('.address-bar__menu')?.focus({ preventScroll: true });
   router.push(path);
 }
-function openPresentationSetup() {
+function handleAppMenuItemClick(item) {
   menuOpen.value = false;
-  emit('present-on-tv');
+  if (item.label === 'Saved ideas' || item.label === 'Saved actions') {
+    openTray(item.href);
+  } else if (item.label === 'Welcome guide') {
+    showAnnouncement('welcome');
+  } else if (item.label === "What's new") {
+    showAnnouncement('history');
+  } else if (item.label === 'Map settings') {
+    openMarkerSettings();
+  }
 }
 function browseList() {
   if (props.showMapControls) emit('update:modelValue', 'list');
