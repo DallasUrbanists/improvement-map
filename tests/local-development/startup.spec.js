@@ -47,6 +47,10 @@ test('app and Storybook start with every service mocked and no cloud configurati
     expect(osm.elements.length).toBeGreaterThan(0);
   }
   await page.goto('/?view=list');
+  const position = await page.evaluate(() => new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(({ coords }) => resolve([coords.latitude, coords.longitude]), error => reject(Error(error.message)));
+  }));
+  expect(position).toEqual([32.7767, -96.797]);
   const welcome = page.getByRole('dialog', { name: 'Welcome & guide' });
   await expect(welcome).toBeVisible();
   await welcome.getByRole('button', { name: 'Go to app' }).click();

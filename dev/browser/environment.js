@@ -3,7 +3,10 @@ import '@fontsource/roboto/latin-400.css';
 import '@fontsource/roboto/latin-500.css';
 import '@fontsource/roboto/latin-700.css';
 
-if (__LOCAL_DEPENDENCY_MODES__.geolocation === 'mock') {
+// Catalog tests deliberately lock this property to catch permission requests.
+// Preserve that guard instead of throwing while the preview is bootstrapping.
+if (__LOCAL_DEPENDENCY_MODES__.geolocation === 'mock'
+  && Object.getOwnPropertyDescriptor(navigator, 'geolocation')?.configurable !== false) {
   const position = { coords: { latitude: 32.7767, longitude: -96.797, accuracy: 10 }, timestamp: Date.now() };
   Object.defineProperty(navigator, 'geolocation', { configurable: true, value: {
     getCurrentPosition: success => setTimeout(() => success(position), 0),

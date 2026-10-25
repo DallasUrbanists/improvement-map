@@ -78,6 +78,31 @@ verifies both test results and the `ux/` source prefix. The merger checks and Br
 journey also passed in the isolated offline test container. No assertions or
 advisory enforcement were relaxed.
 
+## Storybook permission-guard regression
+
+Storybook run `40145551987` completed with a green advisory job, but its published
+step outcomes showed visual checks failing: 84 passed and 292 failed. Component
+interactions/accessibility passed 142 cases and Pages isolation passed 2 cases.
+The overall job status alone did not establish that the visual checks passed.
+
+The local browser bootstrap attempted to redefine the non-configurable geolocation
+property installed by the catalog's permission guard. It now preserves that guard
+instead of throwing. The guard still rejects permission requests; it is not
+replaced or relaxed. The normal application startup check also verifies the
+deterministic mock GPS coordinates.
+
+After the fix, the full built-catalog browser matrix passed 368 cases, including
+all 284 catalog preview checks. Eight drawer cases still failed. Both left/right
+failure types reproduced against unmodified staging `b59c437` in narrow/light:
+the story play functions close the drawer, while the browser checks expect the
+backdrop to remain opaque. Drawer source, stories and assertions were not changed
+in this milestone. These existing failures need a separate test-setup correction.
+Screenshot candidates remain unapproved.
+
+Local receipts: `test-results/storybook-ci-bootstrap-fix.log`,
+`test-results/storybook-staging-drawer-baseline.log`, and
+`test-results/storybook-guard-offline-startup.log`.
+
 ## Storybook Component tests widget limitation
 
 CLI component tests work. The pinned 10.6.3 widget intermittently failed with
