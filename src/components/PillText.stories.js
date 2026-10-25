@@ -57,7 +57,11 @@ export const Clickable = {
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    for (const variant of variants) await userEvent.click(canvas.getByRole('button', { name: variant }));
+    for (const variant of variants) {
+      const pill = canvas.getByRole('button', { name: variant });
+      expect(getComputedStyle(pill).backgroundImage).not.toBe('none');
+      await userEvent.click(pill);
+    }
     await expect(args.onclick).toHaveBeenCalledTimes(variants.length);
   },
 };
@@ -100,10 +104,13 @@ export const Selectable = {
     const expectSelection = async () => {
       for (const variant of variants) {
         for (const choice of choices) {
+          const pill = getPill(variant, choice);
+          const selected = selection[variant] === choice;
           await expect(getPill(variant, choice)).toHaveAttribute(
             'aria-pressed',
-            String(selection[variant] === choice),
+            String(selected),
           );
+          expect(getComputedStyle(pill).backgroundImage === 'none').toBe(!selected);
         }
       }
     };

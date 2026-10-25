@@ -79,7 +79,7 @@ test('wheel gestures move between medium and max only at the scroll boundary', a
     return event.defaultPrevented;
   }, deltaY);
   const body = tray.locator('.tray__body');
-  await body.evaluate(el => { el.insertAdjacentHTML('beforeend', '<div style="height:1600px;flex:0 0 auto"></div>'); });
+  await tray.locator('.tray__body-content').evaluate(el => { el.insertAdjacentHTML('beforeend', '<div style="height:1600px;flex:0 0 auto"></div>'); });
   await expect.poll(() => body.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
   expect(await wheel(120)).toBe(true);
   await expect(trayLayer).toHaveAttribute('data-position', 'max');

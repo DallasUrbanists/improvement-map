@@ -91,11 +91,13 @@ function handleClick(event) {
   vertical-align: middle;
 }
 .pill-text--button,
-.pill-text--selectable {
+.pill-text--selectable,
+.pill-text[data-selectable]:not([data-selectable="false"]) {
   cursor: pointer;
   user-select: none;
 }
-.pill-text[data-selectable="true"] {
+.pill-text--selectable,
+.pill-text[data-selectable]:not([data-selectable="false"]) {
   background: transparent;
   color: var(--pill-text-border);
 }
@@ -109,7 +111,8 @@ function handleClick(event) {
 .pill-text:focus-visible { outline: 2px solid var(--pill-text-focus); outline-offset: 2px; }
 .pill-text[data-selected="true"],
 .pill-text[data-selected="true"]:hover,
-.pill-text[data-selected="true"]:active {
+.pill-text[data-selected="true"]:active,
+.pill-text[data-selectable]:not([data-selectable="false"]):hover {
   /* background: var(--pill-text-selected); */
   background: var(--pill-text-background);
   color: var(--pill-text-foreground);

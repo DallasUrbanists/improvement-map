@@ -1,7 +1,8 @@
 <template>
   <Tray ref="detailTray" v-model:open="trayOpen" v-model:maximize="readingExpanded" :theme="isDark ? 'dark' : 'light'" :surface-level="2" panel-class="submission-detail-tray" :handle-label="readingExpanded ? 'Show map' : 'Expand details'" :busy="isLoading" :can-drag-close="true" :can-drag-open="true" :toggle-maximize-on-click="true" :medium-height="detailTrayMediumHeight" :max-height="detailTrayMaxHeight" label="Idea details" @scroll="workspace.saveViewState">
     <template #head><Toolbar class="detail-toolbar" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :leftButtons="detailToolbarLeftButtons" :rightButtons="detailToolbarRightButtons" @button-click="handleToolbarAction" /></template>
-    <div v-if="isLoading" class="detail-loading-message" role="status" aria-live="polite">{{ isRefreshing ? 'Refreshing idea, please wait...' : 'Loading next idea, please wait...' }}</div>
+    <template #default>
+
     <ContainedSection v-if="readingExpanded && suggestion" class="detail-reading-heading" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true">
       <h1>{{ suggestion.content?.summary || suggestion.summary }}</h1>
     </ContainedSection>
@@ -9,33 +10,12 @@
     <p class="sr-only" role="status">{{ bookmarkMessage }}</p>
     <p v-if="copyLinkMessage" class="sr-only" role="status">{{ copyLinkMessage }}</p>
     <p v-if="refreshError" class="detail-refresh-error" role="alert">{{ refreshError }}</p>
-    <div v-if="isLoading && !suggestion" class="detail-loading-content" aria-hidden="true">
-      <div class="detail-loading-line detail-loading-line-wide"><span>Idea details are loading</span></div>
-      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-medium"><span>Photos</span></div><div class="detail-loading-photo"></div></div>
-      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Neighborhoods and districts</span></div></div>
-      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Representatives</span></div></div>
-      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Recommended actions</span></div></div>
-    </div>
 
-    <!-- Error state with Konsta Card & Button -->
-    <k-card
-      v-else-if="errorMessage"
-      :outline="true"
-      :content-wrap="false"
-      class="text-center py-12 m-0"
-    >
+    <ContainedSection v-else-if="errorMessage" class="detail-error-message" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true">
       <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-3" aria-hidden="true"></i>
       <h2 class="text-xl font-bold mb-2">Idea unavailable</h2>
       <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-6">{{ errorMessage }}</p>
-      <k-button
-        component="router-link"
-        to="/?view=list"
-        :rounded="true"
-        class="text-sm font-semibold"
-      >
-        Browse other ideas
-      </k-button>
-    </k-card>
+    </ContainedSection>
 
     <!-- Suggestion Details View with Konsta Card -->
     <div v-if="suggestion" class="detail-body-sections" :class="{ 'detail-content-obscured': isLoading }">
@@ -44,20 +24,61 @@
         class="detail-body-sections"
       >
 
-      <ContainedSection class="detail-description text-sm whitespace-pre-wrap break-words" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true" :class="{ 'detail-description-revealing': isRevealingDetails }">
-          <div class="detail-description-inner">
-          <!-- Description Details -->
-          <p>
-            {{ fadingDetails.settled }}<span v-for="character in fadingDetails.leading" :key="character.index" :style="{ opacity: character.opacity }">{{ character.text }}</span><span class="detail-typewriter-pending" aria-hidden="true">{{ outgoingDetails.slice(displayedDetails.length) }}</span>
-          </p>
-          <p class="detail-description-byline">{{ formattedDate }} · {{ suggestion.author?.name || 'Anonymous Contributor' }}</p>
-          </div>
-        </ContainedSection>
+        <ContainedSection class="detail-description text-sm whitespace-pre-wrap break-words"
+            :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true"
+            :class="{ 'detail-description-revealing': isRevealingDetails }">
+            <div class="detail-description-inner">
+              <!-- Description Details -->
+              <p>
+                {{ fadingDetails.settled }}<span v-for="character in fadingDetails.leading" :key="character.index"
+                  :style="{ opacity: character.opacity }">{{ character.text }}</span><span
+                  class="detail-typewriter-pending" aria-hidden="true">{{ outgoingDetails.slice(displayedDetails.length)
+                  }}</span>
+              </p>
+              <p class="detail-description-byline">{{ formattedDate }} · {{ suggestion.author?.name || 'Anonymous Contributor' }}</p>
+              <p class="detail-pills">
+                <PillText label="Photos" data-selectable variant="secondary" size="regular" :selected="activeDetailSection === 'photos'" @click="activeDetailSection = 'photos'" />
+                <PillText label="Representatives" data-selectable variant="secondary" size="regular" :selected="activeDetailSection === 'representatives'" @click="activeDetailSection = 'representatives'" />
+                <PillText label="Streetmix" data-selectable variant="secondary" size="regular" :selected="activeDetailSection === 'streetmix'" @click="activeDetailSection = 'streetmix'" />
+                <PillText label="Recommended Actions" data-selectable variant="secondary" size="regular" :selected="activeDetailSection === 'actions'" @click="activeDetailSection = 'actions'" />
+              </p>
+              <div v-if="activeDetailSection === 'photos'" class="detail-photo-content">
+                <p v-if="!photosList.length">No photos available.</p>
+                <div v-else class="detail-photo-row">
+                  <button v-for="(photo, index) in photosList" :key="photo.id || index" type="button" class="detail-photo-thumbnail" :aria-label="`Open photo ${index + 1}${photo.caption ? ': ' + photo.caption : ''}`" @click="previewPhoto(index, $event.currentTarget)">
+                    <img :src="photo.dataUrl || photo.url" alt="" />
+                    <span v-if="photo.caption" class="detail-photo-caption">{{ photo.caption }}</span>
+                  </button>
+                </div>
+              </div>
+              <div v-else-if="activeDetailSection === 'representatives'" class="detail-context-content">
+                <section class="representatives-section">
+                  <p v-if="representativesLoading" role="status">Loading representatives…</p>
+                  <div v-else-if="representativesError" role="alert"><p>{{ representativesError }}</p><button class="action-button" @click="loadRepresentatives">Retry</button></div>
+                  <p v-else-if="representativesLoaded && !representatives.length">No representatives found.</p>
+                  <article v-for="representative in prioritizedRepresentatives" :key="representative.id" class="context-card">
+                    <div class="representative-row-copy">
+                      <h3>{{ representative.name || 'Name unavailable' }}</h3>
+                      <p class="secondary-copy"><template v-if="representative.title">{{ representative.title }}<br /></template>{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
+                    </div>
+                    <div class="action-card-controls representative-contact-controls">
+                      <details v-if="getRepresentativeContactItems(representative).length" class="representative-contact-menu" @toggle="positionRepresentativeContactMenu">
+                        <summary class="action-button"><i class="fa-solid fa-address-card" aria-hidden="true"></i> Contact</summary>
+                        <div class="representative-contact-options">
+                          <a v-for="contact in getRepresentativeContactItems(representative)" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`" :title="contact.label"><i :class="['fa-solid', contact.external ? 'fa-globe' : contact.type === 'email' ? 'fa-envelope' : 'fa-phone']" aria-hidden="true"></i><span>{{ contact.buttonLabel }}</span></a>
+                        </div>
+                      </details>
+                    </div>
+                    <p v-if="!getRepresentativeContactItems(representative).length" class="secondary-copy">Contact information unavailable</p>
+                  </article>
+                </section>
+              </div>
+              <StreetmixPanel v-else-if="activeDetailSection === 'streetmix' && String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" />
+              <RecommendedActions v-else-if="activeDetailSection === 'actions'" :suggestion="suggestion" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :refresh-version="actionsRefreshVersion" />
+            </div>
+          </ContainedSection>
+        </div>
 
-        <StreetmixPanel v-if="String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" />
-
-        <RecommendedActions :suggestion="suggestion" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :refresh-version="actionsRefreshVersion" />
-      </div>
     </div>
 
     <!-- Image Lightbox Modal -->
@@ -73,6 +94,7 @@
         </div>
       </dialog>
     </Teleport>
+    </template>
   </Tray>
 </template>
 
@@ -83,6 +105,7 @@ import { kButton, kCard } from 'konsta/vue';
 import Tray from '../components/Tray.vue';
 import Toolbar from '../components/Toolbar.vue';
 import ContainedSection from '../components/ContainedSection.vue';
+import PillText from '../components/PillText.vue';
 import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries } from '../services/api';
 import { bookmarkNotice, bookmarkMessage, isBookmarked, toggleBookmark } from '../services/bookmarks';
 import RecommendedActions from '../components/RecommendedActions.vue';
@@ -136,6 +159,7 @@ onMounted(() => {
 onBeforeUnmount(() => window.removeEventListener('resize', updateViewportHeight));
 
 const suggestion = ref(null);
+const activeDetailSection = ref('photos');
 const isLoading = ref(true);
 const isRefreshing = ref(false);
 const displayedDetails = ref('');
@@ -601,3 +625,8 @@ watch(() => route.params.id, async (id) => {
   }
 }, { immediate: true });
 </script>
+<style>
+.detail-pills :first-child {
+  margin-left: 0;
+}
+</style>

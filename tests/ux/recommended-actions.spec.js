@@ -4,7 +4,8 @@ const action = { id: '1', summary: 'Contact your representative', instructions: 
 async function open(page) {
   await page.goto('/suggestion/1');
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
+  await page.getByRole('button', { name: 'Recommended Actions', exact: true }).click();
+  await expect(page.locator('.recommended-actions-content')).toBeVisible();
 }
 
 test('311 search uses the configured API origin without navigating', async ({ page }) => {
@@ -15,13 +16,11 @@ test('save and hide independently, reload, review and remove from My actions', a
   await page.addInitScript(a => { window.__ux.actions = [a]; }, action);
   await open(page);
   await page.getByRole('button', { name: 'Add to My actions', exact: true }).click();
-  await page.getByRole('button', { name: 'View all actions', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Recommended actions', exact: true }).getByRole('button', { name: 'Hide', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Recommended actions', exact: true }).getByText('All recommendations are hidden.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Hide', exact: true }).click();
+  await expect(page.getByText('All recommendations are hidden.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Find actions' })).toHaveCount(0);
   await page.reload();
-  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
-  await page.getByRole('button', { name: 'View all actions', exact: true }).click();
+  await page.getByRole('button', { name: 'Recommended Actions', exact: true }).click();
   await page.getByRole('button', { name: 'Show hidden (1)', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Remove from My actions' })).toBeVisible();
   await page.getByRole('button', { name: 'Unhide', exact: true }).click();
@@ -40,13 +39,13 @@ test('generation is explicit, cached, and identity survives attached results', a
   await page.getByRole('button', { name: 'Find actions' }).click();
   await page.getByRole('button', { name: 'Add to My actions', exact: true }).click();
   await page.reload();
-  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
+  await page.getByRole('button', { name: 'Recommended Actions', exact: true }).click();
   await expect(page.getByRole('heading', { name: action.summary })).toBeVisible();
   expect(await page.evaluate(() => window.__ux.matches || 0)).toBe(0);
   await page.evaluate(a => { window.__ux.actions = [{ ...a, id: 'attached', recommendableId: '1' }]; }, action);
   await page.getByRole('button', { name: 'Refresh idea', exact: true }).click();
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
-  await page.locator('summary').filter({ hasText: 'Recommended actions' }).click();
+  await page.getByRole('button', { name: 'Recommended Actions', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Remove from My actions' })).toBeVisible();
 });
 test('errors stay distinct from empty results and failed storage never claims success', async ({ page }) => {
@@ -71,15 +70,12 @@ for (const size of [{ width: 360, height: 880 }, { width: 320, height: 568 }, { 
     await page.setViewportSize(size);
     await page.addInitScript(a => { window.__ux.actions = Array.from({ length: 100 }, (_, i) => ({ ...a, id: String(i), summary: `${i} ${'LongTitle'.repeat(12)}`, instructions: 'Long instructions. '.repeat(100) })); }, action);
     await open(page);
-    await expect(page.locator('.action-card')).toHaveCount(2);
-    await page.getByRole('button', { name: 'View all actions', exact: true }).click();
-    const sheet = page.getByRole('dialog', { name: 'Recommended actions', exact: true });
-    await expect(sheet.locator('.action-card')).toHaveCount(10);
+    await expect(page.locator('.recommended-actions-content .action-card')).toHaveCount(10);
     await page.getByRole('button', { name: 'Show 10 more' }).click();
-    await expect(sheet.locator('.action-card')).toHaveCount(20);
-    await sheet.locator('.action-card').first().getByRole('button', { name: 'View action', exact: true }).click();
+    await expect(page.locator('.recommended-actions-content .action-card')).toHaveCount(20);
+    await page.locator('.recommended-actions-content .action-card').first().getByRole('button', { name: 'View action', exact: true }).click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    const buttons = await sheet.locator('.action-card').first().locator('button').evaluateAll(els => els.map(el => el.getBoundingClientRect().height));
+    const buttons = await page.locator('.detail-sheet[open] .action-card').first().locator('button').evaluateAll(els => els.map(el => el.getBoundingClientRect().height));
     expect(buttons.every(height => height >= 44)).toBe(true);
     await page.screenshot({ path: info.outputPath('recommendations.png') });
   });

@@ -46,6 +46,7 @@ const verifyOpenTray = async (canvasElement, args) => {
   const tray = canvas.getByRole('complementary', { name: 'Tray' });
   await expect(tray).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
   await expect(tray).toBeVisible();
+  expect(canvasElement.ownerDocument.defaultView.getComputedStyle(canvasElement.querySelector('.tray-shell')).transitionProperty).toContain('height');
   await expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium');
   const expectedMediumHeight = Math.min(args.mediumHeight, args.maxHeight);
   const visibleHeight = canvasElement.ownerDocument.defaultView.innerHeight - tray.getBoundingClientRect().top;

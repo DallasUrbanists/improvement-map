@@ -578,17 +578,8 @@ body {
 .detail-typewriter-pending { visibility: hidden; }
 
 /* Recommendation lists share the tray scroll area, including on narrow phones. */
-.actions-panel { padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; overflow-wrap: anywhere; }
 .streetmix-panel > * { min-width: 0; max-width: 100%; }
-.streetmix-generated { position: relative; }
-.streetmix-generated > details { border-top: 0; }
-.streetmix-generated > details > summary, .streetmix-header { min-height: 48px; padding: 2px 16px; }
-.streetmix-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 0 16px; }
-.streetmix-header h3 { margin: 0; font-size: 1rem; line-height: 1.5rem; }
-.streetmix-header > .action-button { align-self: stretch; min-height: 48px; border: 0; border-radius: 0; }
-.streetmix-header > .action-button { border-left: 1px solid var(--map-control-border); }
-.streetmix-external { position: absolute; top: 2px; right: 40px; width: 44px; height: 44px; }
-.streetmix-preview { padding: 0 16px 12px; min-width: 0; }
+.streetmix-preview { display: grid; gap: 12px; min-width: 0; }
 .streetmix-preview img { display: block; width: 100%; height: auto; }
 .detail-sheet-footer { flex-shrink: 0; border-top: 1px solid var(--map-control-border); padding-bottom: var(--app-safe-area-bottom); background: var(--map-control-bg); }
 .detail-sheet:has(.detail-sheet-footer) .detail-sheet-content { padding-bottom: 0; }
@@ -661,7 +652,6 @@ body {
 .detail-sheet::backdrop { background: #0008; }
 .detail-sheet .map-tray-header { flex-shrink: 0; padding-top: var(--app-safe-area-top); }
 .detail-sheet-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: var(--app-safe-area-bottom); }
-.detail-sheet-content, .actions-panel, .context-card { font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
 .actions-panel > .actions-panel { padding: 0; }
 .representatives-section > .actions-panel { gap: 0; padding: 0; }
 .areas-section > .actions-panel { gap: 0; padding: 0; }
@@ -672,10 +662,7 @@ body {
 .areas-section .context-card:last-child { margin-bottom: 0; border-bottom: 0; }
 .areas-section .context-card h3 { margin: 0; font-weight: 650; }
 .areas-section .context-card p.secondary-copy { margin: 0; }
-.recommended-actions-section > .actions-panel { gap: 0; padding: 0; }
-.recommended-actions-section > .actions-panel > div > .actions-panel { gap: 12px; padding: 12px 16px 20px; }
-.recommended-actions-section > .actions-panel > div > .actions-panel:has(> .recommended-find-actions) { padding-bottom: 0; }
-.recommended-find-actions { width: calc(100% + 32px); max-width: none; margin-inline: -16px; border: 0; border-top: 1px solid var(--map-control-border); border-radius: 0; background: var(--map-control-active); color: var(--map-control-active-text); }
+.recommended-find-actions { width: 100%; max-width: 100%; margin: 0; background: var(--map-control-active); color: var(--map-control-active-text); }
 .representatives-section[open] { position: relative; z-index: 2; overflow: visible; background: var(--map-control-hover); }
 .representatives-section .context-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; }
 .representatives-section .context-card:first-child { padding-top: 0; }
@@ -739,8 +726,6 @@ body {
 .submission-detail-tray .detail-photo-content { padding: 0; }
 .submission-detail-tray .detail-body-sections { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
 .submission-detail-tray .detail-tray-handle { cursor: grab; }
-.streetmix-panel-copy { display: grid; gap: 8px; }
-.streetmix-panel-copy p { margin: 0; }
 
 /* Keep settings above the toolbar on short landscape screens. */
 @media (orientation: landscape) and (max-height: 500px) {

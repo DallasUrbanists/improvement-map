@@ -3,7 +3,9 @@
     <div class="tray-shell" :class="{ 'tray-shell--dragging': dragging, 'tray-shell--closed': !open }" :style="trayStyle">
       <aside ref="trayElement" class="tray" :class="panelClass" :data-theme="theme" :data-open="open" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :aria-label="label" :aria-busy="busy || undefined" :inert="!open && !dragging">
         <div ref="headElement" class="tray__head"><slot name="head" /></div>
-        <div ref="contentElement" class="tray__body" @scroll="emit('scroll', $event)"><slot /></div>
+        <div ref="contentElement" class="tray__body" @scroll="emit('scroll', $event)">
+          <div ref="bodyContentElement" class="tray__body-content"><slot /></div>
+        </div>
       </aside>
       <button
         v-if="showHandle"
@@ -51,6 +53,7 @@ const surface = computed(() => {
 });
 const trayElement = ref(null);
 const contentElement = ref(null);
+const bodyContentElement = ref(null);
 const headElement = ref(null);
 const naturalHeight = ref(0);
 const scrollable = ref(false);
@@ -91,7 +94,7 @@ function updateContentMetrics() {
   const body = contentElement.value;
   if (!head || !body) return;
   const headHeight = head.offsetHeight;
-  const bodyHeight = body.scrollHeight;
+  const bodyHeight = bodyContentElement.value?.scrollHeight ?? body.scrollHeight;
   const topBorder = Number.parseFloat(getComputedStyle(trayElement.value).borderTopWidth) || 0;
   naturalHeight.value = headHeight + bodyHeight + topBorder;
   const mediumHeight = Math.min(props.mediumHeight, effectiveMaxHeight.value);
@@ -145,20 +148,20 @@ onMounted(async () => {
   window.addEventListener('resize', updateViewportHeight, { passive: true });
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(measureContent);
-    for (const root of [headElement.value, contentElement.value]) {
+    for (const root of [headElement.value, bodyContentElement.value]) {
       if (!root) continue;
       resizeObserver.observe(root);
       root.querySelectorAll('*').forEach(element => resizeObserver.observe(element));
     }
   }
-  if (typeof MutationObserver !== 'undefined' && contentElement.value) {
+  if (typeof MutationObserver !== 'undefined' && bodyContentElement.value) {
     mutationObserver = new MutationObserver(() => {
-      for (const root of [headElement.value, contentElement.value]) {
+      for (const root of [headElement.value, bodyContentElement.value]) {
         root?.querySelectorAll('*').forEach(element => resizeObserver?.observe(element));
       }
       measureContent();
     });
-    mutationObserver.observe(contentElement.value, { attributes: true, childList: true, subtree: true, characterData: true });
+    mutationObserver.observe(bodyContentElement.value, { attributes: true, childList: true, subtree: true, characterData: true });
   }
 });
 onBeforeUnmount(() => {
@@ -251,7 +254,7 @@ defineExpose({ element: trayElement, content: contentElement, contentElement, he
   bottom: 0;
   height: var(--tray-height);
   max-height: var(--tray-max-height);
-  transition: transform 220ms ease-out;
+  transition: height 260ms cubic-bezier(.22, .61, .36, 1), transform 220ms ease-out;
   max-width: 1024px;
   margin-left: auto;
   margin-right: auto;
@@ -273,6 +276,7 @@ defineExpose({ element: trayElement, content: contentElement, contentElement, he
 }
 .tray__head { position: sticky; top: 0; z-index: 1; flex: 0 0 auto; }
 .tray__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: v-bind('surface.foreground') transparent; scrollbar-width: thin; }
+.tray__body-content { flex: 0 0 auto; }
 .tray__handle {
   position: absolute;
   z-index: 2;
