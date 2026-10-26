@@ -103,7 +103,10 @@ Local receipts: `test-results/storybook-ci-bootstrap-fix.log`,
 `test-results/storybook-staging-drawer-baseline.log`, and
 `test-results/storybook-guard-offline-startup.log`.
 
-## Storybook Component tests widget limitation
+## Storybook Component tests widget limitation (initial validation)
+
+This records the initial result. See the startup follow-up below for the later
+reproduction and maintained workaround.
 
 CLI component tests work. The pinned 10.6.3 widget intermittently failed with
 `UniversalStoreFollowerTimeoutError` or stale Starting/running status during live
@@ -151,7 +154,7 @@ was changed. Timings vary with machine load. Source declarations include the app
 catalog templates, preview scripts and local browser adapters; Konsta registers
 its own sources through its theme import.
 
-The test-widget startup limitation above remains unresolved. Server history also
+At the CSS checkpoint, the test-widget limitation was unresolved. Server history also
 contained a Vite `ENODATA` read error; the timing probes did not reproduce it or
 establish its cause. No claim is made that every reconnect is fixed. Experimental
 docgen remains enabled: the installed non-server `vue-component-meta` fallback
@@ -169,6 +172,53 @@ filename did not match the platform-native path, so the browser mocks were never
 injected. The local plugin now normalizes that filename; a regression check covers
 app injection while keeping Vitest's tester HTML untouched. The map screenshot
 from the smoke journey remains a candidate, not an approved baseline.
+
+## Storybook test-widget startup follow-up
+
+The CSS/native-bootstrap changes were checkpointed as `c1ea411` on
+`refactor/storybook-development-reliability` before this investigation.
+
+Reproduced a single-story widget crash on native Windows with
+`UniversalStoreFollowerTimeoutError` for `storybook/status`. Captured a separate
+Docker attempt that reached the addon's 30-second startup deadline. The installed
+worker created three IPC follower stores, but only awaited `storybook/test`
+before importing/initializing Vitest. The status/provider responses can then miss
+their one-second synchronization deadline. This matches the
+[upstream report](https://github.com/storybookjs/storybook/issues/35864) and
+[proposed synchronization fix](https://github.com/storybookjs/storybook/pull/36068).
+The [10.6.4 release notes](https://github.com/storybookjs/storybook/releases/tag/v10.6.4)
+contain a Jest loader change, not this fix, so dependencies
+remain pinned.
+
+Temporarily waiting for all three stores allowed the selected story and its
+accessibility check to complete in both environments. Docker stage tracing showed
+the child reaching ready in about 14 seconds on that attempt; the earlier cold
+30-second timeout was not established as the same race. The temporary tracing was
+removed. A small maintained backport now runs through `prestorybook`, with exact
+10.6.3/source-shape guards and atomic, idempotent installation. A dependency
+upgrade requires reviewing/removing this workaround. No timeouts or assertions
+were relaxed, and no canary package or other dependency was installed.
+
+The new `test:storybook:widget` check launches a real dev server, waits for the
+preview, selects the Floating Text Button through its context menu, and requires
+successful `TEST_RUN_COMPLETED` interaction and accessibility statuses. A fatal
+startup event or a permanently Starting widget fails the check. Static catalog
+and CLI interaction checks alone cannot establish that the widget works. The
+dedicated CI step remains advisory; its outcome and JSON evidence are included
+in the summary and evidence-reuse checks.
+
+Validation: three fresh native server starts and three Docker restarts completed
+the selected story's interactions and accessibility checks, with no failed,
+skipped or flaky Playwright cases. Native runs took about 35–39 seconds end to
+end; Docker runs took about 60–73 seconds. Cold widget startup is still slower
+than normal CSS HMR. The 27 focused Node checks passed and the advisory workflow
+parsed successfully. No production build or deployed service was changed by this
+follow-up; the running Docker Storybook uses the maintained workaround.
+
+Local receipts: `test-results/storybook-widget-native-run.log` (original crash),
+`test-results/storybook-widget-docker-run.log` (original timeout),
+`test-results/storybook-widget-*-sync-*.log` (temporary diagnostic runs), and
+`test-results/storybook/widget-*-fresh-*.json` (fresh-start checks).
 
 ## Remaining plan work
 

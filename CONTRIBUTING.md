@@ -174,10 +174,12 @@ and adjacent story's props/events/slots, and reuse existing components first.
 Review controls, themes, keyboard interactions, viewport and pseudo states.
 Use the commands below for reliable interaction/accessibility checks with the
 container's Chromium. The pinned Storybook 10.6.3 Component tests widget has an
-intermittent [upstream startup race](https://github.com/storybookjs/storybook/issues/35864);
-it can crash or remain at Starting. Restart Storybook with
-`docker compose restart storybook` and use the CLI when that happens. Coverage is
-not installed. No vendor patch or relaxed assertions are applied.
+intermittent [upstream startup race](https://github.com/storybookjs/storybook/issues/35864).
+`npm run storybook` applies a version-checked synchronization backport before
+starting the server; Compose uses that same command. Review/remove the workaround
+when upgrading Storybook. `npm run test:storybook:widget` checks a real widget run
+with accessibility enabled. CLI tests remain available if the widget fails.
+Coverage is not installed; assertions are unchanged.
 
 ```sh
 docker compose run --rm --pull never test npm run test:storybook -- src/components/Tabbar.stories.js

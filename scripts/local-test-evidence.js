@@ -25,7 +25,7 @@ const fingerprint = hash(key);
 const directory = `test-results/local-evidence/${suite}-${profile}`;
 mkdirSync(directory, { recursive: true });
 const env = {
-  ...process.env, CI: 'true', UX_STRICT: '1', UX_SCAN: '1', STORYBOOK_SELECTED: '0',
+  ...process.env, CI: 'true', UX_STRICT: '1', UX_SCAN: '1', STORYBOOK_SELECTED: '0', STORYBOOK_WIDGET_URL: '',
   UX_REPORT_DIR: directory, UX_HTML_DIR: `playwright-report/local-evidence/${suite}-${profile}`,
   PLAYWRIGHT_OUTPUT_DIR: `${directory}/results`, PLAYWRIGHT_BLOB_DIR: `blob-report/local-evidence/${suite}-${profile}`,
 };
@@ -48,7 +48,7 @@ function playwright(script, args, file, ux = false) {
 }
 const reports = [];
 if (catalog) {
-  run('--test', ['tests/storybook-tooling.node.mjs']);
+  run('--test', ['tests/storybook-tooling.node.mjs', 'tests/storybook-vitest-workaround.node.mjs']);
   run('--test', ['--test-name-pattern=storybook', 'tests/ci-suites.node.mjs']);
   const build = spawnSync('npm', ['run', 'build:pages'], { stdio: 'inherit', env });
   if (build.error || build.status !== 0) throw Error('No evidence issued: catalog build failed.');
@@ -60,6 +60,7 @@ if (catalog) {
   reports.push({ interactions: interactions.numPassedTests });
   reports.push(playwright('node_modules/@playwright/test/cli.js', ['test', '--config', 'playwright.storybook.config.js'], `${directory}/catalog.json`));
   reports.push(playwright('scripts/test-storybook-pages.js', [], `${directory}/pages.json`));
+  reports.push(playwright('node_modules/@playwright/test/cli.js', ['test', '--config', 'playwright.storybook-widget.config.js'], `${directory}/widget.json`));
 } else {
   reports.push(playwright('scripts/test-suite.js', [suite, ...projects.map(p => `--project=${p}`)], `${directory}/results.json`, definition.kind === 'ux'));
 }

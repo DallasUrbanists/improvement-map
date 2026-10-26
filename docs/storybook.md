@@ -41,6 +41,21 @@ for measured timings and remaining limitations.
 
 The local **Component tests** widget discovers `vitest.config.js`, which supplies one browser project and uses the selected Storybook globals. Expand the widget to enable **Accessibility** alongside interactions, then choose **Run tests**. The command-line/CI scripts explicitly use `vitest.storybook.config.js` to check both light and dark projects. Those separate configurations avoid duplicate project names in the UI runner. Coverage instrumentation is optional and is not installed in this pilot; leave Coverage unchecked.
 
+The pinned addon has an upstream IPC synchronization race. The `prestorybook`
+hook applies a small backport from [upstream PR 36068](https://github.com/storybookjs/storybook/pull/36068)
+to its installed dev worker. It waits for the test, status and provider stores
+before starting Vitest, rather than waiting only for the test store. The hook
+checks addon version 10.6.3 and expected source, is idempotent, and stops with a
+review message after a dependency upgrade. Use `npm run storybook`; invoking
+`storybook dev` directly after a fresh install bypasses the hook. No startup
+deadline, test assertions or accessibility checks are relaxed.
+
+`npm run test:storybook:widget` starts an isolated, fully mocked dev Storybook and
+checks that a selected story completes with successful interaction and
+accessibility results. Set `STORYBOOK_WIDGET_URL` to test an already-running
+server, including Docker on port 6006. This is separate from static catalog tests,
+which cannot exercise the dev-server widget or its child process.
+
 ## What the tests protect
 
 Story play functions own component behavior: accessible names, keyboard operation, disabled actions, selection, emitted payloads and content. Keep layout checks when they protect use, such as a row-wide hit target, joined input/action geometry or a panel staying within the viewport. Accessibility checks remain enabled.
