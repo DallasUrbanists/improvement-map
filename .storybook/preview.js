@@ -2,6 +2,7 @@ import { setup } from '@storybook/vue3-vite';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import { kProvider } from 'konsta/vue';
 import { watchEffect } from 'vue';
+import '../src/tailwind.css';
 import '../src/style.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import '@fontsource/roboto/latin-400.css';

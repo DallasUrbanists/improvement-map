@@ -28,6 +28,17 @@ npm run test:storybook:pages
 
 Storybook runs on port 6006. `node scripts/serve-storybook.js` serves the static build at `http://127.0.0.1:6007/storybook/`, exercising nested asset URLs. `npm run build:pages` builds the app, builds Storybook separately, then copies the catalog into the single Pages artifact. The existing deployment gate remains; the advisory workflow is independent.
 
+Both app and Storybook import `src/tailwind.css` before `src/style.css` as separate
+JavaScript imports. Keep ordinary CSS in `src/style.css` or component style blocks;
+keep Tailwind imports, source declarations, theme tokens and `@apply` rules in
+`src/tailwind.css`. Combining them makes every ordinary CSS edit recompile the
+framework. Tailwind scans UI templates explicitly so edits to repository docs and
+application tests do not reload the preview. New UI template locations outside the
+listed sources need a corresponding `@source`. Restart the dev servers after
+changing source discovery to clear their old watched dependencies. See the
+[CSS update investigation](local-development-validation.md#storybook-css-update-investigation)
+for measured timings and remaining limitations.
+
 The local **Component tests** widget discovers `vitest.config.js`, which supplies one browser project and uses the selected Storybook globals. Expand the widget to enable **Accessibility** alongside interactions, then choose **Run tests**. The command-line/CI scripts explicitly use `vitest.storybook.config.js` to check both light and dark projects. Those separate configurations avoid duplicate project names in the UI runner. Coverage instrumentation is optional and is not installed in this pilot; leave Coverage unchecked.
 
 ## What the tests protect

@@ -1,4 +1,4 @@
-/* Preview context only: production component styles come from src/style.css. */
+/* Preview context only: production styles come from src/tailwind.css and src/style.css. */
 html { overflow: auto; scroll-behavior: auto; }
 body { margin: 0; background-image: none !important; }
 /* Reuse production map-control tokens on the existing body, without a surface.

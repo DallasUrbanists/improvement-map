@@ -115,6 +115,61 @@ It is not included in the image or source. Use the documented CLI checks and
 restart Storybook if the widget crashes. No package versions, assertions, baseline
 approvals or deployment guards were changed to hide this limitation.
 
+## Storybook CSS update investigation
+
+Measured the installed Storybook 10.6.3 / Vite 6.4.5 on Windows with a headless
+Chromium preview of `buttons-text-button--floating`, comparing native port 6009
+with Docker port 6006. Three edits per file inserted a unique CSS custom property,
+waited for its computed value, and recorded Vite WebSocket messages. Each file was
+restored afterward. Separate edits to repository docs and a Node test checked
+unrelated reloads. These are local observations, not timing thresholds or a
+long-duration stability guarantee.
+
+Two causes were isolated:
+
+- Tailwind's automatic repository scan made unrelated docs/test edits trigger
+  full reloads in the native preview. Explicit template sources removed those
+  reloads after a server restart. Narrowing sources alone did not eliminate slow
+  stylesheet recompilation.
+- `src/style.css` imported Tailwind and Konsta as well as ordinary app rules. A
+  Vite transform profile attributed 3,448 ms to Tailwind on that entry. Moving the
+  framework imports, theme and existing body `@apply` declarations into a separate
+  `src/tailwind.css` entry lets ordinary CSS edits bypass that compilation. Both
+  production and preview import the framework entry before the app rules.
+
+| Edit | Before | After |
+| --- | --- | --- |
+| Native `src/style.css` | 2,315 / 3,451 / 3,143 ms | 66 / 66 / 47 ms |
+| Docker `src/style.css` | Two exceeded 15 s; one took 14,271 ms | 232 / 1,036 / 555 ms |
+| Docker preview-only CSS | 12,637 / 8,485 / 10,841 ms | 547 / 430 / 581 ms |
+| Docker component scoped CSS | Not measured before | 569 / 1,051 / 1,085 ms, no full reload |
+| Native docs/test edits | Full reload for each of six edits | No reload for those six edits |
+
+Docker timings include the existing 500 ms polling configuration and Windows bind
+mount overhead; no polling interval, dependency versions or test-widget behavior
+was changed. Timings vary with machine load. Source declarations include the app,
+catalog templates, preview scripts and local browser adapters; Konsta registers
+its own sources through its theme import.
+
+The test-widget startup limitation above remains unresolved. Server history also
+contained a Vite `ENODATA` read error; the timing probes did not reproduce it or
+establish its cause. No claim is made that every reconnect is fixed. Experimental
+docgen remains enabled: the installed non-server `vue-component-meta` fallback
+explicitly sends a full reload from its hot-update hook.
+
+Local timing receipts and the temporary probe are under
+`test-results/storybook-hmr-*.log` and `test-results/storybook-hmr-probe.mjs`.
+No screenshot baselines or component approvals were changed.
+
+Final validation: production and static Storybook builds passed; Text Button and
+Floating Modal interactions/accessibility passed all 14 light/dark cases. Local
+validation passed 8 Node checks and 2 Chromium journeys. The native app smoke test
+initially exposed an existing Windows bootstrap bug: Vite's forward-slash HTML
+filename did not match the platform-native path, so the browser mocks were never
+injected. The local plugin now normalizes that filename; a regression check covers
+app injection while keeping Vitest's tester HTML untouched. The map screenshot
+from the smoke journey remains a candidate, not an approved baseline.
+
 ## Remaining plan work
 
 This is the shared container/browser and starter-mock milestone. The mock server
