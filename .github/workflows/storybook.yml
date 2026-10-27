@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 20
+    env:
+      # Keep `playwright install` and the checkout-local test wrapper on one cache.
+      PLAYWRIGHT_BROWSERS_PATH: '0'
     steps:
       - uses: actions/checkout@v5
         with:

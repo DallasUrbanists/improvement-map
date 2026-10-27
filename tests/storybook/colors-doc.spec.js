@@ -20,8 +20,8 @@ test('Colors documents the shared app palette and generated values', async ({ pa
 
   await expect(docs.getByText(/Neutral buttons inherit the surface level they occupy/)).toBeVisible();
   // The reference must publish current tokens; changing a palette shouldn't require editing this test.
-  await expect(docs.getByText(new RegExp(`--button-dark-primary-default-middle: ${buttonColors.dark.primary.background}`))).toBeVisible();
-  await expect(docs.getByText(new RegExp(`--button-dark-neutral-level-5-border: ${buttonColors.dark.neutralByLevel[5].border}`))).toBeVisible();
+  await expect(docs.getByText(`--button-dark-primary-default-middle: ${buttonColors.dark.primary.background}`, { exact: false })).toBeVisible();
+  await expect(docs.getByText(`--button-dark-neutral-level-5-border: ${buttonColors.dark.neutralByLevel[5].border}`, { exact: false })).toBeVisible();
   await expect(docs.locator('.colors-neutral-row')).toHaveCount(6);
   const darkLevel4 = Number.parseInt(textColors.muted.dark.neutral.level4.slice(1, 3), 16);
   const darkLevel5 = Number.parseInt(textColors.muted.dark.neutral.level5.slice(1, 3), 16);

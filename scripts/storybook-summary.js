@@ -11,7 +11,7 @@ const lines = [
   'These checks do not gate deployment. Failures and missing coverage still require review.',
   `Selected story files: ${selection?.files.length ?? 'selection unavailable'}. ${selection?.reasons.join('; ') || ''}`,
   ...['BUILD', 'TOOLING', 'INTERACTIONS', 'VISUAL', 'PAGES', 'WIDGET'].map(name => `${name.toLowerCase()}: ${process.env[`STORYBOOK_${name}`] || 'not run'}`),
-  interactions ? `Interactions: ${interactions.numPassedTests} passed, ${interactions.numFailedTests} failed; ${interactions.numFailedTestSuites} failed suites. Suite/import errors mean coverage is incomplete.` : 'Interaction coverage: unavailable or not selected.',
+  interactions ? `Interactions: ${interactions.numPassedTests} passed, ${interactions.numFailedTests} failed across ${interactions.numFailedTestSuites} failed test files/suites. Review raw results for assertion failures and any collection or import errors.` : 'Interaction coverage: unavailable or not selected.',
   browser ? `Browser checks: ${browser.stats.expected} passed, ${browser.stats.unexpected} failed. Visual comparisons pending reviewed baselines: ${pending(browser.suites)}.` : 'Built-browser/visual coverage: unavailable or not selected.',
   pages ? `Pages isolation checks: ${pages.stats.expected} passed, ${pages.stats.unexpected} failed.` : 'Pages/service worker coverage: unavailable or not selected.',
   widget ? `Dev widget checks: ${widget.stats.expected} passed, ${widget.stats.unexpected} failed.` : 'Dev widget coverage: unavailable or not selected.',
