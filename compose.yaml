@@ -50,6 +50,8 @@ services:
     environment:
       <<: *environment
       DEV_VITE_CACHE: node_modules/.cache/storybook
+      # Opt-in editing experiment; normal starts retain the component-test widget.
+      STORYBOOK_EDITING: ${STORYBOOK_EDITING:-false}
     volumes:
       - .:/workspace
       - storybook-dependencies:/workspace/node_modules

@@ -44,7 +44,9 @@
       @before-leave="beforeLeave"
       @leave="leaveSection"
     >
-      <ContainedSection v-if="open" :theme="theme" :surface-level="surfaceLevel" :padded="padded" :content="content"><slot /></ContainedSection>
+      <ContainedSection v-if="open" :theme="theme" :surface-level="surfaceLevel" :padded="padded" :content="content">
+        <template v-if="$slots.default" #default><slot /></template>
+      </ContainedSection>
     </Transition>
   </div>
 </template>

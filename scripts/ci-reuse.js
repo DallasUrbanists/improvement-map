@@ -68,7 +68,7 @@ try {
             || !run.pull_requests?.some(pr => pr.number === event.pull_request.number)) continue;
         const jobs = await pages(`actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`, 'jobs');
         const steps = suite === 'storybook'
-          ? [testStep, 'Test selector and packaging contracts', 'Build public catalog', 'Component interactions and accessibility', 'Built catalog and visual candidates', 'Pages and service worker isolation']
+          ? [testStep, 'Test selector and packaging contracts', 'Build public catalog', 'Component interactions and accessibility', 'Built catalog and visual candidates', 'Pages and service worker isolation', 'Dev widget startup and selected-story checks (advisory)']
           : [testStep];
         const job = jobs.find(job => {
           const age = Date.now() - Date.parse(job.completed_at);

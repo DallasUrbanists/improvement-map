@@ -22,8 +22,11 @@ if (task === 'install') {
 } else if (task === 'storybook-watch') {
   executable = path.join(projectRoot, 'node_modules', 'vitest', 'vitest.mjs');
   args = ['--config', 'vitest.storybook.config.js', ...forwardedArgs];
+} else if (task === 'storybook-widget') {
+  executable = path.join(projectRoot, 'node_modules', 'playwright', 'cli.js');
+  args = ['test', '--config', 'playwright.storybook-widget.config.js', ...forwardedArgs];
 } else {
-  console.error('Usage: node scripts/playwright-task.js <install|storybook|storybook-watch> [args...]');
+  console.error('Usage: node scripts/playwright-task.js <install|storybook|storybook-watch|storybook-widget> [args...]');
   process.exit(2);
 }
 

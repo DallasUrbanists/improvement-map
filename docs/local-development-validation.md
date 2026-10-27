@@ -103,7 +103,10 @@ Local receipts: `test-results/storybook-ci-bootstrap-fix.log`,
 `test-results/storybook-staging-drawer-baseline.log`, and
 `test-results/storybook-guard-offline-startup.log`.
 
-## Storybook Component tests widget limitation
+## Storybook Component tests widget limitation (initial validation)
+
+This records the initial result. See the startup follow-up below for the later
+reproduction and maintained workaround.
 
 CLI component tests work. The pinned 10.6.3 widget intermittently failed with
 `UniversalStoreFollowerTimeoutError` or stale Starting/running status during live
@@ -114,6 +117,108 @@ was tried temporarily, but did not establish reliable widget completion here.
 It is not included in the image or source. Use the documented CLI checks and
 restart Storybook if the widget crashes. No package versions, assertions, baseline
 approvals or deployment guards were changed to hide this limitation.
+
+## Storybook CSS update investigation
+
+Measured the installed Storybook 10.6.3 / Vite 6.4.5 on Windows with a headless
+Chromium preview of `buttons-text-button--floating`, comparing native port 6009
+with Docker port 6006. Three edits per file inserted a unique CSS custom property,
+waited for its computed value, and recorded Vite WebSocket messages. Each file was
+restored afterward. Separate edits to repository docs and a Node test checked
+unrelated reloads. These are local observations, not timing thresholds or a
+long-duration stability guarantee.
+
+Two causes were isolated:
+
+- Tailwind's automatic repository scan made unrelated docs/test edits trigger
+  full reloads in the native preview. Explicit template sources removed those
+  reloads after a server restart. Narrowing sources alone did not eliminate slow
+  stylesheet recompilation.
+- `src/style.css` imported Tailwind and Konsta as well as ordinary app rules. A
+  Vite transform profile attributed 3,448 ms to Tailwind on that entry. Moving the
+  framework imports, theme and existing body `@apply` declarations into a separate
+  `src/tailwind.css` entry lets ordinary CSS edits bypass that compilation. Both
+  production and preview import the framework entry before the app rules.
+
+| Edit | Before | After |
+| --- | --- | --- |
+| Native `src/style.css` | 2,315 / 3,451 / 3,143 ms | 66 / 66 / 47 ms |
+| Docker `src/style.css` | Two exceeded 15 s; one took 14,271 ms | 232 / 1,036 / 555 ms |
+| Docker preview-only CSS | 12,637 / 8,485 / 10,841 ms | 547 / 430 / 581 ms |
+| Docker component scoped CSS | Not measured before | 569 / 1,051 / 1,085 ms, no full reload |
+| Native docs/test edits | Full reload for each of six edits | No reload for those six edits |
+
+Docker timings include the existing 500 ms polling configuration and Windows bind
+mount overhead; no polling interval, dependency versions or test-widget behavior
+was changed. Timings vary with machine load. Source declarations include the app,
+catalog templates, preview scripts and local browser adapters; Konsta registers
+its own sources through its theme import.
+
+At the CSS checkpoint, the test-widget limitation was unresolved. Server history also
+contained a Vite `ENODATA` read error; the timing probes did not reproduce it or
+establish its cause. No claim is made that every reconnect is fixed. Experimental
+docgen remains enabled: the installed non-server `vue-component-meta` fallback
+explicitly sends a full reload from its hot-update hook.
+
+Local timing receipts and the temporary probe are under
+`test-results/storybook-hmr-*.log` and `test-results/storybook-hmr-probe.mjs`.
+No screenshot baselines or component approvals were changed.
+
+Final validation: production and static Storybook builds passed; Text Button and
+Floating Modal interactions/accessibility passed all 14 light/dark cases. Local
+validation passed 8 Node checks and 2 Chromium journeys. The native app smoke test
+initially exposed an existing Windows bootstrap bug: Vite's forward-slash HTML
+filename did not match the platform-native path, so the browser mocks were never
+injected. The local plugin now normalizes that filename; a regression check covers
+app injection while keeping Vitest's tester HTML untouched. The map screenshot
+from the smoke journey remains a candidate, not an approved baseline.
+
+## Storybook test-widget startup follow-up
+
+The CSS/native-bootstrap changes were checkpointed as `c1ea411` on
+`refactor/storybook-development-reliability` before this investigation.
+
+Reproduced a single-story widget crash on native Windows with
+`UniversalStoreFollowerTimeoutError` for `storybook/status`. Captured a separate
+Docker attempt that reached the addon's 30-second startup deadline. The installed
+worker created three IPC follower stores, but only awaited `storybook/test`
+before importing/initializing Vitest. The status/provider responses can then miss
+their one-second synchronization deadline. This matches the
+[upstream report](https://github.com/storybookjs/storybook/issues/35864) and
+[proposed synchronization fix](https://github.com/storybookjs/storybook/pull/36068).
+The [10.6.4 release notes](https://github.com/storybookjs/storybook/releases/tag/v10.6.4)
+contain a Jest loader change, not this fix, so dependencies
+remain pinned.
+
+Temporarily waiting for all three stores allowed the selected story and its
+accessibility check to complete in both environments. Docker stage tracing showed
+the child reaching ready in about 14 seconds on that attempt; the earlier cold
+30-second timeout was not established as the same race. The temporary tracing was
+removed. A small maintained backport now runs through `prestorybook`, with exact
+10.6.3/source-shape guards and atomic, idempotent installation. A dependency
+upgrade requires reviewing/removing this workaround. No timeouts or assertions
+were relaxed, and no canary package or other dependency was installed.
+
+The new `test:storybook:widget` check launches a real dev server, waits for the
+preview, selects the Floating Text Button through its context menu, and requires
+successful `TEST_RUN_COMPLETED` interaction and accessibility statuses. A fatal
+startup event or a permanently Starting widget fails the check. Static catalog
+and CLI interaction checks alone cannot establish that the widget works. The
+dedicated CI step remains advisory; its outcome and JSON evidence are included
+in the summary and evidence-reuse checks.
+
+Validation: three fresh native server starts and three Docker restarts completed
+the selected story's interactions and accessibility checks, with no failed,
+skipped or flaky Playwright cases. Native runs took about 35–39 seconds end to
+end; Docker runs took about 60–73 seconds. Cold widget startup is still slower
+than normal CSS HMR. The 27 focused Node checks passed and the advisory workflow
+parsed successfully. No production build or deployed service was changed by this
+follow-up; the running Docker Storybook uses the maintained workaround.
+
+Local receipts: `test-results/storybook-widget-native-run.log` (original crash),
+`test-results/storybook-widget-docker-run.log` (original timeout),
+`test-results/storybook-widget-*-sync-*.log` (temporary diagnostic runs), and
+`test-results/storybook/widget-*-fresh-*.json` (fresh-start checks).
 
 ## Remaining plan work
 

@@ -31,7 +31,8 @@ const colors = computed(() => {
   display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   margin: 4px; padding: 0; flex: 0 0 72px; aspect-ratio: 1;
   border: 1px solid var(--circle-border); border-radius: 50%;
-  background: var(--circle-background); color: var(--circle-foreground);
+  /* background: var(--circle-background); color: var(--circle-foreground);*/
+  background: yellow; color: black;
   box-shadow: 0 3px 12px #00000040; font-size: 18px; line-height: 1;
   touch-action: manipulation;
 }

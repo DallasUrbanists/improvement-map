@@ -85,12 +85,17 @@ export const TextButtonInHeader = {
 
 export const WithSlottedContent = {
   name: 'With slotted content',
-  args: { open: true, header: { label: 'Idea details' }, content: '' },
+  args: { open: true, header: { label: 'Idea details' }, content: '<p>Fallback HTML content.</p>' },
   render: (args, { globals }) => ({
     components: { Accordion },
     setup: () => ({ args, globalTheme: globals.theme }),
     template: '<Accordion v-bind="args" v-model:open="args.open" :theme="globalTheme"><p>Content can be composed from application components.</p></Accordion>',
   }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Content can be composed from application components.')).toBeVisible();
+    await expect(canvas.queryByText('Fallback HTML content.')).toBeNull();
+  },
 };
 
 export const Locked = {

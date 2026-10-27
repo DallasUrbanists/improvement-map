@@ -46,11 +46,17 @@ const verifyOpenTray = async (canvasElement, args) => {
   const tray = canvas.getByRole('complementary', { name: 'Tray' });
   await expect(tray).toHaveAttribute('data-surface-level', surfaceLevelAttribute(args.surfaceLevel));
   await expect(tray).toBeVisible();
-  expect(canvasElement.ownerDocument.defaultView.getComputedStyle(canvasElement.querySelector('.tray-shell')).transitionProperty).toContain('height');
+  const shell = canvasElement.querySelector('.tray-shell');
+  await waitFor(() => expect(shell).not.toHaveClass('tray-shell--dragging'));
+  const reducedMotion = canvasElement.ownerDocument.defaultView.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reducedMotion) expect(canvasElement.ownerDocument.defaultView.getComputedStyle(shell).transitionProperty).toContain('height');
   await expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium');
   const expectedMediumHeight = Math.min(args.mediumHeight, args.maxHeight);
-  const visibleHeight = canvasElement.ownerDocument.defaultView.innerHeight - tray.getBoundingClientRect().top;
-  expect(visibleHeight).toBeCloseTo(expectedMediumHeight, 0);
+  await waitFor(() => {
+    const visibleHeight = canvasElement.ownerDocument.defaultView.innerHeight - tray.getBoundingClientRect().top;
+    expect(visibleHeight).toBeCloseTo(expectedMediumHeight, 0);
+  });
+  await expect(canvasElement.querySelector('.tray__body')).toHaveAttribute('tabindex', '0');
   const handle = canvasElement.querySelector('.tray__handle');
   await expect(handle).toBeTruthy();
   await userEvent.click(handle);
@@ -96,7 +102,7 @@ const dragHandleSlowly = async (canvasElement, delta) => {
 };
 
 const expectPosition = (canvasElement, position) =>
-  expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', position);
+  waitFor(() => expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', position));
 
 export const WithHeader = {
   name: 'With Header',
@@ -204,7 +210,8 @@ export const ShortBody = {
     await waitFor(() => expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-position', 'medium'));
     const body = canvasElement.querySelector('.tray__body');
     await expect(canvasElement.querySelector('.tray-layer')).toHaveAttribute('data-scrollable', 'false');
-    await expect.poll(() => body.scrollHeight - body.clientHeight).toBe(0);
+    await waitFor(() => expect(body.scrollHeight - body.clientHeight).toBe(0));
+    await expect(body).not.toHaveAttribute('tabindex');
     const visibleHeight = canvasElement.ownerDocument.defaultView.innerHeight - tray.getBoundingClientRect().top;
     expect(visibleHeight).toBeLessThan(args.mediumHeight);
     await flickHandle(canvasElement, -24, 'medium');

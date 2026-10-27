@@ -89,7 +89,8 @@ export function localDevelopmentPlugin({ staticCatalog = false, surface = 'app' 
       handler(html, context) {
         // Vitest owns its tester HTML and inline-module indexes. Only augment
         // the app document and Storybook preview, never Vitest's internal pages.
-        if (context.filename !== path.join(root, 'index.html') && context.path?.split('?')[0] !== '/iframe.html') return html;
+        const filename = context.filename && path.normalize(context.filename);
+        if (filename !== path.join(root, 'index.html') && context.path?.split('?')[0] !== '/iframe.html') return html;
         return {
           html: html.replace(/<link\b[^>]*(?:fonts\.googleapis\.com|fonts\.gstatic\.com)[^>]*>/g, ''),
           tags: [{ tag: 'script', attrs: { type: 'module' }, children: 'import "virtual:local-browser";', injectTo: 'head-prepend' }],

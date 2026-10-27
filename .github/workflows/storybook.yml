@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 20
+    env:
+      # Keep `playwright install` and the checkout-local test wrapper on one cache.
+      PLAYWRIGHT_BROWSERS_PATH: '0'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -62,7 +65,7 @@ jobs:
         id: tooling
         continue-on-error: true
         run: |
-          node --test tests/storybook-tooling.node.mjs
+          node --test tests/storybook-tooling.node.mjs tests/storybook-vitest-workaround.node.mjs
           node --test --test-name-pattern=storybook tests/ci-suites.node.mjs
       - name: Build public catalog
         if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
@@ -83,6 +86,11 @@ jobs:
         env:
           STORYBOOK_SELECTED: '1'
         run: npm run test:storybook:visual
+      - name: Dev widget startup and selected-story checks (advisory)
+        if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
+        id: widget
+        continue-on-error: true
+        run: npm run test:storybook:widget
       - name: Pages and service worker isolation
         if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'
         id: pages
@@ -96,7 +104,8 @@ jobs:
           INTERACTIONS: ${{ steps.interactions.outcome }}
           VISUAL: ${{ steps.visual.outcome }}
           PAGES: ${{ steps.pages.outcome }}
-        run: node -e "if (['BUILD','TOOLING','INTERACTIONS','VISUAL','PAGES'].some(k => process.env[k] !== 'success')) process.exit(1)"
+          WIDGET: ${{ steps.widget.outcome }}
+        run: node -e "if (['BUILD','TOOLING','INTERACTIONS','VISUAL','PAGES','WIDGET'].some(k => process.env[k] !== 'success')) process.exit(1)"
       - name: Publish advisory summary
         if: always() && steps.reuse.outputs.reused != 'true'
         env:
@@ -105,6 +114,7 @@ jobs:
           STORYBOOK_INTERACTIONS: ${{ steps.interactions.outcome }}
           STORYBOOK_VISUAL: ${{ steps.visual.outcome }}
           STORYBOOK_PAGES: ${{ steps.pages.outcome }}
+          STORYBOOK_WIDGET: ${{ steps.widget.outcome }}
         run: node scripts/storybook-summary.js
       - uses: actions/upload-artifact@v6
         if: always()

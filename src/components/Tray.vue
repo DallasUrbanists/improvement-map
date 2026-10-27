@@ -3,7 +3,7 @@
     <div class="tray-shell" :class="{ 'tray-shell--dragging': dragging, 'tray-shell--closed': !open }" :style="trayStyle">
       <aside ref="trayElement" class="tray" :class="panelClass" :data-theme="theme" :data-open="open" :data-surface-level="surfaceLevel === null ? 'transparent' : surfaceLevel" :aria-label="label" :aria-busy="busy || undefined" :inert="!open && !dragging">
         <div ref="headElement" class="tray__head"><slot name="head" /></div>
-        <div ref="contentElement" class="tray__body" @scroll="emit('scroll', $event)">
+        <div ref="contentElement" class="tray__body" :tabindex="scrollable ? 0 : undefined" @scroll="emit('scroll', $event)">
           <div ref="bodyContentElement" class="tray__body-content"><slot /></div>
         </div>
       </aside>
@@ -63,7 +63,12 @@ const dragging = ref(false);
 const dragOffset = ref(null);
 let dragStart = null;
 let suppressNextClick = false;
-const travel = () => Math.max(1, trayElement.value?.offsetHeight || props.maxHeight);
+// Offsets use the target height, not the previous DOM height during a resize.
+// Reading offsetHeight here cached a medium offset of zero on first render.
+const panelHeight = computed(() => scrollable.value
+  ? Math.max(1, effectiveMaxHeight.value)
+  : Math.min(Math.max(1, naturalHeight.value), Math.max(1, effectiveMaxHeight.value)));
+const travel = () => panelHeight.value;
 const mediumOffset = () => scrollable.value ? Math.max(0, travel() - Math.min(props.mediumHeight, travel())) : 0;
 const stateRank = () => !open.value ? 0 : maximize.value ? 2 : 1;
 const offsetForRank = rank => rank === 0 ? travel() : rank === 1 ? mediumOffset() : 0;
@@ -75,7 +80,7 @@ const maxAllowed = computed(() => scrollable.value);
 const trayStyle = computed(() => {
   return {
     '--tray-max-height': `${Math.max(1, effectiveMaxHeight.value)}px`,
-    '--tray-height': `${scrollable.value ? Math.max(1, effectiveMaxHeight.value) : Math.min(Math.max(1, naturalHeight.value), Math.max(1, effectiveMaxHeight.value))}px`,
+    '--tray-height': `${panelHeight.value}px`,
     transform: `translateY(${dragOffset.value ?? offsetForRank(stateRank())}px)`,
   };
 });

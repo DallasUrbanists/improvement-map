@@ -43,6 +43,22 @@ test('the sandbox cannot build a deployable application and does not override Vi
   assert.equal(plugin.config({ cacheDir: '/isolated/test-project-cache' }).cacheDir, '/isolated/test-project-cache');
   assert.doesNotThrow(() => localDevelopmentPlugin({ surface: 'storybook', staticCatalog: true }).configResolved({ command: 'build' }));
 });
+test('browser bootstrap accepts Vite-normalized Windows paths without injecting into Vitest', () => {
+  const plugin = localDevelopmentPlugin({ staticCatalog: true, surface: 'storybook' });
+  const html = '<html><head></head><body></body></html>';
+  const filename = path.resolve('index.html').replaceAll('\\', '/');
+  for (const context of [
+    { filename, path: '/?view=list' },
+    { filename: '/virtual/iframe.html', path: '/iframe.html?id=example' },
+  ]) {
+    const result = plugin.transformIndexHtml.handler(html, context);
+    assert.ok(result.tags.some(tag => tag.children === 'import "virtual:local-browser";'));
+  }
+  assert.equal(plugin.transformIndexHtml.handler(html, {
+    filename: path.resolve('node_modules/@vitest/browser/tester.html'), path: '/__vitest_test__/',
+  }), html);
+});
+
 test('mock HTTP preserves read/creation envelopes, errors, upload bytes and restart persistence', async t => {
   const dataDir = temporary(t);
   let server = createMockServer({ dataDir });

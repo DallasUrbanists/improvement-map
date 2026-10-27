@@ -28,7 +28,94 @@ npm run test:storybook:pages
 
 Storybook runs on port 6006. `node scripts/serve-storybook.js` serves the static build at `http://127.0.0.1:6007/storybook/`, exercising nested asset URLs. `npm run build:pages` builds the app, builds Storybook separately, then copies the catalog into the single Pages artifact. The existing deployment gate remains; the advisory workflow is independent.
 
+Both app and Storybook import `src/tailwind.css` before `src/style.css` as separate
+JavaScript imports. Keep ordinary CSS in `src/style.css` or component style blocks;
+keep Tailwind imports, source declarations, theme tokens and `@apply` rules in
+`src/tailwind.css`. Combining them makes every ordinary CSS edit recompile the
+framework. Tailwind scans UI templates explicitly so edits to repository docs and
+application tests do not reload the preview. New UI template locations outside the
+listed sources need a corresponding `@source`. Restart the dev servers after
+changing source discovery to clear their old watched dependencies. See the
+[CSS update investigation](local-development-validation.md#storybook-css-update-investigation)
+for measured timings and remaining limitations.
+
+Storybook's final Vite server config warms only `src/tailwind.css`, moving its
+initial framework compilation into server startup. This improves the first
+preview once warmup has completed; it does not eliminate the compilation work
+or promise faster warm reloads. Keep the list narrow rather than warming every
+story. [Transform profiling and before/after measurements](storybook-validation.md#experiment-4-transform-profiling-and-targeted-warmup)
+explain why dependency optimization settings were retained.
+
+For the opt-in no-autoplay editing experiment, add `&editing=true` to the local
+catalog URL, for example
+`http://127.0.0.1:6006/?path=/story/bars-header-bar--plain&editing=true`.
+The preview uses Storybook 10.6.3's embed-mode switch to skip automatic play
+functions while retaining the catalog UI and manual component interactions. The
+flag persists through sidebar navigation; remove it and reload to restore
+playback. The Interactions panel has no steps in this mode, even if its status
+says Pass. It does not validate interaction behavior. Normal URLs, production
+catalogs, and the independent Vitest runner retain normal playback. This is an
+experiment tied to the installed runtime's embed behavior; review on upgrade.
+See [the measured comparison](storybook-validation.md#experiment-3-opt-in-no-autoplay-editing)
+for its navigation benefit and remaining refresh delay.
+
+The [filesystem comparison](storybook-validation.md#experiment-1-filesystem-environment-comparison)
+found native Windows fastest for warm interactive catalog work in this checkout;
+Linux-local WSL had shorter startup times. To try the measured native editing
+setup in a dedicated PowerShell terminal, using the installed Node 24 runtime:
+
+```powershell
+docker compose stop storybook
+$env:STORYBOOK_EDITING = 'true'
+$env:DEV_FORCE_MOCKS = '1'
+$env:CHOKIDAR_USEPOLLING = 'false'
+npm run storybook -- --host 127.0.0.1 --ci --exact-port
+```
+
+Keep `editing=true` in the browser URL to retain the no-autoplay setting. The app
+and mock services can continue in Docker. Stop the native process before
+restarting the Docker Storybook service on the same port. Linux remains the
+verified environment for component-test execution; earlier native Windows
+multi-theme runs encountered dependency-cache locking/import errors. This is an
+optional interactive workflow, not a change to the default Compose startup.
+Keep the Windows bind mount's existing Docker polling setting; reliable native
+events were tested on the native Windows checkout and the Linux-local WSL copy.
+
+The separate addon-free editing experiment starts Storybook with
+`STORYBOOK_EDITING=true`. This omits only `@storybook/addon-vitest`; the Component
+tests widget and its persistent runner are unavailable in that server. Docs,
+controls and the accessibility addon remain. Use `editing=true` in the browser
+URL as well when you want to skip automatic interaction playback.
+
+For the Docker workflow in PowerShell:
+
+```powershell
+$env:STORYBOOK_EDITING = 'true'
+docker compose up -d --no-deps --no-build --pull never storybook
+```
+
+Set the variable to `'false'` and repeat the Compose command to restore the test
+widget. Changing it requires recreating Storybook; the browser flag alone cannot
+remove server addons. Native starts accept the same environment variable before
+`npm run storybook`. The default remains the full addon set, and the independent
+`npm run test:storybook` configuration retains its Vitest plugin.
+
 The local **Component tests** widget discovers `vitest.config.js`, which supplies one browser project and uses the selected Storybook globals. Expand the widget to enable **Accessibility** alongside interactions, then choose **Run tests**. The command-line/CI scripts explicitly use `vitest.storybook.config.js` to check both light and dark projects. Those separate configurations avoid duplicate project names in the UI runner. Coverage instrumentation is optional and is not installed in this pilot; leave Coverage unchecked.
+
+The pinned addon has an upstream IPC synchronization race. The `prestorybook`
+hook applies a small backport from [upstream PR 36068](https://github.com/storybookjs/storybook/pull/36068)
+to its installed dev worker. It waits for the test, status and provider stores
+before starting Vitest, rather than waiting only for the test store. The hook
+checks addon version 10.6.3 and expected source, is idempotent, and stops with a
+review message after a dependency upgrade. Use `npm run storybook`; invoking
+`storybook dev` directly after a fresh install bypasses the hook. No startup
+deadline, test assertions or accessibility checks are relaxed.
+
+`npm run test:storybook:widget` starts an isolated, fully mocked dev Storybook and
+checks that a selected story completes with successful interaction and
+accessibility results. Set `STORYBOOK_WIDGET_URL` to test an already-running
+server, including Docker on port 6006. This is separate from static catalog tests,
+which cannot exercise the dev-server widget or its child process.
 
 ## What the tests protect
 
@@ -73,7 +160,15 @@ All catalog entries are **Draft**, pending explicit maintainer review. The sourc
 
 Reuse a pattern, then extend a documented variant if its responsibility is unchanged. Compose content with slots rather than unrelated boolean props or screen-specific overrides. New components need a clear missing responsibility. Keep props/events/slots documented in stories and source comments; preserve stable story titles and export names.
 
-Action Row presents only the full wrapping summary, without a thumbnail or photos. A native row button opens the existing details sheet with description, instructions, source and other action details. Save and Hide are independent icon controls with hover/focus labels and native click events; the recommendation consumer owns persistence. Saved rows use the active surface. Hidden rows shown for review prefix their summary with “(Hidden action)”, use italic text and 75% opacity, and omit Save. Four states passed interactions and accessibility in both themes (8 cases) on October 25, 2026. Visual review remains `visual-review-pending`.
+Action Row presents only the full wrapping summary, without a thumbnail or photos. A native row button opens the existing details sheet with description, instructions, source and other action details. Save and Hide are independent icon controls with hover/focus labels and native click events; the recommendation consumer owns persistence. Saved rows use the active surface. Hidden rows shown for review prefix their summary with “(Hidden action)”, use italic text and 50% opacity, and omit Save. Four states passed interactions and accessibility in both themes (8 cases) on October 25, 2026. Visual review remains `visual-review-pending`.
+
+October 26 design decision: the maintainer confirmed that Hidden Action Row keeps
+**50% opacity on the entire row**, including text and controls. Its contrast
+failure remains unresolved: the current widget run passes all 105 interaction
+tests and 102 of 105 accessibility checks; Recommended, Long Summary and Saved
+fail contrast after Hide is activated. Checks remain enabled and failures remain
+visible. This decision confirms the intended appearance without approving the
+accessibility defect. See [the failure investigation](storybook-validation.md#component-test-widget-failures--october-26-2026).
 
 Toast Notification is a fixed stack inset 8px from the top and sides, so it does not affect page layout. Notifications use the level-5 neutral surface, slide down on entry, and dismiss through their Dismiss action, a swipe in any direction, or an optional integer auto-dismiss timer. Optional links or callback actions sit beside Dismiss and leave the toast open when activated. The stories cover one toast, a three-toast stack, a five-second triggered toast and an extra View action.
 

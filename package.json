@@ -20,6 +20,7 @@
 
     "dev:local": "vite --mode sandbox",
 
+    "prestorybook": "node scripts/storybook-vitest-workaround.js",
     "storybook": "storybook dev -p 6006 --no-open",
 
     "mock:dev": "node scripts/local-development/mock-server.js",
@@ -29,6 +30,7 @@
     "test:local": "node --test tests/local-development.node.mjs && playwright test --config playwright.local.config.js",
     "test:storybook": "node scripts/playwright-task.js storybook",
     "test:storybook:watch": "node scripts/playwright-task.js storybook-watch",
+    "test:storybook:widget": "node scripts/playwright-task.js storybook-widget",
     "test:feature": "node scripts/test-feature.js",
     "test:unit": "playwright test --project=unit",
     "test:suite": "node scripts/test-suite.js",
