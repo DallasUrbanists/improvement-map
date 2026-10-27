@@ -64,6 +64,47 @@ The focused commands were the pinned Storybook build, `node node_modules/@playwr
 
 Evidence: [browser JSON](../test-results/local-development/test-results/storybook/browser.json), [interaction JSON](../test-results/local-development/test-results/storybook/interactions.json), and [HTML report](../test-results/local-development/playwright-report/storybook/index.html). No screenshot candidates were generated or approved. Drawer designs remain Draft; visual review remains pending.
 
+## Component-test widget failures — October 26, 2026
+
+Captured the user's widget run: 13 interaction failures and 3 accessibility
+failures. Corrected Accordion's unconditional empty slot masking its HTML content,
+Active Text Button hover specificity, Toolbar queries that counted both button
+groups, and Toast/Tray assertions that ran during transitions. Tray also computed
+its initial medium offset from stale DOM height; offsets now use its reactive
+target height. Scrollable tray content is keyboard-focusable, and the stories
+retain drag, size, focus and reduced-motion coverage. Accordion's slotted story
+now verifies that supplied slot content takes precedence over fallback HTML.
+
+The maintainer confirmed Hidden Action Row should retain its current 50% opacity;
+its stale 75% expectations and documentation were corrected. This exposes a real
+hidden-text contrast failure (3.31:1 versus the check's 4.5:1 requirement).
+**Confirmed design decision — October 26, 2026:** the maintainer explicitly chose
+to keep the entire row at 50% opacity and document the unresolved contrast
+failure. This resolves the intent question; it does not resolve the accessibility
+defect or establish compliance. The whole-row opacity remains unchanged.
+Accessibility checks stay enabled and the three failures are not suppressed.
+
+The three original accessibility failures recorded an earlier blue-on-red Big
+Circle Button experiment. The user's uncommitted yellow/black styling was
+preserved; the New Idea Special Button cases pass with that current styling.
+
+Verification: 42 focused interaction/accessibility cases passed in light/dark;
+8 local Node checks and both current app/Storybook smoke journeys passed. A full
+run through the actual Docker widget passed all 105 interaction tests and 102 of
+105 accessibility checks. The remaining three are the Hidden Action Row contrast
+cases reached after toggling Hide in Recommended, Long Summary and Saved.
+
+The older Browse journey stops before the changed components at its missing
+`.map-search-panel` selector; the current Address Bar no longer supplies that
+class. That application assertion was retained. No screenshot baseline or
+component approval was changed; visual review remains pending.
+
+Receipts: `test-results/widget-catalog-fixed-summary.log`,
+`test-results/widget-catalog-fixed.json`,
+`test-results/widget-fixes-verified-components.log`,
+`test-results/widget-fixes-local-smoke.log`, and
+`test-results/widget-fixes-browse-journey.log`.
+
 ## Existing application-test failures
 
 Three scenarios in `tests/ux/mobile-panels.spec.js` fail in all four Android/iPhone light/dark profiles:

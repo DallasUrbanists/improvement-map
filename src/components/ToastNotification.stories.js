@@ -1,4 +1,4 @@
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, within, waitFor } from 'storybook/test';
 import { ref } from 'vue';
 import ToastNotification from './ToastNotification.vue';
 
@@ -30,10 +30,10 @@ export const OneToast = {
     const page = within(canvasElement.ownerDocument.body);
     const toast = await page.findByRole('status');
     await expect(toast).toHaveTextContent(args.message);
-    await expect(page.getByRole('button', { name: `Dismiss ${args.message}` })).toBeVisible();
+    await waitFor(() => expect(page.getByRole('button', { name: `Dismiss ${args.message}` })).toBeVisible());
     await userEvent.click(page.getByRole('button', { name: `Dismiss ${args.message}` }));
     await expect(args.onDismiss).toHaveBeenCalledTimes(1);
-    await expect(page.queryByRole('status')).toBeNull();
+    await waitFor(() => expect(page.queryByRole('status')).toBeNull());
   },
 };
 
@@ -83,8 +83,8 @@ export const ExtraButton = {
     const view = page.getByRole('button', { name: 'View' });
     await userEvent.click(view);
     await expect(args.buttons[0].onClick).toHaveBeenCalledTimes(1);
-    await expect(page.getByRole('status')).toBeVisible();
+    await waitFor(() => expect(page.getByRole('status')).toBeVisible());
     await userEvent.click(page.getByRole('button', { name: `Dismiss ${args.message}` }));
-    await expect(page.queryByRole('status')).toBeNull();
+    await waitFor(() => expect(page.queryByRole('status')).toBeNull());
   },
 };

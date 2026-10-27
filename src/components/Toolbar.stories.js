@@ -22,9 +22,8 @@ export default {
     template: '<Toolbar v-bind="args" :theme="globalTheme" @button-click="args.onButtonClick" />',
   }),
   play: async ({ canvasElement, args }) => {
-    const canvas = within(canvasElement);
-    const leftButtons = canvas.queryAllByRole('button', { selector: '.toolbar__left button' });
-    const rightButtons = canvas.queryAllByRole('button', { selector: '.toolbar__right button' });
+    const leftButtons = within(canvasElement.querySelector('.toolbar__left')).queryAllByRole('button');
+    const rightButtons = within(canvasElement.querySelector('.toolbar__right')).queryAllByRole('button');
     await expect(leftButtons).toHaveLength(args.leftButtons.length);
     await expect(rightButtons).toHaveLength(args.rightButtons.length);
     for (const [index, item] of args.leftButtons.entries()) {

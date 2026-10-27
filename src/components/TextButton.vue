@@ -53,7 +53,7 @@ const colors = computed(() => {
 .text-button.map-ui-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--text-button-hover); color: var(--text-button-foreground); }
 .text-button:active:not(:disabled) { background: var(--text-button-press); color: var(--text-button-foreground); box-shadow: inset 0 2px 4px #00000030; }
 .text-button:focus-visible { outline: 2px solid var(--text-button-focus); outline-offset: -4px; }
-.text-button[data-active="true"], .text-button[data-active="true"]:hover:not(:disabled), .text-button[data-active="true"]:active:not(:disabled) { background: var(--text-button-activeBackground); }
+.text-button.map-ui-button[data-active="true"], .text-button.map-ui-button[data-active="true"]:hover:not(:disabled):not([aria-disabled="true"]), .text-button.map-ui-button[data-active="true"]:active:not(:disabled) { background: var(--text-button-activeBackground); }
 .text-button:disabled { opacity: 1; cursor: default; }
 .text-button[data-layout="tight"] { margin: 0; border-radius: 0; box-shadow: none; }
 .text-button[data-layout="tight"]:active:not(:disabled) { box-shadow: none; }

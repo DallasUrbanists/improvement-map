@@ -23,7 +23,7 @@ export default {
     surfaceLevel: { control: 'select', options: [null, 0, 1, 2, 3, 4, 5] },
     onSave: { table: { disable: true } }, onHide: { table: { disable: true } },
   },
-  parameters: { docs: { description: { component: 'Draft. Full wrapping summary and independent bookmark/eye-slash controls, without thumbnails or photos. Clicking anywhere on the row outside the controls opens Action details. Saved rows use the active surface; hidden rows shown for review use 75% opacity, italic summary text and omit Save. Save/Hide emit the native click event; persistence belongs to the consumer. Icon labels appear as hover or keyboard-focus tooltips. Theme follows the global toolbar.' } } },
+  parameters: { docs: { description: { component: 'Draft. Full wrapping summary and independent bookmark/eye-slash controls, without thumbnails or photos. Clicking anywhere on the row outside the controls opens Action details. Saved rows use the active surface; hidden rows shown for review use 50% opacity, italic summary text and omit Save. Save/Hide emit the native click event; persistence belongs to the consumer. Icon labels appear as hover or keyboard-focus tooltips. Theme follows the global toolbar.' } } },
   render: (args, { globals }) => ({
     components: { ActionRow },
     setup() {
@@ -51,7 +51,7 @@ export default {
     await expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
     const neutralBackground = args.surfaceLevel === null ? 'transparent' : buttonColors[globals.theme].neutralByLevel[args.surfaceLevel].background;
     const activeBackground = args.surfaceLevel === null ? 'transparent' : surfaceColors[globals.theme].active[`level${args.surfaceLevel}`];
-    await expect(window.getComputedStyle(row).opacity).toBe(args.hidden ? '0.75' : '1');
+    await expect(window.getComputedStyle(row).opacity).toBe(args.hidden ? '0.5' : '1');
     await expect(window.getComputedStyle(summary).fontStyle).toBe(args.hidden ? 'italic' : 'normal');
     await expect(row.style.getPropertyValue('--action-row-background')).toBe(args.saved && !args.hidden ? activeBackground : neutralBackground);
     const save = args.hidden ? null : canvas.getByRole('button', { name: args.saved ? 'Unsave' : 'Save', exact: true });
@@ -64,7 +64,7 @@ export default {
     } else await expect(canvas.queryByRole('button', { name: 'Save', exact: true })).toBeNull();
     await userEvent.click(canvas.getByRole('button', { name: args.hidden ? 'Unhide' : 'Hide', exact: true }));
     await expect(args.onHide).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(window.getComputedStyle(row).opacity).toBe(args.hidden ? '1' : '0.75'));
+    await waitFor(() => expect(window.getComputedStyle(row).opacity).toBe(args.hidden ? '1' : '0.5'));
     await expect(window.getComputedStyle(summary).fontStyle).toBe(args.hidden ? 'normal' : 'italic');
     await expect(canvas.getByText(`${args.hidden ? '' : '(Hidden action) '}${args.action.summary.trim()}`, { exact: true })).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Save', exact: true }) !== null).toBe(args.hidden);

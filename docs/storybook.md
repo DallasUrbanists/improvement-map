@@ -99,7 +99,15 @@ All catalog entries are **Draft**, pending explicit maintainer review. The sourc
 
 Reuse a pattern, then extend a documented variant if its responsibility is unchanged. Compose content with slots rather than unrelated boolean props or screen-specific overrides. New components need a clear missing responsibility. Keep props/events/slots documented in stories and source comments; preserve stable story titles and export names.
 
-Action Row presents only the full wrapping summary, without a thumbnail or photos. A native row button opens the existing details sheet with description, instructions, source and other action details. Save and Hide are independent icon controls with hover/focus labels and native click events; the recommendation consumer owns persistence. Saved rows use the active surface. Hidden rows shown for review prefix their summary with “(Hidden action)”, use italic text and 75% opacity, and omit Save. Four states passed interactions and accessibility in both themes (8 cases) on October 25, 2026. Visual review remains `visual-review-pending`.
+Action Row presents only the full wrapping summary, without a thumbnail or photos. A native row button opens the existing details sheet with description, instructions, source and other action details. Save and Hide are independent icon controls with hover/focus labels and native click events; the recommendation consumer owns persistence. Saved rows use the active surface. Hidden rows shown for review prefix their summary with “(Hidden action)”, use italic text and 50% opacity, and omit Save. Four states passed interactions and accessibility in both themes (8 cases) on October 25, 2026. Visual review remains `visual-review-pending`.
+
+October 26 design decision: the maintainer confirmed that Hidden Action Row keeps
+**50% opacity on the entire row**, including text and controls. Its contrast
+failure remains unresolved: the current widget run passes all 105 interaction
+tests and 102 of 105 accessibility checks; Recommended, Long Summary and Saved
+fail contrast after Hide is activated. Checks remain enabled and failures remain
+visible. This decision confirms the intended appearance without approving the
+accessibility defect. See [the failure investigation](storybook-validation.md#component-test-widget-failures--october-26-2026).
 
 Toast Notification is a fixed stack inset 8px from the top and sides, so it does not affect page layout. Notifications use the level-5 neutral surface, slide down on entry, and dismiss through their Dismiss action, a swipe in any direction, or an optional integer auto-dismiss timer. Optional links or callback actions sit beside Dismiss and leave the toast open when activated. The stories cover one toast, a three-toast stack, a five-second triggered toast and an extra View action.
 
