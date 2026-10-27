@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
-          node-version: '24.12.0'
+          node-version-file: '.nvmrc'
           cache: npm
       - name: Check out trusted reuse policy
         continue-on-error: true
@@ -62,7 +62,7 @@ jobs:
         id: tooling
         continue-on-error: true
         run: |
-          node --test tests/storybook-tooling.node.mjs tests/storybook-vitest-workaround.node.mjs
+          node --test tests/storybook-tooling.node.mjs tests/storybook-vitest-workaround.node.mjs tests/native-development.node.mjs
           node --test --test-name-pattern=storybook tests/ci-suites.node.mjs
       - name: Build public catalog
         if: steps.selection.outputs.has-tests == 'true' && steps.reuse.outputs.reused != 'true'

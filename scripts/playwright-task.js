@@ -21,7 +21,7 @@ if (task === 'install') {
   args = ['run', '--config', 'vitest.storybook.config.js', ...forwardedArgs];
 } else if (task === 'storybook-watch') {
   executable = path.join(projectRoot, 'node_modules', 'vitest', 'vitest.mjs');
-  args = ['--config', 'vitest.storybook.config.js', ...forwardedArgs];
+  args = ['--watch', '--config', 'vitest.storybook.config.js', ...forwardedArgs];
 } else if (task === 'storybook-widget') {
   executable = path.join(projectRoot, 'node_modules', 'playwright', 'cli.js');
   args = ['test', '--config', 'playwright.storybook-widget.config.js', ...forwardedArgs];

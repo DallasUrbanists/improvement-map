@@ -8,6 +8,10 @@ on:
       - 'dev/**'
       - 'scripts/local-development/**'
       - 'scripts/playwright-task.js'
+      - 'scripts/dev.js'
+      - 'scripts/storybook-tests.js'
+      - '.nvmrc'
+      - '.node-version'
       - 'package*.json'
       - 'vite*.config.js'
       - '.storybook/**'
@@ -21,6 +25,7 @@ on:
       - 'index.html'
       - 'playwright.local.config.js'
       - 'tests/local-development*'
+      - 'tests/native-development.node.mjs'
       - 'tests/local-development/**'
       - '.github/workflows/local-development.yml'
   workflow_dispatch:

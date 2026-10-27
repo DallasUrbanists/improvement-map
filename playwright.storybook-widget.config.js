@@ -9,9 +9,9 @@ export default defineConfig({
   reporter: [['list'], ['json', { outputFile: 'test-results/storybook/widget.json' }]],
   use: { browserName: 'chromium', baseURL, viewport: { width: 1500, height: 1000 }, trace: 'retain-on-failure' },
   webServer: external ? undefined : {
-    command: 'npm run storybook -- --port 6017 --host 127.0.0.1 --ci',
+    command: 'npm run storybook:serve -- --port 6017 --host 127.0.0.1 --ci',
     url: `${baseURL}/index.json`, reuseExistingServer: false, timeout: 120000,
     stdout: 'pipe', stderr: 'pipe',
-    env: { DEV_FORCE_MOCKS: '1' },
+    env: { DEV_FORCE_MOCKS: '1', STORYBOOK_EDITING: 'false', STORYBOOK_PUBLIC_EDITING: 'false' },
   },
 });

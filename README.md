@@ -1,6 +1,6 @@
 # Dallas Urbanists Improvement Map
 
-**Local development:** use the [container quickstart](CONTRIBUTING.md) to start the app and Storybook together with all dependencies mocked and no API keys.
+**Local development:** use the [development quickstart](CONTRIBUTING.md) to run Storybook on your host and the app in Docker with all dependencies mocked and no API keys.
 
 **[Public UI component catalog](https://map.dallasurbanists.org/storybook/)** | [Storybook development and reuse guide](docs/storybook.md). The catalog publishes with the app; the Browse/shared-panel pilot is Draft and its new tests are advisory initially.
 
@@ -91,14 +91,15 @@ Focused validation: `npx playwright test 'locationDiagram.spec.js|transitStops.s
 
 ## 🚀 Local Development & Testing
 
-### 1. Prepare the Development Container
-Install Git and Docker with Compose, then prepare the shared dependencies and browsers once while online:
+### 1. Prepare host Storybook and Docker
+Install Git, Docker with Compose, and Node 24.21.0 (see `.nvmrc`). Prepare dependencies once while online:
 
 ```bash
+npm ci
 docker compose --profile tools build
 ```
 
-No host Node or npm installation is required for the container workflow. Native development and direct npm commands require Node.js 24.12.0+ and `npm ci`. See [the contributor guide](CONTRIBUTING.md).
+Host dependencies serve Storybook; Docker supplies app dependencies and component-test browsers. See [the contributor guide](CONTRIBUTING.md).
 
 #### Dependency security
 Run `npm audit` after dependency updates. CI also runs `npm audit --audit-level=high` before building to block known high/critical vulnerabilities.
@@ -106,13 +107,13 @@ Run `npm audit` after dependency updates. CI also runs `npm audit --audit-level=
 Firebase's Firestore dependency currently requests the vulnerable `@grpc/grpc-js` 1.9.x series. A scoped override in [package.json](./package.json) pins it to patched version 1.13.6, addressing [GHSA-m9gg-hp2v-232j](https://github.com/advisories/GHSA-m9gg-hp2v-232j) and [GHSA-f596-whhp-79r4](https://github.com/advisories/GHSA-f596-whhp-79r4) while retaining the compatible proto-loader 0.7 dependency family. Keep [package-lock.json](./package-lock.json) committed so clean installs reproduce the fix. Remove the override only after Firebase uses a patched version itself, then rerun the audit, build, and tests. Avoid repeated `npm audit fix --force`: it may downgrade Firebase without fixing its upstream dependency constraint.
 
 ### 2. Start the App and Storybook
-If npm is installed, the default command starts both servers and the mock service in containers:
+The default command starts native Storybook plus the Docker app and mocks:
 
 ```bash
 npm run dev
 ```
 
-Without host npm, use the equivalent `docker compose up --no-build --pull never`. Open the [app](http://localhost:5173) and [Storybook](http://localhost:6006). Every dependency defaults to mock; no cloud credentials are needed. Ctrl+C stops the foreground stack. To deliberately start the provider-backed native Vite server, use `npm run dev:provider`.
+Open the [app](http://localhost:5173) and [Storybook](http://localhost:6006). Every dependency defaults to mock; no cloud credentials are needed. Ctrl+C stops Storybook; `npm run dev:stop` also stops the Docker app and mocks. `npm run dev:docker` provides the full Docker fallback. With only Git and Docker, use `docker compose --profile storybook up --no-build --pull never`. To start the provider-backed native Vite server, use `npm run dev:provider`.
 
 ### 3. Production Build
 ```bash
