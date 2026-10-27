@@ -617,3 +617,36 @@ macOS/Linux; manual startup and performance verification here covers Windows.
 The host comment-only edit triggered a Docker watch rerun: all four cases passed
 again (47.70s). The temporary edit was restored byte-for-byte after stopping the
 watch container.
+
+## PR #18 refresh after #17 merged (October 27, 2026)
+
+Merged `origin/staging` at `54bf381` into the native-development branch,
+retaining #17's shared Playwright browser path, PillText structure assertions,
+literal Colors token checks, accurate summary wording and widget accessibility
+setup. The widget also retains #18's explicit panel expansion.
+
+Fixed the Docker Pages wrapper to invoke `npm run build:pages` inside the
+container. The previous direct Node invocation lacked `npm_execpath`, which
+the nested app/catalog build requires.
+
+Checks rerun on the combined working tree:
+
+- 19 focused Node tests passed, plus the Storybook-only CI suite-selection check.
+- The host public `npm run test:storybook:pages` command built the app and
+  Storybook successfully inside a fresh network-disabled Docker workspace;
+  both Pages isolation tests passed (13.1s browser suite).
+- The merged widget test passed its real interaction and accessibility assertions
+  in Docker (46.0s suite).
+- All 10 PillText portable interaction cases passed in light/dark themes.
+- All 24 targeted catalog checks passed: five PillText stories and Colors docs
+  across narrow/desktop light/dark profiles (30.0s).
+- `git diff --check` passed.
+
+Exported browser/interaction reports remain under ignored
+`test-results/local-development/`. Screenshot candidates remain
+`visual-review-pending`; no baseline was approved or regenerated.
+
+The known Action Row contrast failures are unchanged: earlier single-theme local
+evidence recorded three failures, while #17's light/dark CI run recorded six
+(three stories in two themes). Whole-row opacity remains 50%; contrast checks
+remain enabled. This focused rerun did not rerun the full Action Row suite.

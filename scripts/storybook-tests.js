@@ -35,7 +35,8 @@ if (!container && !preparedCI) {
 } else {
   // Isolated local test copies intentionally exclude host build output.
   if (container && !preparedCI && (task === 'visual' || task === 'pages')) {
-    if (task === 'pages') run(process.execPath, ['scripts/build-pages.js']);
+    // npm supplies npm_execpath for the nested app/catalog build commands.
+    if (task === 'pages') run('npm', ['run', 'build:pages']);
     else run(process.execPath, ['node_modules/storybook/dist/bin/dispatcher.js', 'build', '--disable-telemetry']);
   }
   run(process.execPath, [...commands[task], ...args]);

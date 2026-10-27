@@ -47,7 +47,29 @@ for (const story of stories) {
     await openStory(page, story.id, info.project.use.colorScheme);
     await expect(page.locator('html')).toHaveClass(new RegExp(info.project.use.colorScheme));
     expect(errors).toEqual([]);
-    if (story.title.startsWith('BUTTONS/') || story.title === 'BARS/Idea row') {
+    if (story.title === 'BUTTONS/Pill text') {
+      // PillText intentionally presents three examples (or groups) per story.
+      const root = page.locator('#storybook-root');
+      if (story.id.endsWith('--neutral') || story.id.endsWith('--primary') || story.id.endsWith('--secondary')) {
+        await expect(root.locator(':scope > *')).toHaveCount(3);
+        await expect(root.locator(':scope > [data-size="small"]')).toHaveCount(1);
+        await expect(root.locator(':scope > [data-size="regular"]')).toHaveCount(1);
+        await expect(root.locator(':scope > [data-size="large"]')).toHaveCount(1);
+      } else if (story.id.endsWith('--clickable')) {
+        await expect(root.getByRole('button')).toHaveCount(3);
+        for (const variant of ['neutral', 'primary', 'secondary']) {
+          await expect(root.getByRole('button', { name: variant, exact: true })).toHaveCount(1);
+        }
+      } else if (story.id.endsWith('--selectable')) {
+        await expect(root.locator(':scope > p')).toHaveCount(3);
+        for (const variant of ['neutral', 'primary', 'secondary']) {
+          const group = root.locator(':scope > p').filter({ has: page.getByRole('button', { name: new RegExp(`^${variant} [123]$`) }) });
+          await expect(group).toHaveCount(1);
+          await expect(group.getByRole('button')).toHaveCount(3);
+        }
+      }
+    }
+    if ((story.title.startsWith('BUTTONS/') && story.title !== 'BUTTONS/Pill text') || story.title === 'BARS/Idea row') {
       // Raw stories expose one component boundary for review; appearance is reviewed in screenshots.
       const root = page.locator('#storybook-root');
       await expect(root.locator(':scope > *')).toHaveCount(1);

@@ -17,7 +17,11 @@ test('the Component tests widget completes a selected story and its accessibilit
   const expand = widget.getByRole('button', { name: 'Expand testing module', exact: true });
   if (await expand.isVisible()) await expand.click();
   await expect(widget.getByRole('checkbox', { name: 'Accessibility', exact: true })).toBeVisible();
-  await widget.getByRole('checkbox', { name: 'Accessibility', exact: true }).check();
+  const accessibility = widget.getByRole('checkbox', { name: 'Accessibility', exact: true });
+  // The widget's sticky run footer overlaps this visible option and intercepts
+  // pointer input; force the setting, then verify its result in the completed run.
+  await accessibility.check({ force: true });
+  await expect(accessibility).toBeChecked();
   await page.getByRole('link', { name: 'Floating', exact: true }).click({ button: 'right' });
   await page.getByRole('button', { name: 'Open context menu', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'Open context menu', exact: true });
