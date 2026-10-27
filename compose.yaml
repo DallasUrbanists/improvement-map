@@ -12,6 +12,8 @@ x-development: &development
   environment: &environment
     PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
     STORYBOOK_DISABLE_TELEMETRY: "1"
+    DEV_CONTAINER: "1"
+    DEV_FORCE_MOCKS: ${DEV_FORCE_MOCKS:-0}
     DEV_MOCK_ORIGIN: http://mock:4010
     DEV_STORYBOOK_PUBLIC_ORIGIN: http://localhost:${DEV_STORYBOOK_PORT:-6006}
     CHOKIDAR_USEPOLLING: ${DEV_USE_POLLING:-true}
@@ -46,11 +48,12 @@ services:
 
   storybook:
     <<: *development
-    command: [npm, run, storybook, '--', --host, 0.0.0.0, --ci]
+    profiles: [storybook]
+    command: [npm, run, 'storybook:serve', '--', --host, 0.0.0.0, --ci]
     environment:
       <<: *environment
       DEV_VITE_CACHE: node_modules/.cache/storybook
-      # Opt-in editing experiment; normal starts retain the component-test widget.
+      # The Docker fallback retains the widget; native editing omits it.
       STORYBOOK_EDITING: ${STORYBOOK_EDITING:-false}
     volumes:
       - .:/workspace
@@ -95,12 +98,31 @@ services:
       PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
       STORYBOOK_DISABLE_TELEMETRY: "1"
       DEV_TEST_ISOLATED: "1"
+      DEV_CONTAINER: "1"
       DEV_FORCE_MOCKS: "1"
     volumes:
       - .:/workspace:ro
       - ./test-results:/results
 
+  component-tests:
+    <<: *development
+    profiles: [tools]
+    env_file: []
+    network_mode: none
+    command: [node, scripts/playwright-task.js, storybook-watch]
+    environment:
+      PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+      STORYBOOK_DISABLE_TELEMETRY: "1"
+      DEV_CONTAINER: "1"
+      DEV_FORCE_MOCKS: "1"
+      CHOKIDAR_USEPOLLING: ${DEV_USE_POLLING:-true}
+      CHOKIDAR_INTERVAL: "500"
+    volumes:
+      - .:/workspace
+      - component-test-dependencies:/workspace/node_modules
+
 volumes:
   web-dependencies:
   storybook-dependencies:
   mock-data:
+  component-test-dependencies:

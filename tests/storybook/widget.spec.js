@@ -14,6 +14,8 @@ test('the Component tests widget completes a selected story and its accessibilit
   await page.goto(`/?path=/story/${storyId}`, { waitUntil: 'domcontentloaded' });
   await expect(page.frameLocator('#storybook-preview-iframe').getByRole('button', { name: 'Open menu', exact: true })).toBeVisible({ timeout: 60000 });
   const widget = page.getByRole('region', { name: 'Component tests', exact: true });
+  const expand = widget.getByRole('button', { name: 'Expand testing module', exact: true });
+  if (await expand.isVisible()) await expand.click();
   await expect(widget.getByRole('checkbox', { name: 'Accessibility', exact: true })).toBeVisible();
   const accessibility = widget.getByRole('checkbox', { name: 'Accessibility', exact: true });
   // The widget's sticky run footer overlaps this visible option and intercepts

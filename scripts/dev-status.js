@@ -43,13 +43,18 @@ const compose = composeServices();
 const appUrl = `http://localhost:${appPort}`;
 const storybookUrl = `http://localhost:${storybookPort}`;
 const mockUrl = `http://localhost:${mockPort}`;
-const [app, storybook, mock] = await Promise.all([
+const [app, storybook, mock, storybookRuntime] = await Promise.all([
   probe(`${appUrl}/__dev`),
   probe(`${storybookUrl}/index.json`),
   probe(`${mockUrl}/__mock/health`),
+  probe(`${storybookUrl}/__dev`),
 ]);
 const appHealth = containerHealth('web') || { operational: app.operational, source: 'HTTP probe' };
-const storybookHealth = containerHealth('storybook') || { operational: storybook.operational, source: 'HTTP probe' };
+let storybookKind;
+try { storybookKind = (await storybookRuntime.response?.json())?.runtime?.kind; } catch {}
+const storybookHealth = storybook.operational
+  ? { operational: true, source: storybookKind === 'native' ? 'Native Node' : storybookKind === 'docker' ? 'Docker Compose' : 'HTTP probe' }
+  : containerHealth('storybook') || { operational: false, source: 'HTTP probe' };
 const mockHealth = containerHealth('mock') || (mock.response
   ? { operational: mock.operational, source: 'HTTP probe' }
   : { operational: null, source: 'container-only; Docker Compose unavailable' });

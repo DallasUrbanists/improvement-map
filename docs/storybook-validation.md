@@ -565,3 +565,88 @@ Three scenarios in `tests/ux/mobile-panels.spec.js` fail in all four Android/iPh
 Both distinct failure types were reproduced against an isolated copy of **unmodified HEAD `1c573de`** on port 5184 with the same Playwright version. They fail at the same missing-control locators. The source UI and these existing tests were not changed to make the checkpoint pass. Correcting their expectations or changing the design is separate work requiring the current intended behavior to be confirmed.
 
 The checkpoint passed bookmark persistence, cross-tab synchronization, row activation separation, unavailable data/storage handling, sorting/recovery, saved-list restoration, settings/theme controls, and map camera/detail-close behavior. Existing application assertions were retained.
+
+## Native Storybook default workflow (October 26, 2026)
+
+Implemented separately from checkpoint PR #17 on
+`refactor/native-storybook-development`. `npm run dev` / `npm run storybook`
+start Docker app/mocks, then host Storybook with autoplay and the persistent
+Vitest addon disabled. Public component-test commands run in Docker; existing
+prepared Linux CI retains direct execution. `dev:docker` restores the complete
+Docker catalog; `dev:stop` preserves data volumes.
+
+Verified on native Windows Node 24.21.0 with an isolated Compose project
+(`improvement-map-native-smoke`, app 5177, catalog 6009):
+
+- 19 focused Node checks passed for configuration, mock persistence, story
+  selection, editing exclusions, process ownership and the versioned workaround.
+  The existing Storybook-only CI suite-selection contract also passed.
+- Public `npm run test:storybook -- src/components/TextInput.stories.js` ran in
+  the network-disabled Docker test workspace: four cases passed across both themes.
+- `test:local` passed 12 Node checks and both browser smoke tests, including real
+  frontend WebP upload/submission and app/catalog mock-map rendering (58.3s browser
+  suite). These isolated test servers use the raw catalog command to avoid
+  recursively launching the development stack.
+- `test:storybook:widget` passed its selected-story interaction/accessibility
+  smoke check (45.8s suite). The first attempt found the test clicking a control
+  in a collapsed testing panel; explicitly expanding it fixed the interaction.
+  No timeout, assertion or accessibility requirement was relaxed.
+- Native catalog HTTP checks confirmed all providers mocked, three fixture
+  suggestions, mock health, Overpass geometry and upload PUT/GET byte equality.
+  Upload and public URLs retained the native catalog origin through both proxies.
+  The index contained 132 entries. Repeated checks passed after runtime switching.
+- Repeated startup reused the owned native PID. A changed-port attempt refused
+  without starting another server. Native-to-Docker and Docker-to-native switches
+  worked. Shutdown recovered the saved Compose project even without shell project
+  overrides; isolated ports closed while original app 5173/catalog 6006 remained
+  HTTP 200.
+- Docker watch mode explicitly uses `--watch`, so redirected/non-interactive
+  terminals do not silently perform a single run. Initial Text Input checks passed
+  four cases and remained waiting for file changes. Its first cold run over this
+  Windows bind mount took 111.11s; this is test-run setup, not an editing load-time
+  benchmark.
+
+Raw evidence remains ignored under `test-results/`, including
+`native-hybrid-http-smoke.json` and exported Docker browser reports under
+`test-results/local-development/`. No screenshot baseline or design approval
+changed. The three previously documented Hidden Action Row contrast failures
+remain enabled. The launcher uses portable Node APIs and Unix process groups on
+macOS/Linux; manual startup and performance verification here covers Windows.
+
+
+The host comment-only edit triggered a Docker watch rerun: all four cases passed
+again (47.70s). The temporary edit was restored byte-for-byte after stopping the
+watch container.
+
+## PR #18 refresh after #17 merged (October 27, 2026)
+
+Merged `origin/staging` at `54bf381` into the native-development branch,
+retaining #17's shared Playwright browser path, PillText structure assertions,
+literal Colors token checks, accurate summary wording and widget accessibility
+setup. The widget also retains #18's explicit panel expansion.
+
+Fixed the Docker Pages wrapper to invoke `npm run build:pages` inside the
+container. The previous direct Node invocation lacked `npm_execpath`, which
+the nested app/catalog build requires.
+
+Checks rerun on the combined working tree:
+
+- 19 focused Node tests passed, plus the Storybook-only CI suite-selection check.
+- The host public `npm run test:storybook:pages` command built the app and
+  Storybook successfully inside a fresh network-disabled Docker workspace;
+  both Pages isolation tests passed (13.1s browser suite).
+- The merged widget test passed its real interaction and accessibility assertions
+  in Docker (46.0s suite).
+- All 10 PillText portable interaction cases passed in light/dark themes.
+- All 24 targeted catalog checks passed: five PillText stories and Colors docs
+  across narrow/desktop light/dark profiles (30.0s).
+- `git diff --check` passed.
+
+Exported browser/interaction reports remain under ignored
+`test-results/local-development/`. Screenshot candidates remain
+`visual-review-pending`; no baseline was approved or regenerated.
+
+The known Action Row contrast failures are unchanged: earlier single-theme local
+evidence recorded three failures, while #17's light/dark CI run recorded six
+(three stories in two themes). Whole-row opacity remains 50%; contrast checks
+remain enabled. This focused rerun did not rerun the full Action Row suite.

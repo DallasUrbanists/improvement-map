@@ -109,7 +109,9 @@ export function localDevelopmentPlugin({ staticCatalog = false, surface = 'app' 
       });
       server.middlewares.use('/__dev', (_request, response) => {
         response.setHeader('Content-Type', 'application/json');
-        response.end(JSON.stringify({ modes: config.modes, liveApiOrigin: config.liveApiOrigin }));
+        response.end(JSON.stringify({ modes: config.modes, liveApiOrigin: config.liveApiOrigin, surface,
+          runtime: { kind: process.env.DEV_CONTAINER === '1' ? 'docker' : 'native', pid: process.pid,
+            instanceId: process.env.DEV_NATIVE_INSTANCE_ID || null } }));
       });
       server.httpServer?.once('listening', () => console.log('[local services]', Object.entries(config.modes).map(([name, mode]) => `${name}=${mode}`).join(' ')));
     },
