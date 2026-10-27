@@ -13,6 +13,16 @@ import { resetBookmarks } from '../stories/support/bookmarks.js';
 import { resetStorage } from '../stories/support/storage.js';
 import { DocsThemeContainer } from './DocsThemeContainer.js';
 
+// Opt-in editing experiment. The manager forwards custom query parameters but
+// strips `embed`; set it in the preview before Storybook selects the story.
+// Storybook 10.6.3 skips play functions in embed mode. Vitest's independent
+// browser entry has no editing flag, and production catalogs keep normal playback.
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('editing') === 'true') {
+  const url = new URL(window.location.href);
+  url.searchParams.set('embed', 'true');
+  window.history.replaceState(window.history.state, '', url);
+}
+
 setup(app => app.use(createRouter({ history: createMemoryHistory(), routes: [
   { path: '/:pathMatch(.*)*', component: { template: '<div />' } },
 ] })));

@@ -39,6 +39,67 @@ changing source discovery to clear their old watched dependencies. See the
 [CSS update investigation](local-development-validation.md#storybook-css-update-investigation)
 for measured timings and remaining limitations.
 
+Storybook's final Vite server config warms only `src/tailwind.css`, moving its
+initial framework compilation into server startup. This improves the first
+preview once warmup has completed; it does not eliminate the compilation work
+or promise faster warm reloads. Keep the list narrow rather than warming every
+story. [Transform profiling and before/after measurements](storybook-validation.md#experiment-4-transform-profiling-and-targeted-warmup)
+explain why dependency optimization settings were retained.
+
+For the opt-in no-autoplay editing experiment, add `&editing=true` to the local
+catalog URL, for example
+`http://127.0.0.1:6006/?path=/story/bars-header-bar--plain&editing=true`.
+The preview uses Storybook 10.6.3's embed-mode switch to skip automatic play
+functions while retaining the catalog UI and manual component interactions. The
+flag persists through sidebar navigation; remove it and reload to restore
+playback. The Interactions panel has no steps in this mode, even if its status
+says Pass. It does not validate interaction behavior. Normal URLs, production
+catalogs, and the independent Vitest runner retain normal playback. This is an
+experiment tied to the installed runtime's embed behavior; review on upgrade.
+See [the measured comparison](storybook-validation.md#experiment-3-opt-in-no-autoplay-editing)
+for its navigation benefit and remaining refresh delay.
+
+The [filesystem comparison](storybook-validation.md#experiment-1-filesystem-environment-comparison)
+found native Windows fastest for warm interactive catalog work in this checkout;
+Linux-local WSL had shorter startup times. To try the measured native editing
+setup in a dedicated PowerShell terminal, using the installed Node 24 runtime:
+
+```powershell
+docker compose stop storybook
+$env:STORYBOOK_EDITING = 'true'
+$env:DEV_FORCE_MOCKS = '1'
+$env:CHOKIDAR_USEPOLLING = 'false'
+npm run storybook -- --host 127.0.0.1 --ci --exact-port
+```
+
+Keep `editing=true` in the browser URL to retain the no-autoplay setting. The app
+and mock services can continue in Docker. Stop the native process before
+restarting the Docker Storybook service on the same port. Linux remains the
+verified environment for component-test execution; earlier native Windows
+multi-theme runs encountered dependency-cache locking/import errors. This is an
+optional interactive workflow, not a change to the default Compose startup.
+Keep the Windows bind mount's existing Docker polling setting; reliable native
+events were tested on the native Windows checkout and the Linux-local WSL copy.
+
+The separate addon-free editing experiment starts Storybook with
+`STORYBOOK_EDITING=true`. This omits only `@storybook/addon-vitest`; the Component
+tests widget and its persistent runner are unavailable in that server. Docs,
+controls and the accessibility addon remain. Use `editing=true` in the browser
+URL as well when you want to skip automatic interaction playback.
+
+For the Docker workflow in PowerShell:
+
+```powershell
+$env:STORYBOOK_EDITING = 'true'
+docker compose up -d --no-deps --no-build --pull never storybook
+```
+
+Set the variable to `'false'` and repeat the Compose command to restore the test
+widget. Changing it requires recreating Storybook; the browser flag alone cannot
+remove server addons. Native starts accept the same environment variable before
+`npm run storybook`. The default remains the full addon set, and the independent
+`npm run test:storybook` configuration retains its Vitest plugin.
+
 The local **Component tests** widget discovers `vitest.config.js`, which supplies one browser project and uses the selected Storybook globals. Expand the widget to enable **Accessibility** alongside interactions, then choose **Run tests**. The command-line/CI scripts explicitly use `vitest.storybook.config.js` to check both light and dark projects. Those separate configurations avoid duplicate project names in the UI runner. Coverage instrumentation is optional and is not installed in this pilot; leave Coverage unchecked.
 
 The pinned addon has an upstream IPC synchronization race. The `prestorybook`
