@@ -11,18 +11,18 @@ test('welcome and long release notes retain exits and accessible mobile layouts'
   for (const screen of ['welcome', 'history']) {
     await expect(dialog).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
-    await expect.poll(() => dialog.locator('.announcement-content').evaluate(el => el.scrollTop)).toBe(0);
+    await expect.poll(() => dialog.locator('.floating-modal__content').evaluate(el => el.scrollTop)).toBe(0);
     expect((await new AxeBuilder({ page }).include('.announcement-dialog').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`${screen}-top.png`), animations: 'disabled' });
-    const before = await dialog.locator('.announcement-footer').boundingBox();
-    await dialog.locator('.announcement-content').evaluate(el => el.scrollTop = el.scrollHeight);
-    expect(await dialog.locator('.announcement-footer').boundingBox()).toEqual(before);
+    const before = await dialog.locator('.floating-modal__footer').boundingBox();
+    await dialog.locator('.floating-modal__content').evaluate(el => el.scrollTop = el.scrollHeight);
+    expect(await dialog.locator('.floating-modal__footer').boundingBox()).toEqual(before);
     await page.screenshot({ path: testInfo.outputPath(`${screen}.png`), animations: 'disabled' });
     await dialog.locator('.announcement-primary').click();
     if (screen === 'welcome') {
       await page.getByRole('button', { name: 'Menu', exact: true }).click();
-      await page.getByRole('menuitem', { name: "What's new" }).click();
+      await page.getByRole('link', { name: "What's new" }).click();
     }
   }
 });

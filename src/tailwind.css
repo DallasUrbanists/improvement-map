@@ -1,0 +1,27 @@
+@import "tailwindcss" source(none);
+@import "konsta/vue/theme.css";
+
+/* Only UI templates supply utilities. Docs/tests must not trigger preview
+   reloads, and ordinary CSS edits must not recompile the utility framework.
+   Konsta registers its own component sources through its theme import. */
+@source "./**/*.{vue,js,ts,jsx,tsx}";
+@source "../index.html";
+@source "../stories/**/*.{mdx,js,ts,vue}";
+@source "../.storybook/*.{js,ts}";
+@source "../dev/browser/**/*.js";
+
+@theme {
+  --color-st-darkblue: #0c2340;
+  --color-st-lightblue: #488be3;
+  --color-st-yellow: #ffa800;
+  --color-st-sidewalk: #f5f3ee;
+
+  --color-brand: #0c2340;
+  --color-brand-light: #488be3;
+  --color-brand-dark: #0c2340;
+  --color-primary: #ffa800;
+  --color-bg-light: #f5f3ee;
+  --color-bg-dark: #0c2340;
+}
+
+body { @apply antialiased font-sans transition-colors duration-200; }

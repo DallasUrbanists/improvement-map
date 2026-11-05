@@ -1,66 +1,21 @@
 <template>
-  <MapTray ref="detailTray" @scroll="workspace.saveViewState" @click="captureAccordionPosition" @wheel.passive="releaseAccordionPosition" @pointerdown="releaseAccordionPosition" @keydown.capture="releaseAccordionPosition" class="submission-detail-tray" :class="{ 'is-reading': readingExpanded }" @touchstart.passive="startTrayGesture" @touchmove="moveTrayGesture" @touchend="endTrayGesture" @touchcancel="endTrayGesture" @wheel="wheelTray" title="Idea details" :close-disabled="isLoading" :content-disabled="isLoading" @close="goBack">
-    <template #handle>
-      <button class="detail-tray-handle" type="button" :disabled="isLoading" :title="readingExpanded ? 'Drag to resize, or click to collapse' : 'Drag to resize, or click to expand'" @mousedown="startHandleMouse" :aria-expanded="readingExpanded" :aria-label="readingExpanded ? 'Show map' : 'Expand details'" @click="toggleReading">
-        <span aria-hidden="true" class="detail-tray-grip"></span>
-      </button>
-    </template>
-    <template #header>
-      <div class="detail-header-navigation">
-        <button type="button" class="map-ui-button" aria-label="Previous idea" data-tooltip="Previous idea" :disabled="isLoading || !workspace.detailNavigation.value.olderId" @click="workspace.navigateDetail('older')">
-          <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="map-ui-button" aria-label="Next idea" data-tooltip="Next idea" :disabled="isLoading || !workspace.detailNavigation.value.newerId" @click="workspace.navigateDetail('newer')">
-          <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
-        </button>
-      </div>
-      <div v-if="isLoading" class="detail-loading-message" role="status" aria-live="polite">{{ isRefreshing ? 'Refreshing idea, please wait...' : 'Loading next idea, please wait...' }}</div>
-    </template>
-    <template #header-actions>
-      <BookmarkButton v-if="suggestion" :item="suggestion" :disabled="isLoading" />
-      <div class="detail-copy-link-action" :data-tooltip="copyLinkMessage || 'Copy idea link'">
-        <button type="button" class="map-ui-button detail-copy-link-button" aria-label="Copy idea link" :disabled="isLoading || !suggestion" @click="copySuggestionLink">
-          <i class="fa-solid fa-link" aria-hidden="true"></i>
-        </button>
-        <span v-if="copyLinkMessage" class="detail-copy-link-status" role="status">{{ copyLinkMessage }}</span>
-      </div>
-      <button type="button" class="map-ui-button detail-refresh-button" aria-label="Refresh idea" data-tooltip="Refresh idea" :disabled="isLoading || !suggestion" @click="refreshSuggestion">
-        <i class="fa-solid fa-rotate" :class="{ 'fa-spin': isLoading }" aria-hidden="true"></i>
-      </button>
-    </template>
-    <div v-if="readingExpanded && suggestion" class="detail-reading-heading">
+  <Tray ref="detailTray" v-model:open="trayOpen" v-model:maximize="readingExpanded" :theme="isDark ? 'dark' : 'light'" :surface-level="2" panel-class="submission-detail-tray" :handle-label="readingExpanded ? 'Show map' : 'Expand details'" :busy="isLoading" :can-drag-close="true" :can-drag-open="true" :toggle-maximize-on-click="true" :medium-height="detailTrayMediumHeight" :max-height="detailTrayMaxHeight" label="Idea details" @scroll="workspace.saveViewState">
+    <template #head><Toolbar class="detail-toolbar" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :leftButtons="detailToolbarLeftButtons" :rightButtons="detailToolbarRightButtons" @button-click="handleToolbarAction" /></template>
+    <template #default>
+
+    <ContainedSection v-if="readingExpanded && suggestion" class="detail-reading-heading" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true">
       <h1>{{ suggestion.content?.summary || suggestion.summary }}</h1>
-    </div>
+    </ContainedSection>
     <p v-if="bookmarkNotice" class="idea-notice" role="alert">{{ bookmarkNotice }}</p>
     <p class="sr-only" role="status">{{ bookmarkMessage }}</p>
+    <p v-if="copyLinkMessage" class="sr-only" role="status">{{ copyLinkMessage }}</p>
     <p v-if="refreshError" class="detail-refresh-error" role="alert">{{ refreshError }}</p>
-    <div v-if="isLoading && !suggestion" class="detail-loading-content" aria-hidden="true">
-      <div class="detail-loading-line detail-loading-line-wide"><span>Idea details are loading</span></div>
-      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-medium"><span>Photos</span></div><div class="detail-loading-photo"></div></div>
-      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Neighborhoods and districts</span></div></div>
-      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Representatives</span></div></div>
-      <div class="detail-loading-section"><div class="detail-loading-line detail-loading-line-short"><span>Recommended actions</span></div></div>
-    </div>
 
-    <!-- Error state with Konsta Card & Button -->
-    <k-card
-      v-else-if="errorMessage"
-      :outline="true"
-      :content-wrap="false"
-      class="text-center py-12 m-0"
-    >
+    <ContainedSection v-else-if="errorMessage" class="detail-error-message" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true">
       <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-3" aria-hidden="true"></i>
       <h2 class="text-xl font-bold mb-2">Idea unavailable</h2>
       <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-6">{{ errorMessage }}</p>
-      <k-button
-        component="router-link"
-        to="/?view=list"
-        :rounded="true"
-        class="text-sm font-semibold"
-      >
-        Browse other ideas
-      </k-button>
-    </k-card>
+    </ContainedSection>
 
     <!-- Suggestion Details View with Konsta Card -->
     <div v-if="suggestion" class="detail-body-sections" :class="{ 'detail-content-obscured': isLoading }">
@@ -69,68 +24,68 @@
         class="detail-body-sections"
       >
 
-        <!-- Title and Subtitle -->
-        <div class="detail-description text-sm whitespace-pre-wrap break-words px-4 py-2" :class="{ 'detail-description-revealing': isRevealingDetails }">
-          <div class="detail-description-inner">
-          <!-- Description Details -->
-          <p>
-            {{ fadingDetails.settled }}<span v-for="character in fadingDetails.leading" :key="character.index" :style="{ opacity: character.opacity }">{{ character.text }}</span><span class="detail-typewriter-pending" aria-hidden="true">{{ outgoingDetails.slice(displayedDetails.length) }}</span>
-          </p>
-          <p class="detail-description-byline">{{ formattedDate }} · {{ suggestion.author?.name || 'Anonymous Contributor' }}</p>
-          </div>
+        <ContainedSection class="detail-description text-sm whitespace-pre-wrap break-words"
+            :theme="isDark ? 'dark' : 'light'" :surface-level="2" :padded="true"
+            :class="{ 'detail-description-revealing': isRevealingDetails }">
+            <div class="detail-description-inner">
+              <!-- Description Details -->
+              <p>
+                {{ fadingDetails.settled }}<span v-for="character in fadingDetails.leading" :key="character.index"
+                  :style="{ opacity: character.opacity }">{{ character.text }}</span><span
+                  class="detail-typewriter-pending" aria-hidden="true">{{ outgoingDetails.slice(displayedDetails.length)
+                  }}</span>
+              </p>
+              <p class="detail-description-byline">{{ formattedDate }} · {{ suggestion.author?.name || 'Anonymous Contributor' }}</p>
+              <p class="detail-pills">
+                <PillText label="Photos" selectable variant="secondary" size="regular" :theme="isDark ? 'dark' : 'light'" :selected="activeDetailSection === 'photos'" :onclick="() => activeDetailSection = 'photos'" />
+                <PillText label="Representatives" selectable variant="secondary" size="regular" :theme="isDark ? 'dark' : 'light'" :selected="activeDetailSection === 'representatives'" :onclick="() => activeDetailSection = 'representatives'" />
+                <PillText label="Streetmix" selectable variant="secondary" size="regular" :theme="isDark ? 'dark' : 'light'" :selected="activeDetailSection === 'streetmix'" :onclick="() => activeDetailSection = 'streetmix'" />
+                <PillText label="Recommended Actions" selectable variant="secondary" size="regular" :theme="isDark ? 'dark' : 'light'" :selected="activeDetailSection === 'actions'" :onclick="() => activeDetailSection = 'actions'" />
+              </p>
+              <div v-if="activeDetailSection === 'photos'" class="detail-photo-content">
+                <p v-if="!photosList.length">No photos available.</p>
+                <div v-else class="detail-photo-row">
+                  <button v-for="(photo, index) in photosList" :key="photo.id || index" type="button" class="detail-photo-thumbnail" :aria-label="`Open photo ${index + 1}${photo.caption ? ': ' + photo.caption : ''}`" @click="previewPhoto(index, $event.currentTarget)">
+                    <img :src="photo.dataUrl || photo.url" alt="" />
+                    <span v-if="photo.caption" class="detail-photo-caption">{{ photo.caption }}</span>
+                  </button>
+                </div>
+              </div>
+              <div v-else-if="activeDetailSection === 'representatives'" class="detail-context-content">
+                <section class="representatives-section" :style="representativeColors">
+                  <p v-if="representativeNotice" role="alert">{{ representativeNotice }}</p>
+                  <p class="sr-only" role="status">{{ representativeMessage }}</p>
+                  <p v-if="representativesLoading" role="status">Loading representatives…</p>
+                  <div v-else-if="representativesError" role="alert"><p>{{ representativesError }}</p><button class="action-button" @click="loadRepresentatives">Retry</button></div>
+                  <p v-else-if="representativesLoaded && !representatives.length">No representatives found.</p>
+                  <article v-for="representative in prioritizedRepresentatives" :key="representative.id" class="context-card">
+                    <div class="representative-row-copy">
+                      <h3>{{ representative.name || 'Name unavailable' }}</h3>
+                      <p v-if="representative.title" class="secondary-copy">{{ representative.title }}</p>
+                      <p class="secondary-copy representative-jurisdiction">{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
+                    </div>
+                    <div class="action-card-controls representative-contact-controls">
+                      <SquareIconButton icon="bookmark" layout="tight" :theme="isDark ? 'dark' : 'light'" :surface-level="2"
+                        :label="`${isRepresentativeSaved(representative.id) ? 'Unsave' : 'Save'} representative: ${representative.name}`"
+                        :is-active="isRepresentativeSaved(representative.id)" :aria-pressed="isRepresentativeSaved(representative.id)"
+                        @click="toggleRepresentative(representative, suggestion.id)" />
+                      <details v-if="getRepresentativeContactItems(representative).length" class="representative-contact-menu" @toggle="positionRepresentativeContactMenu">
+                        <summary class="action-button"><i class="fa-solid fa-address-card" aria-hidden="true"></i> Contact</summary>
+                        <div class="representative-contact-options">
+                          <a v-for="contact in getRepresentativeContactItems(representative)" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`" :title="contact.label"><i :class="['fa-solid', contact.external ? 'fa-globe' : contact.type === 'email' ? 'fa-envelope' : 'fa-phone']" aria-hidden="true"></i><span>{{ contact.buttonLabel }}</span></a>
+                        </div>
+                      </details>
+                    </div>
+                    <p v-if="!getRepresentativeContactItems(representative).length" class="secondary-copy">Contact information unavailable</p>
+                  </article>
+                </section>
+              </div>
+              <StreetmixPanel v-else-if="activeDetailSection === 'streetmix' && String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" />
+              <RecommendedActions v-else-if="activeDetailSection === 'actions'" :suggestion="suggestion" :theme="isDark ? 'dark' : 'light'" :surface-level="2" :refresh-version="actionsRefreshVersion" />
+            </div>
+          </ContainedSection>
         </div>
 
-        <details v-if="photosList.length" class="detail-accordion">
-          <summary class="font-bold">Photos ({{ photosList.length }})</summary>
-          <div class="detail-photo-content">
-            <div class="detail-photo-row">
-              <button v-for="(photo, index) in photosList" :key="photo.id || index" type="button" class="detail-photo-thumbnail" :aria-label="`Open photo ${index + 1}${photo.caption ? ': ' + photo.caption : ''}`" @click="previewPhoto(index, $event.currentTarget)">
-                <img :src="photo.dataUrl || photo.url" alt="" />
-                <span v-if="photo.caption" class="detail-photo-caption">{{ photo.caption }}</span>
-              </button>
-            </div>
-          </div>
-        </details>
-
-        <StreetmixPanel v-if="String(suggestion.id) === String(route.params.id)" :key="suggestion.id" :suggestion="suggestion" :refresh-version="actionsRefreshVersion" @saved="updateStreetmixSummary" />
-
-        <PreviewSection class="areas-section" :key="`areas-${suggestion.id}`" title="Neighborhoods &amp; districts" :button="`View ${boundaries.length} areas`" :count="boundariesLoaded ? boundaries.length : undefined" :available="boundaries.length > 0" @toggle="handleBoundariesToggle" v-slot="{ full }">
-          <p v-if="boundariesLoading" role="status">Loading areas…</p>
-          <div v-else-if="boundariesError" role="alert"><p>{{ boundariesError }}</p><button class="action-button" @click="loadBoundaries">Retry</button></div>
-          <p v-else-if="boundariesLoaded && !boundaries.length">No areas found.</p>
-          <article v-for="boundary in (full ? prioritizedBoundaries : prioritizedBoundaries.slice(0, 2))" :key="boundary.id" class="context-card">
-            <h3>{{ [boundary.bodyName, boundary.districtName].filter(Boolean).join(' · ') || boundary.entityName || 'Area' }}</h3>
-            <p class="secondary-copy">{{ boundary.entityName && boundary.entityName !== boundary.districtName ? boundary.entityName : '' }}</p>
-            <template v-if="full">
-              <p v-if="boundary.description">{{ boundary.description }}</p>
-              <p v-if="boundary.whenToContact"><strong>When to contact:</strong> {{ boundary.whenToContact }}</p>
-            </template>
-          </article>
-        </PreviewSection>
-
-        <PreviewSection class="representatives-section" :key="`representatives-${suggestion.id}`" title="Representatives" :button="`View ${representatives.length} representatives`" :count="representativesLoaded ? representatives.length : undefined" :available="representatives.length > 0" @toggle="handleRepresentativesToggle" v-slot="{ full }">
-          <p v-if="representativesLoading" role="status">Loading representatives…</p>
-          <div v-else-if="representativesError" role="alert"><p>{{ representativesError }}</p><button class="action-button" @click="loadRepresentatives">Retry</button></div>
-          <p v-else-if="representativesLoaded && !representatives.length">No representatives found.</p>
-          <article v-for="representative in (full ? prioritizedRepresentatives : prioritizedRepresentatives.slice(0, 2))" :key="representative.id" class="context-card">
-            <div class="representative-row-copy">
-              <h3>{{ representative.name || 'Name unavailable' }}</h3>
-              <p class="secondary-copy"><template v-if="representative.title">{{ representative.title }}<br /></template>{{ [representative.boundary?.entityName, representative.boundary?.bodyName, representative.boundary?.districtName].filter(Boolean).join(' · ') || 'Jurisdiction unavailable' }}</p>
-            </div>
-            <div class="action-card-controls representative-contact-controls">
-              <details v-if="getRepresentativeContactItems(representative).length" class="representative-contact-menu" @toggle="positionRepresentativeContactMenu">
-                <summary class="action-button"><i class="fa-solid fa-address-card" aria-hidden="true"></i> Contact</summary>
-                <div class="representative-contact-options">
-                  <a v-for="contact in getRepresentativeContactItems(representative)" :key="contact.href + contact.label" :href="contact.href" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener noreferrer' : undefined" class="action-button" :aria-label="`${contactLabel(contact)}: ${contact.label}`" :title="contact.label"><i :class="['fa-solid', contact.external ? 'fa-globe' : contact.type === 'email' ? 'fa-envelope' : 'fa-phone']" aria-hidden="true"></i><span>{{ contact.buttonLabel }}</span></a>
-                </div>
-              </details>
-            </div>
-            <p v-if="!getRepresentativeContactItems(representative).length" class="secondary-copy">Contact information unavailable</p>
-          </article>
-        </PreviewSection>
-
-        <RecommendedActions :suggestion="suggestion" :refresh-version="actionsRefreshVersion" />
-      </div>
     </div>
 
     <!-- Image Lightbox Modal -->
@@ -146,22 +101,29 @@
         </div>
       </dialog>
     </Teleport>
-  </MapTray>
+    </template>
+  </Tray>
 </template>
 
 <script setup>
 import { ref, shallowRef, computed, watch, inject, onBeforeUnmount, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { kButton, kCard } from 'konsta/vue';
+import Tray from '../components/Tray.vue';
+import Toolbar from '../components/Toolbar.vue';
+import ContainedSection from '../components/ContainedSection.vue';
+import PillText from '../components/PillText.vue';
+import SquareIconButton from '../components/SquareIconButton.vue';
+import { surfaceColors } from '../design/surfaceColors';
+import { textColors } from '../design/textColors';
+import { representativeNotice, representativeMessage, isRepresentativeSaved, toggleRepresentative } from '../services/savedRepresentatives';
 import { getSuggestionById, getSuggestionRepresentatives, getSuggestionBoundaries } from '../services/api';
-import BookmarkButton from '../components/BookmarkButton.vue';
-import { bookmarkNotice, bookmarkMessage } from '../services/bookmarks';
-import MapTray from '../components/MapTray.vue';
-import PreviewSection from '../components/PreviewSection.vue';
+import { bookmarkNotice, bookmarkMessage, isBookmarked, toggleBookmark } from '../services/bookmarks';
 import RecommendedActions from '../components/RecommendedActions.vue';
 import StreetmixPanel from '../components/StreetmixPanel.vue';
 import { mapWorkspaceKey, detailMotionDuration } from '../services/mapWorkspace';
 import { applySubmissionShareMetadata } from '../services/submissionShareMetadata';
+import { isDark } from '../services/theme';
 
 const route = useRoute();
 const router = useRouter();
@@ -170,217 +132,45 @@ const actionsRefreshVersion = ref(0);
 function updateStreetmixSummary(summary) { if (suggestion.value) suggestion.value.streetmix = summary; }
 
 const detailTray = ref(null);
+const trayOpen = ref(true);
 const readingExpanded = ref(false);
-let trayGesture = null;
-let suppressHandleClick = false;
-let readingAnimation = null;
-let readingAnimationRun = 0;
-let readingFadeFrame = 0;
+const viewportHeight = ref(window.innerHeight);
+const detailTrayMediumHeight = computed(() => Math.max(280, Math.min(520, viewportHeight.value * .58)));
+const detailTrayMaxHeight = computed(() => viewportHeight.value - 80);
+const detailToolbarLeftButtons = computed(() => [
+  { id: 'previous', icon: 'chevron-left', label: 'Previous idea', disabled: isLoading.value || !workspace.detailNavigation.value.olderId },
+  { id: 'next', icon: 'chevron-right', label: 'Next idea', disabled: isLoading.value || !workspace.detailNavigation.value.newerId },
+]);
+const detailToolbarRightButtons = computed(() => [
+  { id: 'bookmark', icon: 'bookmark', label: isBookmarked(suggestion.value?.id) ? 'Remove bookmark' : 'Save idea', isActive: isBookmarked(suggestion.value?.id), disabled: isLoading.value || !suggestion.value },
+  { id: 'copy', icon: 'link', label: 'Copy idea link', disabled: isLoading.value || !suggestion.value },
+  { id: 'close', icon: 'xmark', label: 'Close idea' },
+]);
+function handleToolbarAction({ button }) {
+  if (button.id === 'close') goBack();
+  else if (button.id === 'previous') workspace.navigateDetail('older');
+  else if (button.id === 'next') workspace.navigateDetail('newer');
+  else if (button.id === 'bookmark' && suggestion.value) toggleBookmark(suggestion.value);
+  else if (button.id === 'copy') copySuggestionLink();
+  else if (button.id === 'refresh') refreshSuggestion();
+}
+watch(trayOpen, open => { if (!open) goBack(); });
+watch(readingExpanded, expanded => setReadingProgress(expanded ? 1 : 0));
 let readingProgress = 0;
 function setReadingProgress(progress) {
   readingProgress = Math.max(0, Math.min(1, progress));
   workspace.setDetailReadingProgress(readingProgress);
 }
-function cancelReadingAnimation() {
-  readingAnimationRun++;
-  cancelAnimationFrame(readingFadeFrame);
-  readingFadeFrame = 0;
-  readingAnimation?.cancel();
-  readingAnimation = null;
-}
-onBeforeUnmount(() => { cancelReadingAnimation(); setReadingProgress(0); });
-function clearDragStyle() {
-  const tray = detailTray.value?.element;
-  tray?.classList.remove('is-dragging');
-  tray?.style.removeProperty('height');
-  tray?.style.removeProperty('top');
-  tray?.style.removeProperty('max-height');
-}
-async function setReading(expanded, fromHeight) {
-  if (isLoading.value || (readingExpanded.value === expanded && fromHeight === undefined)) return;
-  releaseAccordionPosition();
-  const tray = detailTray.value?.element;
-  const previousHeight = fromHeight ?? tray?.getBoundingClientRect().height;
-  clearDragStyle();
-  cancelReadingAnimation();
-  const run = readingAnimationRun;
-  const fromProgress = readingProgress;
-  const toProgress = expanded ? 1 : 0;
-  readingExpanded.value = expanded;
-  await nextTick();
-  if (run !== readingAnimationRun || !tray?.isConnected) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setReadingProgress(toProgress); return; }
-  const height = tray.getBoundingClientRect().height;
-  if (Math.abs(height - previousHeight) < .5) { setReadingProgress(toProgress); return; }
-  // Animate measured heights around the fixed bottom edge, including reversals.
-  // Override top/max-height only during motion so compact content can still fit naturally.
-  const animation = tray.animate([
-    { top: 'auto', maxHeight: 'none', height: `${previousHeight}px` },
-    { top: 'auto', maxHeight: 'none', height: `${height}px` },
-  ], { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' });
-  readingAnimation = animation;
-  const updateFade = () => {
-    if (readingAnimation !== animation) return;
-    const progress = animation.effect.getComputedTiming().progress ?? 0;
-    setReadingProgress(fromProgress + (toProgress - fromProgress) * progress);
-    readingFadeFrame = requestAnimationFrame(updateFade);
-  };
-  updateFade();
-  animation.finished.then(() => {
-    if (readingAnimation !== animation) return;
-    cancelAnimationFrame(readingFadeFrame);
-    readingFadeFrame = 0;
-    setReadingProgress(toProgress);
-    readingAnimation = null;
-  }).catch(() => {});
-}
-function toggleReading() {
-  if (suppressHandleClick) { suppressHandleClick = false; return; }
-  setReading(!readingExpanded.value);
-}
-function startHandleMouse(event) {
-  if (event.button !== 0) return;
-  startTrayGesture({ target: event.currentTarget, touches: [{ clientX: event.clientX, clientY: event.clientY }] });
-  if (!trayGesture) return;
-  event.preventDefault();
-  window.addEventListener('mousemove', moveHandleMouse);
-  window.addEventListener('mouseup', endHandleMouse);
-  window.addEventListener('blur', cancelHandleMouse);
-}
-function moveHandleMouse(event) {
-  moveTrayGesture({ touches: [{ clientX: event.clientX, clientY: event.clientY }], cancelable: event.cancelable, preventDefault: () => event.preventDefault() });
-}
-function removeMouseListeners() {
-  window.removeEventListener('mousemove', moveHandleMouse);
-  window.removeEventListener('mouseup', endHandleMouse);
-  window.removeEventListener('blur', cancelHandleMouse);
-}
-function endHandleMouse() { endTrayGesture(); removeMouseListeners(); }
-function cancelHandleMouse() { endTrayGesture({ type: 'touchcancel' }); removeMouseListeners(); }
-onBeforeUnmount(removeMouseListeners);
-function startTrayGesture(event) {
-  suppressHandleClick = false;
-  const handle = !!event.target.closest('.detail-tray-handle');
-  const content = detailTray.value?.content;
-  if (isLoading.value || event.touches.length !== 1 || (!handle && (!content?.contains(event.target)
-    || event.target.closest('button, input, textarea, select, a, .streetmix-road-map')))) return;
-  trayGesture = { samples: [{ y: event.touches[0].clientY, time: performance.now() }], x: event.touches[0].clientX, y: event.touches[0].clientY, atTop: content.scrollTop <= 0, handle, dragging: false, expanded: readingExpanded.value };
-}
-function beginTrayDrag() {
-  const tray = detailTray.value.element;
-  const current = tray.getBoundingClientRect();
-  cancelReadingAnimation();
-  releaseAccordionPosition();
-  // Measure both resting positions without painting the temporary compact layout.
-  const heading = tray.querySelector('.detail-reading-heading');
-  tray.classList.remove('is-reading');
-  if (heading) heading.style.display = 'none';
-  const compact = tray.getBoundingClientRect().height;
-  tray.classList.toggle('is-reading', readingExpanded.value);
-  if (heading) heading.style.removeProperty('display');
-  const expanded = current.bottom - tray.offsetParent.getBoundingClientRect().top - 82;
-  Object.assign(trayGesture, { dragging: true, startHeight: current.height, compact, expandedHeight: Math.max(compact, expanded) });
-  tray.classList.add('is-dragging');
-  tray.style.top = 'auto';
-  tray.style.maxHeight = 'none';
-}
-function moveTrayGesture(event) {
-  if (!trayGesture || isLoading.value) return;
-  if (event.touches.length !== 1) { endTrayGesture({ type: 'touchcancel' }); return; }
-  const now = performance.now();
-  trayGesture.samples = trayGesture.samples.filter(sample => now - sample.time <= 120);
-  trayGesture.samples.push({ y: event.touches[0].clientY, time: now });
-  const dy = event.touches[0].clientY - trayGesture.y;
-  const dx = event.touches[0].clientX - trayGesture.x;
-  if (!trayGesture.dragging) {
-    if (Math.abs(dx) > Math.abs(dy)) { trayGesture = null; return; }
-    if (Math.abs(dy) < 6) return;
-    if (!trayGesture.handle && !((!readingExpanded.value && dy < 0) || (readingExpanded.value && dy > 0 && trayGesture.atTop))) return;
-    beginTrayDrag();
-  }
-  if (event.cancelable) event.preventDefault();
-  const height = Math.max(trayGesture.compact, Math.min(trayGesture.expandedHeight, trayGesture.startHeight - dy));
-  detailTray.value.element.style.height = `${height}px`;
-  const range = trayGesture.expandedHeight - trayGesture.compact;
-  setReadingProgress(range > 0 ? (height - trayGesture.compact) / range : 0);
-  suppressHandleClick = trayGesture.handle;
-}
-function endTrayGesture(event) {
-  const gesture = trayGesture;
-  trayGesture = null;
-  if (!gesture?.dragging) return;
-  const height = detailTray.value.element.getBoundingClientRect().height;
-  // Use only recent motion, including time held still before release. A quick
-  // flick overrides the midpoint; a paused or slow drag keeps nearest-position snapping.
-  const now = performance.now();
-  const recent = gesture.samples.filter(sample => now - sample.time <= 120);
-  const first = recent[0];
-  const last = recent.at(-1);
-  const distance = first && last ? last.y - first.y : 0;
-  const velocity = first ? distance / Math.max(16, now - first.time) : 0;
-  const flick = Math.abs(distance) >= 12 && Math.abs(velocity) >= .5;
-  const expanded = event?.type === 'touchcancel' ? gesture.expanded
-    : flick ? velocity < 0 : height > (gesture.compact + gesture.expandedHeight) / 2;
-  setReading(expanded, height);
-}
-
-function wheelTray(event) {
-  const content = detailTray.value?.content;
-  if (isLoading.value || !content?.contains(event.target) || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
-  if (!readingExpanded.value && event.deltaY > 0) { event.preventDefault(); setReading(true); }
-}
-watch(() => route.params.id, () => { cancelReadingAnimation(); setReadingProgress(0); removeMouseListeners(); clearDragStyle(); readingExpanded.value = false; trayGesture = null; });
-let accordionPosition = null;
-let trayResizeObserver;
-let trayPositionFrame = 0;
-function releaseAccordionPosition() { accordionPosition = null; }
-function captureAccordionPosition(event) {
-  const summary = event.target.closest('summary');
-  const content = detailTray.value?.content;
-  if (summary && content?.contains(summary)) accordionPosition = { summary, scrollTop: content.scrollTop, appliedScrollTop: content.scrollTop };
-}
-function preserveAccordionPosition() {
-  cancelAnimationFrame(trayPositionFrame);
-  trayPositionFrame = requestAnimationFrame(() => {
-    const content = detailTray.value?.content;
-    const anchor = accordionPosition;
-    if (!content || !anchor?.summary.isConnected) return;
-    // A user or focus-driven scroll takes precedence over the saved accordion anchor.
-    if (Math.abs(content.scrollTop - anchor.appliedScrollTop) > 1) {
-      releaseAccordionPosition();
-      return;
-    }
-    // Keep the existing reading offset, allowing natural clamping as content shrinks.
-    content.scrollTop = anchor.scrollTop;
-    const bounds = content.getBoundingClientRect();
-    const heading = anchor.summary.getBoundingClientRect();
-    if (heading.top < bounds.top) content.scrollTop -= bounds.top - heading.top;
-    else if (heading.bottom > bounds.bottom) content.scrollTop += heading.bottom - bounds.bottom;
-    anchor.appliedScrollTop = content.scrollTop;
-  });
-}
+onBeforeUnmount(() => setReadingProgress(0));
+watch(() => route.params.id, () => { setReadingProgress(0); readingExpanded.value = false; });
+function updateViewportHeight() { viewportHeight.value = window.innerHeight; }
 onMounted(() => {
-  trayResizeObserver = new ResizeObserver(preserveAccordionPosition);
-  const content = detailTray.value?.content;
-  if (content) {
-    trayResizeObserver.observe(content);
-    // Observe changing accordion bodies, including responses arriving after opening.
-    trayContentObserver.observe(content, { childList: true, subtree: true });
-    observeTrayChildren();
-  }
+  window.addEventListener('resize', updateViewportHeight, { passive: true });
 });
-function observeTrayChildren() {
-  for (const child of detailTray.value?.content?.children || []) trayResizeObserver?.observe(child);
-}
-const trayContentObserver = new MutationObserver(observeTrayChildren);
-onBeforeUnmount(() => {
-  trayResizeObserver?.disconnect();
-  trayContentObserver.disconnect();
-  cancelAnimationFrame(trayPositionFrame);
-});
-watch(() => route.params.id, releaseAccordionPosition);
+onBeforeUnmount(() => window.removeEventListener('resize', updateViewportHeight));
 
 const suggestion = ref(null);
+const activeDetailSection = ref('photos');
 const isLoading = ref(true);
 const isRefreshing = ref(false);
 const displayedDetails = ref('');
@@ -427,6 +217,13 @@ function handlePhotoBackdropClick(event) {
   if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dismissLightbox();
 }
 const representatives = ref([]);
+const representativeColors = computed(() => {
+  const theme = isDark.value ? 'dark' : 'light';
+  return {
+    '--representative-menu-background': surfaceColors[theme].neutral.level3,
+    '--representative-muted': textColors.muted[theme].neutral.level2,
+  };
+});
 const representativesLoading = ref(false);
 const representativesLoaded = ref(false);
 const representativesError = ref('');
@@ -517,6 +314,7 @@ function getRepresentativeContactItems(representative) {
       items.push({
         label,
         value,
+        buttonLabel: value,
         type,
         href: type === 'email' ? 'mailto:' + value : 'tel:' + value,
         external: false,
@@ -529,15 +327,7 @@ function getRepresentativeContactItems(representative) {
 
   const website = representative.webpage_url;
   if (typeof website === 'string' && /^https?:\/\//i.test(website)) {
-    items.push({ label: 'Website', buttonLabel: 'Website', href: website, external: true });
-  }
-
-  for (const type of ['email', 'phone']) {
-    const contacts = items.filter(item => item.type === type);
-    contacts.forEach(contact => {
-      const kindLabel = type === 'email' ? 'Email' : 'Call';
-      contact.buttonLabel = contacts.length > 1 ? truncateContactValue(contact.value, type === 'email' ? 24 : 18) : kindLabel;
-    });
+    items.push({ label: website, buttonLabel: truncateContactValue(website, 32), href: website, external: true });
   }
 
   return items;
@@ -545,10 +335,6 @@ function getRepresentativeContactItems(representative) {
 
 function truncateContactValue(value, maxLength) {
   return value.length > maxLength ? value.slice(0, maxLength - 1) + '…' : value;
-}
-
-function handleBoundariesToggle(event) {
-  if (event.currentTarget.open) loadBoundaries();
 }
 
 async function loadBoundaries() {
@@ -574,10 +360,6 @@ async function loadBoundaries() {
       boundariesLoading.value = false;
     }
   }
-}
-
-function handleRepresentativesToggle(event) {
-  if (event.currentTarget.open) loadRepresentatives();
 }
 
 async function loadRepresentatives() {
@@ -626,7 +408,6 @@ async function refreshSuggestion() {
   actionsRefreshVersion.value++;
   refreshError.value = '';
   workspace.setDetailLoading(true);
-  closeDetailAccordions();
   if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
   isRevealingDetails.value = false;
   try {
@@ -762,10 +543,6 @@ function revealDetails(item) {
   };
   detailsRevealFrame = requestAnimationFrame(reveal);
 }
-function closeDetailAccordions() {
-  document.querySelectorAll('.submission-detail-tray details.detail-accordion[open]').forEach(details => { details.open = false; });
-}
-
 watch(() => route.params.id, async (id) => {
   actionsRefreshVersion.value++;
   const requestVersion = ++suggestionRequestVersion;
@@ -776,7 +553,6 @@ watch(() => route.params.id, async (id) => {
     const restored = restoringSuggestion.value;
     restoringSuggestion.value = null;
     workspace.setDetailLoading(true);
-    closeDetailAccordions();
     suggestion.value = restored;
     setDetailMetadata(restored);
     const layout = await prepareDetails(restored);
@@ -795,8 +571,6 @@ watch(() => route.params.id, async (id) => {
   workspace.setDetailLoading(true);
   isLoading.value = true;
   workspace.setDetailMarkerTarget(id);
-  closeDetailAccordions();
-  const accordionsClosed = previousItem ? new Promise(resolve => setTimeout(resolve, 340)) : Promise.resolve();
   if (detailsRevealFrame) cancelAnimationFrame(detailsRevealFrame);
   isRevealingDetails.value = false;
   representativesRequestVersion++;
@@ -831,7 +605,7 @@ watch(() => route.params.id, async (id) => {
   try {
     const item = await getSuggestionById(id);
     if (requestVersion !== suggestionRequestVersion) return;
-    await Promise.all([accordionsClosed, outgoingTextFinished]);
+    await outgoingTextFinished;
     if (requestVersion !== suggestionRequestVersion) return;
     suggestion.value = item;
     workspace.rememberSuggestion(item);
@@ -848,7 +622,7 @@ watch(() => route.params.id, async (id) => {
   } catch (err) {
     if (requestVersion === suggestionRequestVersion) {
       console.error('Failed to load suggestion details:', err);
-      await Promise.all([accordionsClosed, outgoingTextFinished]);
+      await outgoingTextFinished;
       if (mapTransition) await mapTransition;
       if (previousItem && String(previousItem.id) !== String(id)) {
         restoringSuggestion.value = previousItem;
@@ -861,4 +635,15 @@ watch(() => route.params.id, async (id) => {
     }
   }
 }, { immediate: true });
+
+watch([activeDetailSection, () => suggestion.value?.id, isLoading], ([section, id, loading]) => {
+  if (section === 'representatives' && !loading && String(id) === String(route.params.id)) {
+    loadRepresentatives();
+  }
+}, { immediate: true });
 </script>
+<style>
+.detail-pills :first-child {
+  margin-left: 0;
+}
+</style>

@@ -1,6 +1,6 @@
 # Initial implementation validation — 2026-10-19
 
-- `npm run test:ux:full`: **80 passed**, 6.6 minutes. All 27 catalog states visited in each of 10 device/theme profiles (270 state captures). This is report mode, not a claim that all accessibility/layout observations passed.
+- `npm run test:ux -- --full` (then named `test:ux:full`): **80 passed**, 6.6 minutes. All 27 catalog states visited in each of 10 device/theme profiles (270 state captures). This is report mode, not a claim that all accessibility/layout observations passed.
 - `npm run test:feature -- browse` and `npm run test:feature -- submit`: passed during harness development, about 9 seconds each including server startup. Focused runs omit axe scans and screenshot collection.
 - `npm run build`: passed, including PWA generation. Vite reports large chunks; no build error.
 - Read-only live smoke against `https://dallasurbanists.github.io/improvement-map/`: **1 passed**. Actual Google Map loaded and Browse opened; all non-GET/HEAD requests were blocked.

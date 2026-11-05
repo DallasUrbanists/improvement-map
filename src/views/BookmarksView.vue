@@ -1,19 +1,19 @@
 <template>
-  <MapTray ref="tray" class="idea-list-tray" title="Saved ideas" @close="workspace.closeTray" @scroll="workspace.saveViewState">
-    <template #header><h1>Saved ideas <span class="idea-count">{{ items.length }}</span></h1></template>
-    <p class="idea-notice">Saved in this browser.</p>
+  <FloatingModal ref="tray" :surface-level="2" class="idea-list-tray" :open="true" label="Saved ideas" :subtitle="`${items.length} saved ideas`"
+    form-factor="tall" position="left" :blocking="false" :theme="isDark ? 'dark' : 'light'" @close="workspace.closeTray" @scroll="workspace.saveViewState">
     <div v-if="items.length >= 10 || search" class="saved-search"><label for="saved-idea-search">Search saved ideas</label><input id="saved-idea-search" type="search" v-model="search" placeholder="Idea or address" /></div>
     <div v-if="undoEntry" class="idea-notice undo-notice" role="status">Idea removed.<button class="action-button" @click="undo">Undo</button></div>
     <p v-if="bookmarkNotice" class="idea-notice" role="alert">{{ bookmarkNotice }}</p>
     <p class="sr-only" role="status">{{ bookmarkMessage }}</p>
-    <ul v-if="filteredItems.length" class="idea-list"><IdeaRow v-for="item in filteredItems" :key="item.id" :item="item" @bookmark-changed="removed" /></ul>
+    <ul v-if="filteredItems.length" class="idea-list"><IdeaRow v-for="item in filteredItems" :surface-level="2" :key="item.id" :item="item" @bookmark-changed="removed" /></ul>
     <p v-else-if="search" class="idea-notice">No matching ideas.</p>
     <div v-else class="idea-empty"><h2>No saved ideas</h2><p>Tap a bookmark to save an idea.</p><router-link class="map-ui-button" to="/?view=list">Browse ideas</router-link></div>
-  </MapTray>
+  </FloatingModal>
 </template>
 <script setup>
 import { computed, inject, nextTick, onMounted, ref } from 'vue';
-import MapTray from '../components/MapTray.vue';
+import FloatingModal from '../components/FloatingModal.vue';
+import { isDark } from '../services/theme';
 import IdeaRow from '../components/IdeaRow.vue';
 import { mapWorkspaceKey } from '../services/mapWorkspace';
 import { bookmarkNotice, bookmarkMessage, restoreBookmark } from '../services/bookmarks';

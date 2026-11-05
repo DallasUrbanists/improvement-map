@@ -156,8 +156,8 @@ During edits, run only relevant checks, from the execution root:
 
 ```powershell
 npm run test:unit -- tests/presentationState.spec.js
-npm run test:e2e -- tests/presentation.spec.js --project=chromium
-npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium
+npm test -- tests/presentation.spec.js --project=chromium
+npm test -- --config=playwright.presentation.config.js --project=chromium
 ```
 
 The new config's default is socket-on. Also run the explicit socket-off check in a fresh process/server; preserve any existing task variable value:
@@ -166,7 +166,7 @@ The new config's default is socket-on. Also run the explicit socket-off check in
 $previousSocketTestMode = $env:PRESENTATION_SOCKET_TEST_MODE
 try {
   $env:PRESENTATION_SOCKET_TEST_MODE = 'off'
-  npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium
+  npm test -- --config=playwright.presentation.config.js --project=chromium
 } finally {
   if ($null -eq $previousSocketTestMode) {
     Remove-Item Env:PRESENTATION_SOCKET_TEST_MODE -ErrorAction SilentlyContinue
@@ -185,7 +185,7 @@ At the integration checkpoint, run sequentially to avoid shared report/server co
 ```powershell
 npm run test:suite -- ux-presentation
 npm run test:suite -- regression-app
-npm run test:e2e -- --config=playwright.presentation.config.js
+npm test -- --config=playwright.presentation.config.js
 npm run test:critical
 npm run test:unit
 npm run build

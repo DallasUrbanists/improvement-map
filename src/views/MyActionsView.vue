@@ -1,7 +1,7 @@
 <template>
-  <MapTray ref="tray" title="My actions" @close="workspace.closeTray()" @scroll="workspace.saveViewState">
+  <FloatingModal ref="tray" class="saved-actions-modal" :open="true" :surface-level="2" label="Saved actions" form-factor="tall" position="left" :blocking="false"
+    :theme="isDark ? 'dark' : 'light'" @close="workspace.closeTray()" @scroll="workspace.saveViewState">
     <div class="actions-panel">
-      <p>Saved in this browser.</p>
       <p v-if="storageNotice" role="alert">{{ storageNotice }}</p>
       <p v-if="message" role="status">{{ message }} <button v-if="undoEntry" class="action-button" @click="undo">Undo</button></p>
       <p v-if="!savedActions.length">No saved actions yet. Save an action from an idea’s recommendations.</p>
@@ -12,11 +12,12 @@
       <p v-if="limit < savedActions.length">Showing {{ Math.min(limit, savedActions.length) }} of {{ savedActions.length }}</p>
       <button v-if="limit < savedActions.length" class="action-button" @click="limit += 10">Show 10 more</button>
     </div>
-  </MapTray>
+  </FloatingModal>
 </template>
 <script setup>
-import { inject, ref, nextTick } from 'vue';
-import MapTray from '../components/MapTray.vue';
+import { inject, ref, nextTick, onMounted } from 'vue';
+import FloatingModal from '../components/FloatingModal.vue';
+import { isDark } from '../services/theme';
 import ActionCard from '../components/ActionCard.vue';
 import { mapWorkspaceKey } from '../services/mapWorkspace';
 import { savedActions, removeAction, restoreAction, storageNotice } from '../services/localActions';
@@ -38,7 +39,8 @@ async function remove(key) {
     undoEntry.value = entry;
     message.value = 'Action removed.';
     await nextTick();
-    ([next, previous].find(el => el?.isConnected && el.matches('section'))?.querySelector('button') || document.querySelector('.map-tray-close'))?.focus();
+    ([next, previous].find(el => el?.isConnected && el.matches('section'))?.querySelector('button') || tray.value?.element?.querySelector('button'))?.focus();
   }
 }
+onMounted(async () => { await nextTick(); if (tray.value?.content) tray.value.content.scrollTop = workspace.getViewState()?.scroll || 0; });
 </script>

@@ -1,0 +1,40 @@
+import { expect, within } from 'storybook/test';
+import AppMenu from './AppMenu.vue';
+
+export default {
+  title: 'MENUS/App Menu',
+  component: AppMenu,
+  args: { surfaceLevel: 1, open: true },
+  argTypes: {
+    surfaceLevel: { control: { type: 'select', labels: { transparent: 'Transparent' } }, options: ['transparent', 0, 1, 2, 3, 4, 5], mapping: { transparent: null } },
+    open: { control: 'boolean', description: 'Whether the menu drawer is open.' },
+  },
+  parameters: {
+    layout: 'fullscreen',
+    controls: { include: ['surfaceLevel', 'open'] },
+    docs: { description: { component: 'Draft. App menu composition with a left-side Drawer, plain Idea Map Header Bar with a close action, and linked Menu Items for saved ideas, saved actions, the welcome guide, What’s new, and map settings.' } },
+  },
+  render: (args, { globals }) => ({
+    components: { AppMenu },
+    setup: () => ({ args, globalTheme: globals.theme }),
+    template: '<AppMenu v-model:open="args.open" :theme="globalTheme" :surface-level="args.surfaceLevel" />',
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const drawer = canvas.getByRole('complementary', { name: 'Drawer' });
+    await expect(canvasElement.querySelector('.drawer-shell--from-left')).toBeTruthy();
+    await expect(drawer).toHaveAttribute('data-open', 'true');
+    await expect(drawer.querySelector('.header-bar')).toHaveTextContent('Idea Map');
+    await expect(drawer.querySelector('.header-bar__close')).toHaveClass('header-bar__close--seamless-edge');
+    await expect(drawer.querySelector('.header-bar__close .square-icon-button__custom-icon')).toBeTruthy();
+    const labels = ['Saved ideas', 'Saved actions', 'Welcome guide', "What's new", 'Map settings'];
+    const links = Array.from(drawer.querySelectorAll('.menu-item__link'));
+    await expect(links).toHaveLength(labels.length);
+    for (const [index, label] of labels.entries()) {
+      await expect(links[index]).toHaveAccessibleName(label);
+      await expect(links[index].closest('.menu-item')).toHaveTextContent(label);
+    }
+  },
+};
+
+export const Default = {};

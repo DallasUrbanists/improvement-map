@@ -1,0 +1,7 @@
+**
+!package.json
+!package-lock.json
+!scripts/
+!scripts/playwright-task.js
+!scripts/local-development/
+!scripts/local-development/container-entrypoint.js

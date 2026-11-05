@@ -23,7 +23,7 @@ test('submission edits, draft resume, validation, upload failure and retry', asy
   await page.getByRole('button', { name: 'Remove photo 1', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Skip photos', exact: true })).toBeVisible();
   await page.locator('input[type=file]').first().setInputFiles({ name: 'crossing.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(photo.split(',')[1], 'base64') });
-  await page.getByTestId('photo-navigation-segment').getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Attach photos', exact: true }).locator('.floating-modal__footer').getByRole('button', { name: 'Next', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Describe your idea' })).toBeVisible();
   await page.locator('textarea').first().fill('short');
   await expect(page.getByTestId('step-three-navigation').getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
@@ -46,7 +46,7 @@ test('submission edits, draft resume, validation, upload failure and retry', asy
   await assertDraft(page, draftKey, { step: 1, details });
   await check('submit-reopened-at-locate');
   await page.getByTestId('pin-and-continue').click();
-  await page.getByTestId('photo-navigation-segment').getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Attach photos', exact: true }).locator('.floating-modal__footer').getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByTestId('step-three-navigation').getByRole('button', { name: 'Next', exact: true }).click();
   await page.locator('#input-author-name').fill('');
   await page.locator('#input-author-email').fill('invalid');

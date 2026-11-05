@@ -1,9 +1,10 @@
 <template>
   <div class="submission-view">
+    <Teleport to="body" :disabled="draft.step !== 2">
     <Transition :name="stepTransition" appear @before-leave="freezeLeavingStep">
-    <component ref="submissionStage" :is="draft.step === 1 ? 'div' : MapTray" :key="draft.step" class="submission-stage"
-      :class="{ 'submission-content-tray': draft.step === 3 || draft.step === 4 }"
-      v-bind="draft.step > 1 ? { title: currentStepTitle, scrollable: false, animate: false } : {}" @close="workspace.closeTray">
+    <component ref="submissionStage" :surface-level="2" :is="draft.step === 1 ? 'div' : draft.step === 2 ? FloatingModal : MapTray" :key="draft.step" class="submission-stage"
+      :class="{ 'submission-content-tray': draft.step === 3 || draft.step === 4, 'submission-photo-modal': draft.step === 2 }"
+      v-bind="draft.step === 2 ? { open: photoModalOpen, label: currentStepTitle, formFactor: 'tall', position: 'center', blocking: true, theme: isDark ? 'dark' : 'light', footerButtons: photoFooterButtons } : draft.step > 1 ? { title: currentStepTitle, scrollable: false, animate: false } : {}" @close="workspace.closeTray">
     <template v-if="draft.step === 3" #header>
       <h1>{{ currentStepTitle }}</h1>
       <div class="description-feedback" aria-live="polite">
@@ -278,18 +279,6 @@
 
       </div>
 
-      <div data-testid="photo-step-controls" class="submission-navigation">
-        <div data-testid="photo-navigation-segment" class="submission-button-row" role="group" aria-label="Photo step navigation">
-                  <button type="button" class="map-ui-button" @click="prevStep">
-            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-            Back
-          </button>
-          <button type="button" class="map-ui-button is-primary" @click="nextStep">
-            {{ draft.photos?.length ? 'Next' : 'Skip photos' }}
-            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-          </button>
-        </div>
-      </div>
     </div>
 
     <Teleport to="body"><k-toast
@@ -523,6 +512,9 @@
         <p v-if="submissionStatus !== 'success'" class="submission-status-message text-sm mb-6 px-2 min-h-[40px] flex items-center justify-center" role="status">
           {{ dynamicProgressMessage }}
         </p>
+        <p v-if="submissionThumbnailNotice && submissionStatus !== 'failed'" class="text-sm mb-4" role="status">
+          {{ submissionThumbnailNotice }}
+        </p>
 
         <!-- Progress Bar -->
         <div v-if="submissionStatus === 'submitting'" class="w-full mb-6">
@@ -575,6 +567,7 @@
     </div></Teleport>
     </component>
     </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -616,10 +609,13 @@ import { resizeImage } from '../services/image';
 import { createSpeechRecorder } from '../services/speechRecognition';
 import { isDark } from '../services/theme';
 import MapTray from '../components/MapTray.vue';
+import FloatingModal from '../components/FloatingModal.vue';
 import { mapWorkspaceKey } from '../services/mapWorkspace';
 import PhotoSlider from '../components/PhotoSlider.vue';
 import { browseMapInitialization, sharedBrowseMap } from '../services/sharedBrowseMap';
 import { reverseGeocodeWithGoogle } from '../services/googleMaps';
+import { createOptionalLocationThumbnail } from '../services/submissionThumbnail.js';
+import { restoreSubmissionPhotoBlob } from '../services/submissionPhoto.js';
 
 const router = useRouter();
 const workspace = inject(mapWorkspaceKey);
@@ -629,6 +625,11 @@ const setSubmitting = inject('setSubmitting', () => {});
 const draft = reactive(loadWizardDraft());
 const detailsInput = ref(null);
 const submissionStage = ref(null);
+const photoModalOpen = ref(true);
+const photoFooterButtons = computed(() => [
+  { label: 'Back', icon: 'arrow-left', onClick: prevStep },
+  { label: draft.photos?.length ? 'Next' : 'Skip photos', icon: 'arrow-right', onClick: nextStep },
+]);
 const stepTransition = ref('map-tray');
 let trayHeightAnimation = null;
 function freezeLeavingStep(element) {
@@ -746,6 +747,7 @@ const showSubmissionOverlay = ref(false);
 const submissionStatus = ref('submitting');
 const submissionProgress = ref(0);
 const dynamicProgressMessage = ref('');
+const submissionThumbnailNotice = ref('');
 const createdSuggestionId = ref('');
 const submissionErrorMessage = ref('');
 const isSubmissionPreview = ref(false);
@@ -979,6 +981,7 @@ watch(() => draft.step, (step, previousStep) => {
 
 onActivated(() => {
   isSubmitViewActive = true;
+  photoModalOpen.value = true;
   nextTick(resizeDetailsInput);
   window.addEventListener('resize', resizeDetailsInput);
   focusDescriptionInput();
@@ -1000,6 +1003,7 @@ function deactivateSpeechRecorder() {
   closeSubmissionPreview();
   window.removeEventListener('keydown', handleSubmissionPreviewShortcut);
   isSubmitViewActive = false;
+  photoModalOpen.value = false;
   trayHeightAnimation?.cancel();
   trayHeightAnimation = null;
   window.removeEventListener('resize', resizeDetailsInput);
@@ -1330,6 +1334,7 @@ async function submitFinalSuggestion() {
   setSubmitting(true);
   showSubmissionOverlay.value = true;
   submissionStatus.value = 'submitting';
+  submissionThumbnailNotice.value = '';
   submissionProgress.value = 10;
   dynamicProgressMessage.value = 'Preparing suggestion data...';
 
@@ -1348,29 +1353,27 @@ async function submitFinalSuggestion() {
         import('../services/railCatalog'),
       ]);
       dynamicProgressMessage.value = 'Generating location thumbnail…';
-      const { data } = await fetchLocationData({
-        lat: location.latitude,
-        lon: location.longitude,
-      }, {
-        onProgress: (message) => { dynamicProgressMessage.value = message; },
+      const thumbnail = await createOptionalLocationThumbnail({
+        acquire: () => fetchLocationData({ lat: location.latitude, lon: location.longitude }, {
+          onProgress: (message) => { dynamicProgressMessage.value = message; },
+        }),
+        render: ({ data }) => generateVersionTwoLocationDiagram(data, { ...data.center, railCatalog }).svg,
+        upload: async (svg) => {
+          submissionProgress.value = 15;
+          dynamicProgressMessage.value = 'Uploading location thumbnail…';
+          const thumbnailType = 'image/svg+xml';
+          const { uploadUrl, publicUrl } = await requestPhotoUploadUrl({
+            contentType: thumbnailType, filename: 'location-diagram.svg',
+          });
+          await uploadPhotoBinary(uploadUrl, new Blob([svg], { type: thumbnailType }), thumbnailType);
+          return { url: publicUrl, caption: 'Location diagram', timestamp: new Date().toISOString() };
+        },
+        onUnavailable: () => {
+          submissionThumbnailNotice.value = 'The map preview was unavailable. Your location and any added photos are included.';
+          dynamicProgressMessage.value = 'Map preview unavailable; continuing submission…';
+        },
       });
-      const { svg } = generateVersionTwoLocationDiagram(data, {
-        ...data.center,
-        railCatalog,
-      });
-      submissionProgress.value = 15;
-      dynamicProgressMessage.value = 'Uploading location thumbnail…';
-      const thumbnailType = 'image/svg+xml';
-      const { uploadUrl: thumbnailUploadUrl, publicUrl: thumbnailUrl } = await requestPhotoUploadUrl({
-        contentType: thumbnailType,
-        filename: 'location-diagram.svg',
-      });
-      await uploadPhotoBinary(thumbnailUploadUrl, new Blob([svg], { type: thumbnailType }), thumbnailType);
-      uploadedPhotos.push({
-        url: thumbnailUrl,
-        caption: 'Location diagram',
-        timestamp: new Date().toISOString(),
-      });
+      if (thumbnail) uploadedPhotos.push(thumbnail);
     }
 
     const photosToUpload = (draft.photos || []).filter((p) => p.blob || p.url || p.dataUrl);
@@ -1383,25 +1386,14 @@ async function submitFinalSuggestion() {
         submissionProgress.value = Math.round(15 + i * stepPercent);
         dynamicProgressMessage.value = `Uploading photo ${i + 1} of ${photosToUpload.length}...`;
 
-        // If blob is missing (e.g. restored from localStorage draft), reconstitute from dataUrl
-        let photoBlob = p.blob;
-        if (!photoBlob && p.dataUrl && p.dataUrl.startsWith('data:')) {
-          try {
-            const res = await fetch(p.dataUrl);
-            photoBlob = await res.blob();
-          } catch (e) {
-            console.warn('Failed to convert dataUrl to blob:', e);
-          }
-        }
+        const photoBlob = await restoreSubmissionPhotoBlob(p);
 
         const { uploadUrl, publicUrl } = await requestPhotoUploadUrl({
           contentType: 'image/webp',
           filename: p.name || `photo-${i + 1}.webp`,
         });
 
-        if (photoBlob) {
-          await uploadPhotoBinary(uploadUrl, photoBlob, 'image/webp');
-        }
+        await uploadPhotoBinary(uploadUrl, photoBlob, 'image/webp');
 
         uploadedPhotos.push({
           url: publicUrl,

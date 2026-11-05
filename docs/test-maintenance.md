@@ -7,7 +7,7 @@ Run focused tests while editing, then use the integration matrix:
 npm run test:unit
 
 # A browser feature on desktop
-npm run test:e2e -- tests/mapWorkspace.spec.js --project=chromium
+npm test -- tests/mapWorkspace.spec.js --project=chromium
 
 # All pure cases once and browser cases on desktop and mobile Chromium
 npm test
@@ -40,11 +40,11 @@ remain deterministic. The connection suite's default is socket-on; use
 Both modes select tagged tests and can be checked without starting Vite:
 
 ```powershell
-npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium --list
+npm test -- --config=playwright.presentation.config.js --project=chromium --list
 $previousSocketTestMode = $env:PRESENTATION_SOCKET_TEST_MODE
 try {
   $env:PRESENTATION_SOCKET_TEST_MODE = 'off'
-  npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium --list
+  npm test -- --config=playwright.presentation.config.js --project=chromium --list
 } finally {
   if ($null -eq $previousSocketTestMode) {
     Remove-Item Env:PRESENTATION_SOCKET_TEST_MODE -ErrorAction SilentlyContinue
@@ -67,7 +67,7 @@ filter. For example:
 
 ```powershell
 npm run test:unit -- tests/speechRecognition.spec.js
-npm run test:e2e -- tests/speechRecognition.spec.js tests/e2e.spec.js --project=chromium --grep speech --grep-invert @unit
+npm test -- tests/speechRecognition.spec.js tests/e2e.spec.js --project=chromium --grep speech --grep-invert @unit
 ```
 
 Regression artifacts live in `test-results/regression`; UX artifacts live in
@@ -123,3 +123,36 @@ review-controlled and were not regenerated.
 This work preserves both renderer features. Blocked microphone coverage checks
 the current actionable error and editable text; adding keyboard-dictation
 guidance remains a separate product decision.
+
+## Storybook coverage ownership
+
+The October 24, 2026 cleanup removes repeated decorative CSS expectations from
+Storybook tests. Tests should protect an agreed contract or a known defect,
+rather than freeze every value produced by the current stylesheet. Palette,
+radius, shadow, typography, gradient implementation and pseudo-element geometry
+changes are reviewed in the existing catalog/state screenshots. The catalog's
+unapproved screenshots remain candidates, with `visual-review-pending`; no
+baseline was approved as part of this cleanup.
+
+| Concern | Owner after cleanup |
+| --- | --- |
+| Header Bar and Toolbar content, accessible actions, disabled states and emitted events | Adjacent `.stories.js` play functions; the duplicate `header-bar.spec.js` and `toolbar.spec.js` files were removed. Catalog screenshots retain their appearance review. |
+| Button click/keyboard behavior and disabled suppression | Button story play functions. Browser specs retain configurable label/icon checks, native focus behavior and Square Icon Button state captures. |
+| Theme and surface token mapping | Representative Text Button and Contained Section story assertions. Consumers check passed surface levels instead of repeating exact palette values. |
+| Published Colors reference and contrast | `tests/storybook/colors-doc.spec.js`; token exports use current shared values rather than copied hex literals. |
+| Tab selection, selected panel, keyboard focus, padding and Browse List sorting/bookmarks | Tabbar, Tab Navigation and Browse List story play functions. Tab seams and inactive-tab appearance are reviewed visually. |
+| Usable geometry and focus indicators | Row-wide action bounds, joined input/action bounds, input containment, drawer edge/drag checks and Idea Row keyboard focus indication. |
+| Modal solid border and independent scrolling | Floating Modal story assertions retain the explicitly requested solid border on each side, without fixing its thickness, plus scrolling-container behavior. |
+| Main app Floating Modal migration | `tests/floatingModalMigration.spec.js` covers the seven configurations, saved-panel route exits and non-blocking controls, settings persistence/focus handoff, welcome/release exits and focus trapping, and photo draft/navigation/footer behavior. Existing app journeys keep their routing, persistence, undo and cross-tab assertions, with selectors updated from tray regions and native dialogs to named Floating Modal dialogs and the shared Close action. Blocking Attach photos intentionally prevents menu excursions until it closes; draft refresh/history coverage remains. |
+| Rendering, isolation and screenshot review | `tests/storybook/catalog.spec.js`; storage/network isolation and page error checks remain. |
+
+Application routing, persistence, recovery, map and cross-component journey
+assertions were outside this cleanup and remain with their existing suites.
+
+Cleanup verification: JavaScript syntax checks passed for all 28 remaining
+story/spec files, the isolated Storybook build passed, and the browser config
+discovered 360 tests across six files. `git diff --check` passed. The component
+run executed no tests: system Chrome could not reach Vitest's local server in
+the sandbox (`ERR_NETWORK_ACCESS_DENIED`). Interaction/accessibility results
+therefore still need a run in an environment that permits local browser access.
+Build, discovery and run logs are in `test-results/storybook-cleanup/`.

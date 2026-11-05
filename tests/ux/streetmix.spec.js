@@ -42,12 +42,14 @@ async function setup(page, initial = empty, respond, imageStatus = 200) {
   });
   return { calls, imageCalls };
 }
-const section = page => page.locator('.streetmix-accordion');
+const section = page => page.locator('.streetmix-content');
 const dialog = page => page.getByRole('dialog', { name: 'Streetmix', exact: true });
 const posts = calls => calls.filter(c => c.method === 'POST');
 async function visit(page) {
   await page.goto('/suggestion/1');
   await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
+  await page.getByRole('button', { name: 'Streetmix', exact: true }).click();
+  await expect(section(page)).toBeVisible();
   await expect(section(page).getByRole('button', { name: /Create design|Choose street/ })).toBeEnabled();
 }
 async function openCreation(page) {
@@ -67,17 +69,13 @@ async function mapSupport(page) {
   });
 }
 
-test('saved design is only an inline PNG and external header icon', async ({ page }) => {
+test('saved design preview and Streetmix link are visible without an accordion', async ({ page }) => {
   const { imageCalls } = await setup(page, design);
-  await page.goto('/suggestion/1');
-  await expect(section(page).locator('summary')).toBeVisible();
-  expect(imageCalls).toHaveLength(0);
+  await visit(page);
+  await expect(section(page).locator('img')).toHaveAttribute('src', /^blob:/);
   const link = section(page).getByRole('link', { name: 'Open in Streetmix' });
   await expect(link).toHaveAttribute('href', design.result.streetmixUrl);
   await expect(link).toHaveAttribute('target', '_blank');
-  await expect(link.locator('i')).toHaveAttribute('aria-hidden', 'true');
-  await section(page).locator('summary').click();
-  await expect(section(page).locator('img')).toHaveAttribute('src', /^blob:/);
   await expect.poll(() => section(page).locator('img').evaluate(img => img.naturalWidth)).toBe(720);
   await expect(page.locator('iframe, .detail-sheet[open]')).toHaveCount(0);
   await expect(section(page).getByText(/Widths are estimated|carriageway|previous location|Regenerate/)).toHaveCount(0);
@@ -87,18 +85,17 @@ test('saved design is only an inline PNG and external header icon', async ({ pag
 
 test('missing thumbnail leaves the external link usable', async ({ page }) => {
   await setup(page, design, undefined, 404);
-  await page.goto('/suggestion/1'); await section(page).locator('summary').click();
+  await visit(page);
   await expect(section(page).getByText('Preview unavailable.')).toBeVisible();
   await expect(section(page).getByRole('link', { name: 'Open in Streetmix' })).toBeVisible();
 });
 
-test('empty accordion is locked; its header opens creation without publishing', async ({ page }) => {
+test('empty Streetmix content is visible and its primary pill opens creation without publishing', async ({ page }) => {
   const { calls } = await setup(page);
   await visit(page);
   await expect(section(page)).toHaveClass(/streetmix-locked/);
+  await expect(section(page).getByText('Create a street cross-section for this location.')).toBeVisible();
   await expect(section(page).locator('summary')).toHaveCount(0);
-  await section(page).getByRole('heading', { name: 'Streetmix' }).click();
-  await expect(dialog(page)).not.toBeVisible();
   await openCreation(page);
   await expect(dialog(page).getByRole('button', { name: 'Create design', exact: true })).toBeVisible();
   expect(posts(calls)).toHaveLength(0);
@@ -230,7 +227,7 @@ for (const size of [{ width: 360, height: 880 }, { width: 320, height: 568 }, { 
     expect(pic.width).toBeLessThan(tray.width);
     await expect(page.locator('.detail-sheet[open], iframe')).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('inline-png.png') });
-    const results = await new AxeBuilder({ page }).include('.streetmix-accordion').analyze();
+    const results = await new AxeBuilder({ page }).include('.streetmix-content').analyze();
     expect(results.violations).toEqual([]);
   });
 }

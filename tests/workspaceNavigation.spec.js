@@ -37,7 +37,7 @@ test('map controls stay in the requested positions across map views', async ({ p
   expect(layout.create.width).toBe(72);
   expect(layout.create.height).toBe(72);
   await page.goto('/suggestion/1');
-  await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Idea details', exact: true })).toBeVisible();
   await expect(create).toHaveCSS('z-index', '10');
   await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'New', exact: true })).toBeVisible();
@@ -47,24 +47,24 @@ test('map actions open Browse and New, and Style Settings switches map imagery',
   await page.goto('/');
   await expect(page).toHaveTitle('Browse ideas | Improvement Map');
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Browse ideas' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Browse ideas', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel pin', exact: true }).click();
   await expect(page.getByTestId('pin-and-continue')).toHaveCount(0);
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Browse ideas' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Browse ideas', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await page.getByRole('radio', { name: 'Satellite' }).check();
-  await page.getByRole('button', { name: 'Close Style Settings' }).click();
-  await expect(page.locator('dialog.style-settings-dialog')).toBeHidden();
+  await page.getByRole('dialog', { name: 'Style settings', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Style settings', exact: true })).toBeHidden();
   await page.reload();
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Satellite' })).toBeChecked();
   await page.getByRole('radio', { name: 'Streets' }).check();
-  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await page.getByRole('dialog', { name: 'Style settings', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Style settings', exact: true })).toBeVisible();
 });
@@ -82,7 +82,7 @@ test('theme follows the system until a manual choice and remembers that choice',
   await expect(page.locator('.theme-choice-light')).toHaveCount(2);
   expect(await page.locator('.theme-choice').evaluateAll(choices => choices.map(choice => choice.textContent.trim()))).toEqual(['System', 'Light', 'Dark']);
   await expect(page.locator('.map-style-choice').first()).toHaveCSS('background-image', /map-style-streets-light\.png/);
-  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await page.getByRole('dialog', { name: 'Style settings', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await page.getByRole('radio', { name: 'Dark', exact: true }).check();
   await expect(page.locator('html')).toHaveClass(/dark/);
@@ -90,7 +90,7 @@ test('theme follows the system until a manual choice and remembers that choice',
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await page.getByRole('radio', { name: 'Light', exact: true }).check();
-  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await page.getByRole('dialog', { name: 'Style settings', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await expect(page.getByRole('menuitemcheckbox', { name: 'Dark mode' })).toHaveAttribute('aria-checked', 'false');
   await page.emulateMedia({ colorScheme: 'dark' });
@@ -105,8 +105,8 @@ test('style settings persist marker size and rail visibility', async ({ page }) 
   const styleRatio = await page.locator('.map-style-choice').first().evaluate(el => el.getBoundingClientRect().width / el.getBoundingClientRect().height);
   expect(styleRatio).toBeCloseTo(1.5, 1);
   await page.getByRole('button', { name: 'More map settings' }).click();
-  await expect(page.getByRole('heading', { name: 'Map settings' })).toBeVisible();
-  await page.getByRole('button', { name: 'Close Map settings' }).click();
+  await expect(page.getByRole('dialog', { name: 'Map settings', exact: true })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Map settings', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Style settings', exact: true })).toBeFocused();
   await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Search address or neighborhood', exact: true })).toHaveCount(0);
@@ -117,14 +117,14 @@ test('style settings persist marker size and rail visibility', async ({ page }) 
   await expect(page.getByRole('checkbox', { name: 'Show rail lines' })).toHaveCSS('border-top-width', '0px');
   await expect(page.getByRole('checkbox', { name: 'Show rail lines' })).toHaveCSS('padding-left', '0px');
   await expect(page.getByLabel('Rail line thickness')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await page.getByRole('dialog', { name: 'Style settings', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.reload();
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await expect(page.getByLabel('Icon size')).toHaveValue('125');
   await expect(page.getByRole('checkbox', { name: 'Show rail lines' })).not.toBeChecked();
-  await page.getByRole('button', { name: 'Close Style Settings' }).click();
+  await page.getByRole('dialog', { name: 'Style settings', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.goto('/suggestion/1');
-  await expect(page.locator('.submission-detail-tray')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.locator('.submission-detail-tray')).not.toHaveAttribute('aria-busy', 'true');
   await page.getByRole('button', { name: 'Style settings', exact: true }).click();
   await page.getByRole('radio', { name: 'Satellite' }).check();
   await page.reload();
@@ -170,7 +170,7 @@ test('Browse sorting survives reload and long details remain scrollable', async 
   await page.evaluate(() => { window.__ux.details = 'A safer crossing for everyone. '.repeat(300); });
   await page.locator('[data-suggestion-id="1"]').click();
   await page.getByRole('button', { name: 'Expand details' }).click();
-  const scroller = page.getByRole('region', { name: 'Idea details', exact: true }).locator('.map-tray-content');
+  const scroller = page.getByRole('complementary', { name: 'Idea details', exact: true }).locator('.tray__body');
   await expect.poll(() => scroller.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
   await scroller.evaluate(el => { el.scrollTop = el.scrollHeight; });
   await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
@@ -191,4 +191,27 @@ test('author profile survives reload and a completed submission resets the draft
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_author_profile'))))
     .toEqual({ name: 'Alex Mercer', email: 'alex@example.com' });
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_wizard_draft_v1'))?.details || '')).toBe('');
+});
+
+
+test('detail scroll position survives a history return from saved actions', async ({ page }) => {
+  await page.goto('/?view=map');
+  await page.evaluate(async () => {
+    window.__ux.details = 'A safer crossing for everyone. '.repeat(300);
+    const { default: router } = await import('/src/router/index.js');
+    await router.push('/suggestion/1');
+  });
+  const detail = page.getByRole('complementary', { name: 'Idea details', exact: true });
+  const body = detail.locator('.tray__body');
+  await expect(page.getByRole('button', { name: 'Expand details' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Expand details' }).click();
+  await expect.poll(() => body.evaluate(el => el.scrollHeight - el.clientHeight)).toBeGreaterThan(300);
+  await body.evaluate(el => { el.scrollTop = 200; });
+  await expect.poll(() => page.evaluate(() => history.state.ideaView?.scroll)).toBe(200);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('link', { name: 'Saved actions', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Saved actions', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(detail).toBeVisible();
+  await expect.poll(() => body.evaluate(el => el.scrollTop)).toBe(200);
 });

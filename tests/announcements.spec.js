@@ -10,17 +10,17 @@ async function seed(page, acknowledged = '5.1.0', skipWelcome = true) {
 }
 test('first visit: approved welcome, opt out, manual history and safe Markdown', async ({ page }) => {
   await page.goto('/');
-  const dialog = page.getByRole('dialog', { name: 'Welcome & guide' });
+  const dialog = page.getByRole('dialog', { name: 'Welcome guide' });
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('h3').first()).toHaveText('Share an idea');
   await expect(page.getByText('Help shape a better Dallas.')).toHaveCount(0);
   await dialog.getByRole('checkbox').check();
   await dialog.getByRole('button', { name: 'Go to app' }).click();
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page.locator('dialog[open], .floating-modal[aria-modal="true"]')).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: "What's new" }).click();
+  await page.getByRole('link', { name: "What's new" }).click();
   await expect(page.locator('.announcement-release')).toHaveCount(3);
   await expect(page.getByText('Release history', { exact: true })).toHaveCount(0);
   await expect(page.locator('.release-markdown script, .release-markdown a[href^="javascript:"]')).toHaveCount(0);
@@ -36,16 +36,16 @@ test('returning visitor sees welcome then all unseen releases, acknowledgement s
   await page.getByRole('button', { name: 'Got it' }).click();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page.locator('dialog[open], .floating-modal[aria-modal="true"]')).toHaveCount(0);
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).acknowledged, key)).toBe('5.3.0');
 });
 test('direct idea link defers updates until Browse and keeps the route', async ({ page }) => {
   await seed(page);
   await page.goto('/suggestion/1');
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page.locator('dialog[open], .floating-modal[aria-modal="true"]')).toHaveCount(0);
   await expect(page).toHaveURL(/suggestion\/1/);
-  await page.getByRole('button', { name: 'Close Idea details', exact: true }).click();
+  await page.getByRole('button', { name: 'Close idea', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Got it' })).toBeVisible();
 });
 test('blocked preference writes use in-memory state without reopening', async ({ page }) => {
@@ -57,7 +57,7 @@ test('blocked preference writes use in-memory state without reopening', async ({
   await expect(page.getByText('Preferences cannot be remembered in this browser. You can still use the app.')).toBeVisible();
   await page.getByRole('button', { name: 'Go to app' }).click();
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page.locator('dialog[open], .floating-modal[aria-modal="true"]')).toHaveCount(0);
 });
 test('competing dialog defers announcements and keyboard focus stays inside', async ({ page }) => {
   await page.addInitScript(() => {
@@ -94,7 +94,7 @@ test('cross-tab acknowledgement closes stale updates; rollback and offline do no
   await expect(page.locator('.announcement-dialog')).not.toBeVisible();
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: "What's new" }).click();
+  await page.getByRole('link', { name: "What's new" }).click();
   await expect(page.locator('.announcement-release')).toHaveCount(3);
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).acknowledged, key)).toBe('5.4.0');

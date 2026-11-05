@@ -5,7 +5,7 @@ import SubmissionDetailView from '../views/SubmissionDetailView.vue';
 
 const routes = [
   { path: '/bookmarks', name: 'Bookmarks', component: () => import('../views/BookmarksView.vue'), meta: { title: 'Saved ideas | Improvement Map' } },
-  { path: '/my-actions', name: 'MyActions', component: () => import('../views/MyActionsView.vue'), meta: { title: 'My actions | Improvement Map' } },
+  { path: '/my-actions', name: 'MyActions', component: () => import('../views/MyActionsView.vue'), meta: { title: 'Saved actions | Improvement Map' } },
   {
     path: '/',
     alias: ['/browse'],

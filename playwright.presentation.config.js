@@ -32,7 +32,7 @@ export default defineConfig({
     serviceWorkers: 'block',
   },
   webServer: {
-    command: 'npm run dev -- --config vite.ux.config.js --host 127.0.0.1 --port 5175 --strictPort',
+    command: 'npm run dev:provider -- --config vite.ux.config.js --host 127.0.0.1 --port 5175 --strictPort',
     url: appUrl,
     reuseExistingServer: false,
     timeout: 120_000,

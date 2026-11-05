@@ -59,7 +59,7 @@ The focused HTTP presentation regression command automatically starts a fresh
 Vite server on `127.0.0.1:5176` with the mock API origin and WebSockets disabled:
 
 ```powershell
-npm run test:e2e -- tests/presentation.spec.js --project=chromium --workers=1
+npm test -- tests/presentation.spec.js --project=chromium --workers=1
 ```
 
 Your development server on port 5173 can remain running. Reusing it would inherit
@@ -77,16 +77,16 @@ Firestore emulator integration.
 
 ```powershell
 # Socket-enabled Chromium run; the config defaults to on.
-npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium
+npm test -- --config=playwright.presentation.config.js --project=chromium
 
 # Discover selected socket-on tests without starting a server.
-npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium --list
+npm test -- --config=playwright.presentation.config.js --project=chromium --list
 
 # Fresh-server socket-off run, with the prior task-specific value restored.
 $previousSocketTestMode = $env:PRESENTATION_SOCKET_TEST_MODE
 try {
   $env:PRESENTATION_SOCKET_TEST_MODE = 'off'
-  npm run test:e2e -- --config=playwright.presentation.config.js --project=chromium
+  npm test -- --config=playwright.presentation.config.js --project=chromium
 } finally {
   if ($null -eq $previousSocketTestMode) {
     Remove-Item Env:PRESENTATION_SOCKET_TEST_MODE -ErrorAction SilentlyContinue

@@ -7,7 +7,15 @@ later releases are acknowledged only on dismissal. Storage is browser-local.
 
 ## Publishing
 
-1. Use the existing `npm run patch`, `minor`, or `major` version command. Stable
+Ordinary PRs target staging. Promote the tested batch with a regular merge PR
+from staging to main; merge main hotfixes back into staging. See
+[staging operations](deployment/firebase-staging.md) for configuration, acceptance
+and rollback. Staging never creates releases. Manual production dispatch requires
+main; release events retain their existing main-source behavior.
+
+1. On main, use `npm run release -- patch` (or `minor` / `major` in place of `patch`).
+   This creates a version commit and tag, then pushes main and tags to origin. The `preversion` guard
+   rejects other branches. Stable
    `vMAJOR.MINOR.PATCH` tags trigger **Prepare release draft**.
 2. Review the draft in GitHub Releases. Describe user-visible changes in plain
    language; add any direct commits missing from PR-generated notes. PR labels
@@ -39,6 +47,6 @@ raw HTML and images and allows only HTTP(S) links. Corrections to a release do n
 reopen its announcement; a rollback never reduces the acknowledgement watermark.
 
 Validation: `node --test tests/releases.node.mjs`,
-`npm run test:e2e -- tests/announcements.spec.js --project=chromium`, and
+`npm test -- tests/announcements.spec.js --project=chromium`, and
 `npm run test:ux -- announcements.spec.js`. Existing app-journey test configurations
 seed an opted-out browser; announcement tests explicitly start with empty storage.

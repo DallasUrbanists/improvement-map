@@ -27,12 +27,14 @@ function geometryAtZoom(catalog, worldWidth, project, thickness) {
 }
 
 /** Rail tiles followed by Google label tiles: both use Maps' managed tile lifecycle. */
-export function createGoogleMapsRailOverlay(map, maps, catalog) {
+export function createGoogleMapsRailOverlay(map, maps, catalog, options = {}) {
   const tiles = new Map();
   let labelsMapType = null;
   let labelSignature = '';
   let disposed = false;
   let visible = railVisible.value;
+  let thicknessOverride = Number.isFinite(options.thickness) ? options.thickness : null;
+  let currentThickness = thicknessOverride ?? railThickness.value;
   const projectWorld = (lat, lng, size) => {
     const sin = Math.sin(Math.max(-85.05112878, Math.min(85.05112878, lat)) * Math.PI / 180);
     return { x: (lng + 180) / 360 * size, y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size };
@@ -45,7 +47,7 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
       return { x: pixel.x - anchor.x, y: pixel.y - anchor.y };
     };
     svg.setAttribute('viewBox', `${coord.x * 256 - anchor.x} ${coord.y * 256 - anchor.y} 256 256`);
-    svg.innerHTML = geometryAtZoom(catalog, size, project, railThickness.value);
+    svg.innerHTML = geometryAtZoom(catalog, size, project, currentThickness);
   };
   const railMapType = {
     tileSize: new maps.Size(256, 256), minZoom: 0, maxZoom: 24,
@@ -68,8 +70,13 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
     }
   };
   if (visible) map.overlayMapTypes.push(railMapType);
-  const stopThicknessWatch = watch(railThickness, () => {
+  const redrawTiles = () => {
     for (const [tile, { coord, zoom }] of tiles) paintTile(tile, coord, zoom);
+  };
+  const stopThicknessWatch = watch(railThickness, value => {
+    if (thicknessOverride !== null) return;
+    currentThickness = value;
+    redrawTiles();
   }, { flush: 'sync' });
   const lockCamera = () => {
     if (map.getHeading()) map.setHeading(0);
@@ -89,6 +96,12 @@ export function createGoogleMapsRailOverlay(map, maps, catalog) {
         labelsMapType = null;
         labelSignature = '';
       }
+    },
+    setThickness(value) {
+      if (disposed || !Number.isFinite(value)) return;
+      thicknessOverride = Math.max(1, Math.min(9, Math.round(value)));
+      currentThickness = thicknessOverride;
+      redrawTiles();
     },
     update({ styles, mapType }) {
       if (disposed || !visible) return;

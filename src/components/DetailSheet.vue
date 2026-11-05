@@ -3,7 +3,7 @@
     <dialog ref="dialog" class="map-ui detail-sheet" :aria-labelledby="titleId" @cancel.prevent="close" @keydown.esc.stop.prevent="close" @click="backdrop" @close="closed">
       <header class="map-tray-header">
         <div class="map-tray-heading"><h2 :id="titleId">{{ title }}</h2></div>
-        <button type="button" class="map-ui-button map-tray-close" :aria-label="`Close ${title}`" autofocus @click="close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        <MapControlButton class="map-tray-close" :aria-label="`Close ${title}`" autofocus @click="close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></MapControlButton>
       </header>
       <div class="detail-sheet-content"><slot v-if="modelValue" /></div>
       <footer v-if="$slots.footer" class="detail-sheet-footer"><slot name="footer" /></footer>
@@ -12,6 +12,7 @@
 </template>
 <script setup>
 import { ref, watch, nextTick, useId, onBeforeUnmount } from 'vue';
+import MapControlButton from './MapControlButton.vue';
 const props = defineProps({ modelValue: Boolean, title: { type: String, required: true } });
 const emit = defineEmits(['update:modelValue']);
 const dialog = ref(null), titleId = useId();

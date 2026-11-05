@@ -14,7 +14,8 @@ const profiles = [
 ];
 
 export default defineConfig({
-  testDir: './tests/ux',
+  testDir: './tests',
+  testMatch: '**/ux/**/*.spec.js',
   testIgnore: '**/live.spec.js',
   timeout: 90000,
   expect: { timeout: 8000 },
@@ -26,7 +27,7 @@ export default defineConfig({
   reporter,
   // Missing baselines must be reviewed, never silently accepted.
   updateSnapshots: 'none',
-  snapshotPathTemplate: '{testDir}/snapshots/{platform}/{projectName}/{arg}{ext}',
+  snapshotPathTemplate: '{testDir}/ux/snapshots/{platform}/{projectName}/{arg}{ext}',
   use: {
     actionTimeout: 10000,
     storageState: { cookies: [], origins: [{ origin: 'http://127.0.0.1:5174', localStorage: [{ name: 'improvement_map_announcements_v1', value: JSON.stringify({ version: 1, initialized: true, skipWelcome: true, acknowledged: '5.3.0' }) }] }] },
@@ -35,7 +36,7 @@ export default defineConfig({
     reducedMotion: 'reduce', locale: 'en-US', timezoneId: 'America/Chicago',
   },
   webServer: {
-    command: 'npm run dev -- --config vite.ux.config.js --host 127.0.0.1 --port 5174 --strictPort',
+    command: 'npm run dev:provider -- --config vite.ux.config.js --host 127.0.0.1 --port 5174 --strictPort',
     url: 'http://127.0.0.1:5174', reuseExistingServer: false,
     timeout: 120000,
     env: {

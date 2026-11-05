@@ -11,6 +11,7 @@ lerna-debug.log*
 node_modules/
 dist/
 dist-ssr/
+storybook-static/
 *.local
 
 # Environment variables & secrets
@@ -18,6 +19,8 @@ dist-ssr/
 .env.*
 !.env.example
 gcp-key.json
+gha-creds-*.json
+.firebase/
 *.pem
 
 # Editor / IDE
@@ -50,3 +53,5 @@ playwright/.cache/
 ehthumbs.db
 Thumbs.db
 
+# Storybook
+/storybook-static/

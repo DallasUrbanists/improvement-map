@@ -1,23 +1,18 @@
 <template>
-  <section v-if="!hasDesign" class="detail-accordion streetmix-accordion streetmix-locked" aria-label="Streetmix">
-    <div class="streetmix-header">
-      <h3 class="font-bold">Streetmix</h3>
-      <button type="button" class="action-button" :disabled="loading" @click="$event.currentTarget.focus({ preventScroll: true }); full = true">{{ selecting ? 'Choose street' : 'Create design' }}</button>
-    </div>
-  </section>
-  <section v-else class="detail-accordion streetmix-accordion streetmix-generated" aria-label="Streetmix">
-    <details class="detail-accordion" :open="expanded" @toggle="expanded = $event.currentTarget.open">
-    <summary ref="heading" class="font-bold">Streetmix</summary>
+  <div v-if="!hasDesign" class="streetmix-content streetmix-locked" :theme="theme" :surface-level="surfaceLevel" :padded="true">
+    <p>Create a street cross-section for this location.</p>
+    <PillText :label="selecting ? 'Choose street' : 'Create design'" size="regular" variant="primary" :onclick="openCreation" />
+  </div>
+  <div v-else class="streetmix-content streetmix-generated" :theme="theme" :surface-level="surfaceLevel" :padded="true">
     <div class="streetmix-preview">
-      <template v-if="expanded && !imageFailed">
+      <template v-if="!imageFailed">
         <p v-if="!imageLoaded" role="status">Loading design…</p>
         <img v-if="imageUrl" :key="imageUrl" :src="imageUrl" alt="Generated Streetmix design" referrerpolicy="no-referrer" @load="imageLoaded = true" @error="imageFailed = true" />
       </template>
-      <p v-else-if="expanded" role="status">Preview unavailable.</p>
+      <p v-else role="status">Preview unavailable.</p>
+      <a v-if="editorUrl" class="action-button" :href="editorUrl" target="_blank" rel="noopener noreferrer">Open in Streetmix</a>
     </div>
-    </details>
-    <a v-if="editorUrl" :href="editorUrl" target="_blank" rel="noopener noreferrer" class="map-ui-button streetmix-external" aria-label="Open in Streetmix" title="Open in Streetmix" @click.stop><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
-  </section>
+  </div>
   <DetailSheet v-if="!hasDesign" v-model="full" title="Streetmix">
     <div class="actions-panel streetmix-panel">
       <p v-if="loading" role="status">Loading Streetmix…</p>
@@ -51,8 +46,7 @@
       <button v-if="workflow?.requestId && !expired && !selecting && workflow.status !== 'failed'" class="action-button" :disabled="blocked" @click="check">Check status</button>
       <template v-if="!loading && !error && !saved && !result && !workflow && !pending">
         <p>Create a street cross-section for this location.</p>
-        <button class="action-button" :disabled="blocked" @click="start()">Create design</button>
-        <p class="text-sm">About a minute. Creates a public, anonymous design.</p>
+        <PillText label="Create design" size="regular" variant="primary" :disabled="blocked" :onclick="() => start()" />
       </template>
     </div>
     <template v-if="selecting && selectionAllowed && !confirmationPending" #footer>
@@ -61,20 +55,21 @@
   </DetailSheet>
 </template>
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch, useId } from 'vue';
+import { computed, onBeforeUnmount, ref, watch, useId } from 'vue';
 import { kPreloader } from 'konsta/vue';
 import DetailSheet from './DetailSheet.vue';
+import PillText from './PillText.vue';
 import StreetmixRoadMap from './StreetmixRoadMap.vue';
 import { useStreetmix } from '../services/useStreetmix';
 import { fetchStreetmixThumbnail, safeStreetmixUrl } from '../services/streetmix';
-const props = defineProps({ suggestion: { type: Object, required: true }, refreshVersion: Number });
+const props = defineProps({ suggestion: { type: Object, required: true }, theme: { type: String, default: 'light', validator: value => ['light', 'dark'].includes(value) }, surfaceLevel: { type: Number, default: 1, validator: value => value === null || (Number.isInteger(value) && value >= 0 && value <= 5) }, refreshVersion: Number });
 const emit = defineEmits(['saved']);
-const full = ref(false), expanded = ref(false), heading = ref(null);
-const open = computed(() => full.value || expanded.value);
+const full = ref(false), open = ref(true);
 const selected = ref(''), imageLoaded = ref(false), imageFailed = ref(false), selectId = useId();
 const { saved, result, workflow, pending, loading, busy, error, storageNotice, authorized, selectionAllowed, regeneration, url, expired, selecting, active, blocked, statusMessage, load, check, start, resume, confirm } = useStreetmix(props, emit, open);
 const hasDesign = computed(() => Boolean(saved.value || result.value));
 const editorUrl = computed(() => url.value || safeStreetmixUrl(saved.value?.streetmixUrl));
+function openCreation() { if (!blocked.value) full.value = true; }
 const imageUrl = ref('');
 let imageController, imageVersion = 0;
 const confirmationPending = computed(() => pending.value?.path.endsWith('/selection'));
@@ -87,25 +82,22 @@ watch(() => [workflow.value?.requestId, pending.value?.path, pending.value?.body
   } else if (id !== previousId) selected.value = '';
 });
 function clearImage() { if (imageUrl.value) URL.revokeObjectURL(imageUrl.value); imageUrl.value = ''; imageLoaded.value = imageFailed.value = false; }
-watch([expanded, () => result.value?.streetmixId || saved.value?.streetmixId], async ([visible, id], [, previousId]) => {
+watch(() => result.value?.streetmixId || saved.value?.streetmixId, async (id, previousId) => {
   imageController?.abort();
   const version = ++imageVersion;
   if (id !== previousId) clearImage();
-  if (!visible || imageUrl.value) return;
+  if (!id || imageUrl.value) return;
   imageFailed.value = false;
   imageController = new AbortController();
   try {
     const image = await fetchStreetmixThumbnail(props.suggestion.id, { signal: imageController.signal });
     if (version === imageVersion) imageUrl.value = URL.createObjectURL(image);
   } catch { if (version === imageVersion) imageFailed.value = true; }
-});
+}, { immediate: true });
 onBeforeUnmount(() => { imageVersion++; imageController?.abort(); clearImage(); });
-watch(hasDesign, async value => {
+watch(hasDesign, value => {
   if (value && full.value) {
     full.value = false;
-    expanded.value = true;
-    await nextTick();
-    heading.value?.focus({ preventScroll: true });
   }
 });
 </script>
