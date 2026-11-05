@@ -1343,7 +1343,7 @@ function persistViewState() {
 }
 function getViewState() { return viewState; }
 function captureView() {
-  const content = currentTray()?.querySelector('.map-tray-content, .floating-modal__content');
+  const content = currentTray()?.querySelector('.map-tray-content, .floating-modal__content, .tray__body');
   const focused = document.activeElement;
   const row = focused?.closest('[data-suggestion-id], .idea-row')?.querySelector?.('[data-suggestion-id]') || focused?.closest('[data-suggestion-id]');
   const firstVisible = content && [...content.querySelectorAll('[data-suggestion-id]')].find(el => el.getBoundingClientRect().bottom > content.getBoundingClientRect().top);
@@ -1375,7 +1375,7 @@ async function restoreView(detailReturnViewport, preserveCamera = false) {
   if (state !== viewState) { restoringView = false; return; }
   const viewport = state.viewport || detailReturnViewport;
   if (!preserveCamera && viewport && !isDetail.value && !isSubmit.value) restoreSnapshot(viewport, !!detailReturnViewport);
-  const content = currentTray()?.querySelector('.map-tray-content, .floating-modal__content');
+  const content = currentTray()?.querySelector('.map-tray-content, .floating-modal__content, .tray__body');
   if (content && state.scroll != null) {
     content.scrollTop = state.scroll;
     const anchor = state.anchor && content.querySelector('[data-suggestion-id="' + CSS.escape(state.anchor) + '"]');

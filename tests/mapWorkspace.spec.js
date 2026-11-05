@@ -132,20 +132,20 @@ test('one map stays mounted across list, details, and every Submit step', { tag:
   await page.evaluate(() => { window.__mapNode = document.querySelector('[data-testid="persistent-map"]'); });
   await mapState(page);
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  const list = page.getByRole('region', { name: 'Browse ideas' });
+  const list = page.getByRole('dialog', { name: 'Browse ideas' });
   await expect(list).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Submissions', exact: true })).toHaveCount(0);
   await page.getByText('Suggestion 1', { exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Close Idea details', exact: true }).click();
+  await expect(page.getByRole('complementary', { name: 'Idea details', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close idea', exact: true }).click();
   await expect(list).toBeVisible();
   await mapState(page);
-  await page.getByRole('button', { name: 'Close Browse ideas', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Browse ideas', exact: true }).getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByTestId('pin-and-continue').click();
   await expect(page.getByRole('dialog', { name: 'Attach photos', exact: true })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toHaveAttribute('readonly', '');
-  await expect(page.locator('.map-search-icon .fa-location-dot')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Current address' })).toHaveAttribute('readonly', '');
+  await expect(page.getByRole('button', { name: 'Current location', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Skip photos', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Describe your idea', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next', exact: true }).click();
@@ -185,7 +185,7 @@ test('direct Locate initializes on map readiness and later steps lock the draft 
   await expect(page.getByRole('dialog', { name: 'Attach photos', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('dialog', { name: 'Attach photos', exact: true })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toHaveValue(location.address);
+  await expect(page.getByRole('textbox', { name: 'Current address' })).toHaveValue(location.address);
   expect((await mapState(page)).count).toBe(1);
 });
 
@@ -199,7 +199,7 @@ test('map failure and denied GPS leave the list and sort controls usable', async
     } });
   });
   await page.goto('/?view=list');
-  await expect(page.getByRole('region', { name: 'Browse ideas' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Browse ideas' })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'map could not be loaded' })).toBeVisible();
   await page.getByRole('button', { name: 'Nearest to me' }).click();
   await expect(page.getByRole('button', { name: 'Newest', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -221,7 +221,7 @@ test('submission failure can retry successfully without replacing the shared map
   await page.getByRole('button', { name: 'Retry submission', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Submission complete!' })).toBeVisible();
   await page.getByRole('button', { name: 'View suggestion', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Idea details', exact: true })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Idea details', exact: true })).toBeVisible();
   expect((await mapState(page)).count).toBe(1);
 });
 
@@ -237,7 +237,7 @@ test('a fresh submission pins the current Browse location without requiring a ma
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('improvement_map_wizard_draft_v1')).location.latitude)).toBe(32.85);
   await page.getByTestId('pin-and-continue').click();
-  await expect(page.getByRole('textbox', { name: 'Search address or neighborhood' })).toHaveValue('Selected address, Dallas, TX');
+  await expect(page.getByRole('textbox', { name: 'Current address' })).toHaveValue('Selected address, Dallas, TX');
 });
 
 test('the diagram proof of concept stays outside the map workspace', async ({ page }) => {
